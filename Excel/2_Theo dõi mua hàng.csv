@@ -1,0 +1,3 @@
+﻿STT;Mã PR;Nhà cung cấp;Tên vật tư;ĐVT;Số lượng;Đơn giá;Tổng tiền;Ngày đặt hàng;Ngày giao dự kiến;Ngày giao thực tế;Trạng thái;Người phụ trách;Ghi chú
+1;PR001;NCC A;Bulong M10;Cái;100;5000;500.000;01/03/2026;10/03/2026;10/03/2026;Đã hoàn thành;Đức;
+2;PR002;NCC B;Ống thép D50x6m;Cái;50;150000;7.500.000;05/03/2026;15/03/2026;;Đang giao hàng;Phong;Giao gấp

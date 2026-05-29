@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.env
+.env.local
+.env.*.local
+.git
+.gitignore
+*.md
+uploads/*
+!uploads/.gitkeep
+embedded-postgres
+pg_data
+/tmp
+.vscode
+.idea
+test_data
+*.log

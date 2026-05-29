@@ -1,0 +1,59 @@
+{
+  "mode": "APPLY",
+  "stats": {
+    "ocr_records": 17,
+    "skipped_no_rank": 1,
+    "skipped_no_bid": 0,
+    "skipped_not_msdt": 2,
+    "skipped_no_matrix": 0,
+    "matched_bids": 14,
+    "vendors_created": 1,
+    "vendors_matched": 29,
+    "offers_created": 3,
+    "offers_updated": 151,
+    "items_matched": 154,
+    "items_unmatched": 35
+  },
+  "samples": [
+    {
+      "bidId": "77c04e39",
+      "top30_rank": 14,
+      "ocr_id": null,
+      "vendors": 2,
+      "items": 1,
+      "offers": 2
+    },
+    {
+      "bidId": "efd4691c",
+      "top30_rank": 3,
+      "ocr_id": null,
+      "vendors": 3,
+      "items": 4,
+      "offers": 12
+    },
+    {
+      "bidId": "0ff3579b",
+      "top30_rank": 5,
+      "ocr_id": null,
+      "vendors": 2,
+      "items": 2,
+      "offers": 4
+    },
+    {
+      "bidId": "e11ba7ca",
+      "top30_rank": 1,
+      "ocr_id": null,
+      "vendors": 3,
+      "items": 5,
+      "offers": 15
+    },
+    {
+      "bidId": "b4fc46c7",
+      "top30_rank": 2,
+      "ocr_id": null,
+      "vendors": 1,
+      "items": 1,
+      "offers": 1
+    }
+  ]
+}

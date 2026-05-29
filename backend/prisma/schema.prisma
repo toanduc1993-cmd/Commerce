@@ -1,0 +1,687 @@
+// =================================================================
+// PRISMA SCHEMA v3 — IBS Heavy Industry E-Procurement
+// Cập nhật: 06/04/2026
+// Domain: ETO Shipbuilding / Steel Fabrication
+// DB: PostgreSQL (production-ready)
+// =================================================================
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  // Docker Alpine cần linux-musl; dev trên mac cần native
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+// ================================================================
+// BLOCK 0: AUTH & AUDIT
+// ================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // BCrypt hash — KHÔNG bao giờ lưu plain text
+  name      String
+  role      String   @default("KY_THUAT")
+  // MUA_HANG | KY_THUAT | QC | WAREHOUSE | BOD | ADMIN
+  dept      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // LOGIN | CREATE_PR | APPROVE_BID | GEN_PO | GRN | ALLOCATE | CREATE_USER
+  userId     String?
+  entityId   String?
+  entityType String?  // User | PR | PO | Inventory
+  details    String?  // JSON string
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+// ================================================================
+// BLOCK 1: MASTER DATA
+// ================================================================
+
+model Project {
+  id        String   @id @default(uuid())
+  code      String   @unique  // 25-VPI-I-095 | 25-BRA-I-090
+  name      String            // BISON (VOGT POWER PROJECT)
+  client    String?           // VOGT POWER INTERNATIONAL
+  refNo     String?           // I-095-ENG-001-REV 08
+  status    String   @default("active") // active | completed | on-hold
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  budgets               ProjectBudget[]
+  prs                   PurchaseRequisition[]
+  fabricationCategories FabricationCategory[]
+  bidAnalyses           BidAnalysis[]
+  paymentSchedules      PaymentSchedule[]
+}
+
+// Nhóm vật tư cấp 1 — A=VTC | B=VPK | C=VDK | D=VBP | E=VTH | F=VTS | G=VTP
+model MaterialGroup {
+  id        String @id @default(uuid())
+  code      String @unique // VTC | VPK | VDK | VBP | VTH | VTS | VTP
+  name      String         // Vật tư chính | Vật tư phụ kiện | ...
+  nameEn    String?        // Main Material | Accessory | ...
+  letter    String?        // A | B | C | D | E | F | G
+  sortOrder Int    @default(0)
+
+  subGroups MaterialSubGroup[]
+  prDetails PrDetail[]
+}
+
+// Nhóm vật tư cấp 2 — VTC01 (thép carbon) | VTC02 (thép hợp kim) | VPK01 (bu lông) ...
+model MaterialSubGroup {
+  id        String @id @default(uuid())
+  groupId   String
+  code      String @unique // VTC01 | VTC02 | VPK01 | VDK01 ...
+  name      String         // Thép carbon | Thép hợp kim | Bu lông | Thùng gỗ
+  sortOrder Int    @default(0)
+
+  group     MaterialGroup @relation(fields: [groupId], references: [id])
+  prDetails PrDetail[]
+  materials Material[]
+}
+
+// Master catalog vật tư — derived từ OCR items_master.ndjson (4,440+ items unique)
+// rootKey = composite key (ten|profile|mac|don_vi) — chuẩn hóa từ OCR ma_vat_tu_root
+model Material {
+  id                    String   @id @default(uuid())
+  rootKey               String   @unique // ma_vat_tu_root: "tôn tấm|pl8x1500x9060|astm a36|m2"
+  itemCodeExamples      String?  // ma_vat_tu_examples joined comma (vd "I90-A7, I95-VTC01-12")
+  name                  String   // ten_vat_tu
+  profile               String?  // PL8x1500x9060 | H200x200x8x12
+  grade                 String?  // mac — SS400 | ASTM A36 | A387 Gr11
+  uom                   String   // don_vi
+  materialSubGroupCode  String?  // VTC01 | VPK01 ... (from items_master.category)
+  unitWeightAvg         Float?   // u_weight_avg (kg/đơn vị)
+  nProjects             Int      @default(0)   // số DA đã dùng vật tư này
+  totalQtyAllProjects   Float    @default(0)
+  totalKgAllProjects    Float    @default(0)
+  nccSupplied           String?  // JSON list of vendor names
+  nDeliveryTotal        Int      @default(0)
+  source                String   @default("OCR")  // OCR | MANUAL
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  materialSubGroup MaterialSubGroup? @relation(fields: [materialSubGroupCode], references: [code])
+
+  @@index([rootKey])
+  @@index([materialSubGroupCode])
+  @@index([name])
+}
+
+// Hạng mục gia công — per-project, không cố định
+// I-095: INLET-U1 | SCR-U1 | BURNER-U1 | BASE-PLATE | OUTLET-DUCT | ...
+// I-090: KCTC | KCDK | PK
+model FabricationCategory {
+  id        String @id @default(uuid())
+  projectId String
+  code      String  // INLET-U1 | SCR-U1 | KCTC | KCDK
+  name      String  // Tên đầy đủ
+  sortOrder Int    @default(0)
+
+  project     Project                 @relation(fields: [projectId], references: [id])
+  allocations PrDetailFabAllocation[]
+
+  @@unique([projectId, code])
+}
+
+model ProjectBudget {
+  id           String  @id @default(uuid())
+  projectId    String
+  materialGroupCode String? // VTC | VPK | VDK ...
+  itemCode     String
+  itemName     String
+  profile      String?
+  grade        String?
+  uom          String
+  limitQty     Float           // Gate 1: số lượng giới hạn
+  unitPriceEst Float?          // Giá dự toán (VNĐ/đơn vị)
+  totalEst     Float?          // = limitQty * unitPriceEst
+
+  project      Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, itemCode])
+}
+
+// ================================================================
+// BLOCK 2: PR (PURCHASE REQUISITION)
+// ================================================================
+
+model PurchaseRequisition {
+  id         String   @id @default(uuid())
+  projectId  String
+  prRef      String   @unique
+  department String
+  client     String?
+  status     String   @default("DRAFT") // DRAFT | SOURCING | APPROVED | PO_ISSUED | CLOSED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project Project     @relation(fields: [projectId], references: [id])
+  details PrDetail[]
+  bids    BidAnalysis[]
+}
+
+model PrDetail {
+  id                  String   @id @default(uuid())
+  prId                String
+  materialGroupCode   String?  // VTC | VPK | VDK | VBP | VTH | VTS | VTP
+  materialSubGroupCode String? // VTC01 | VTC02 | VPK01 ...
+  itemCode            String
+  itemName            String
+  profile             String?  // PL10x2000x6000 | H200x200x8x12 ...
+  grade               String?  // SS400 | A387 Gr11 | SA516-70
+  uom                 String   // kg | tấn | m² | m | chiếc | bộ
+  unitWeight          Float    @default(0) // kg/m² hoặc kg/m
+  netQty              Float    @default(0) // Số lượng tinh (từ BOM)
+  netWeight           Float    @default(0) // = netQty * unitWeight (tấn)
+  reqQty              Float    @default(0) // Số lượng yêu cầu mua (có thể có hệ số dự phòng)
+  reqWeight           Float    @default(0)
+  remainQty           Float    @default(0) // Còn tồn kho từ trước
+  remainWeight        Float    @default(0)
+  toBuyQty            Float    @default(0) // = reqQty - remainQty
+  toBuyWeight         Float    @default(0)
+  requiredDate        DateTime?
+  urgency             String   @default("Normal") // Normal | High | Critical
+  statusFlag          String   @default("Chờ báo giá")
+  remarks             String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  pr                  PurchaseRequisition  @relation(fields: [prId], references: [id])
+  materialGroup       MaterialGroup?       @relation(fields: [materialGroupCode], references: [code])
+  materialSubGroup    MaterialSubGroup?    @relation(fields: [materialSubGroupCode], references: [code])
+  fabAllocations      PrDetailFabAllocation[]
+  contracts           ContractDetail[]
+  bids                BidAnalysis[]
+  bidLinks            BidAnalysisPrLink[]
+
+  @@index([prId])
+  @@index([materialGroupCode])
+  @@index([itemCode])
+}
+
+// Phân bổ số lượng cho từng hạng mục gia công (N-N)
+// Ràng buộc: SUM(PrDetailFabAllocation.qty) <= PrDetail.reqQty
+model PrDetailFabAllocation {
+  id                    String @id @default(uuid())
+  prDetailId            String
+  fabricationCategoryId String
+  qty                   Float  @default(0) // Số lượng phân bổ (m², tấn, chiếc...)
+  weight                Float  @default(0) // Trọng lượng phân bổ (kg)
+
+  prDetail            PrDetail            @relation(fields: [prDetailId], references: [id], onDelete: Cascade)
+  fabricationCategory FabricationCategory @relation(fields: [fabricationCategoryId], references: [id])
+
+  @@unique([prDetailId, fabricationCategoryId])
+}
+
+// Hợp đồng mua sắm — tách biệt DOMESTIC vs IMPORT
+// 1 PrDetail có thể có nhiều contracts (mua từ nhiều nhà cung cấp)
+model ContractDetail {
+  id              String   @id @default(uuid())
+  prDetailId      String?  // Optional — bid quotes & OCR-imported invoices có thể chưa có PR FK
+  purchaseOrderId String?
+  contractType    String   // DOMESTIC | IMPORT
+  // Nguồn dữ liệu: BID_QUOTE (báo giá từ Excel BID) | INVOICE (OCR từ invoices_master) | MANUAL
+  dataSource      String   @default("MANUAL")
+  // Cross-ref về DA + bằng chứng OCR (chỉ với dataSource=INVOICE)
+  projectCode     String?  // 25-VPI-I-095 — link logic, không FK
+  ocrInvoiceStt   Int?     // STT in OCR invoices_master.ndjson — for traceback
+  ocrScanRef      String?  // ma_scan (PDF reference)
+  contractNo      String?  // Số hợp đồng
+  vendorName      String?
+  vendorCountry   String?  // Quốc gia (Trung Quốc, Hàn Quốc, ...)
+  // Spec thực tế của HĐ (có thể khác PR — chuyển đổi vật tư)
+  actualProfile   String?
+  actualGrade     String?
+  contractQty     Float    @default(0)
+  contractWeight  Float    @default(0) // Kg
+  contractDate    DateTime? // Ngày ký HĐ
+  // Pricing
+  unitPriceNoVAT  Float    @default(0)
+  currency        String   @default("VND") // VND | USD | EUR
+  vatRate         Float    @default(10)    // %
+  totalNoVAT      Float    @default(0)
+  totalWithVAT    Float    @default(0)
+  // Delivery tracking
+  deliveredQty    Float    @default(0)
+  deliveredWeight Float    @default(0)
+  // ─── Import-specific milestones ───
+  importLCDate    DateTime? // Ngày mở L/C
+  exportPort      String?   // Cảng xuất phát
+  cifDate         DateTime? // Ngày CIF (Hải Phòng)
+  paymentDate     DateTime? // Ngày thanh toán
+  customsDate     DateTime? // Ngày làm thủ tục hải quan
+  arrivedDate     DateTime? // Ngày hàng thực tế đến kho
+  qcInvitationDate DateTime? // Ngày mời nghiệm thu
+  // ─── Production handover ───
+  handoverDate          DateTime? // Ngày bàn giao vào kho
+  handoverToProductDate DateTime? // Ngày bàn giao sản xuất
+  // Status
+  status          String   @default("PENDING")
+  // PENDING | ORDERED | PARTIAL_DELIVERY | COMPLETED | CANCELLED
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  prDetail      PrDetail?      @relation(fields: [prDetailId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  inspections   InspectionRecord[]
+  paymentSchedules PaymentSchedule[]
+
+  @@index([prDetailId])
+  @@index([purchaseOrderId])
+  @@index([contractType])
+  @@index([vendorName])
+  @@index([dataSource])
+  @@index([projectCode])
+}
+
+// Bản ghi nghiệm thu QC — gắn với 1 ContractDetail
+// Có thể có nhiều inspection records cho 1 contract (partial QC)
+model InspectionRecord {
+  id              String   @id @default(uuid())
+  contractDetailId String
+  inspectionType  String   // DOMESTIC | IMPORT (trùng với contractType)
+  reportNo        String?  // QC Report No
+  inspectionDate  DateTime?
+  inspectedQty    Float    @default(0)
+  inspectedWeight Float    @default(0) // Kg
+  acceptedQty     Float    @default(0)
+  acceptedWeight  Float    @default(0)
+  result          String?  // Pass | Fail | Partial | Pending | Đạt | Không đạt
+  remarks         String?
+  createdAt       DateTime @default(now())
+
+  contractDetail ContractDetail @relation(fields: [contractDetailId], references: [id], onDelete: Cascade)
+
+  @@index([contractDetailId])
+}
+
+// ================================================================
+// BLOCK 3: GÓI THẦU (BIDDING)
+// ================================================================
+
+// Bid Analysis (so sánh báo giá) — sheet tiêu đề "BID ANALYSIS - GIẢI TRÌNH MUA SẮM"
+// Mỗi sheet là 1 BidAnalysis. Mỗi BidAnalysis có nhiều BidQuoteVendor (cột vendor)
+// và nhiều BidQuoteItem (rows item) với BidQuoteOffer (cell giao của vendor × item)
+model BidAnalysis {
+  id           String   @id @default(uuid())
+  projectId    String?
+  prId         String?
+  prDetailId   String?
+  bidCode      String?  @unique  // Smart format: BID-VPI095-2606-VTC-001
+  legacyBidCode String? // Free-form cũ: "VSAN 26-1", "MSDT 68 Ngọc Hiếu"
+  // ─── Parsed bidCode components (denormalized cho query nhanh) ─────────────
+  bidCodeProj    String?  // VPI095 / BRA090 / MUL / ALL
+  bidCodeYymm    String?  // 2606 (year+month)
+  bidCodeMat     String?  // VTC / VPK / MIX / ALL
+  bidCodeSeq     Int?     // 1..999
+  bidCodeVariant String?  // A / B / C / null
+  bidCodeUrgent  Boolean  @default(false)
+  subject      String?  // VD: "Mua thép tấm SS400 cho INLET-U1 — Đợt 1"
+  bidDate      DateTime?
+  status       String   @default("OPEN") // OPEN | EVALUATING | SELECTED | CONTRACTED | CANCELLED
+  selectedVendorId String? // ID của BidQuoteVendor được chọn (winner)
+  approvedBy   String?
+  approvedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  notes        String?
+  // File Excel gốc đã upload — để user review/download lại
+  sourceFileName String?   // tên file gốc (vd "Theo doi du an 095_Rev D1.xlsx")
+  sourceFilePath String?   // path tương đối tới uploads/ (vd "bid-analyses/20260525_103045_xxx.xlsx")
+  sourceSheetName String?  // tên sheet trong Excel (1 file Excel có thể tạo nhiều BidAnalysis)
+  // F-BID-A Phase A v3 (2026-05-28): 5 selection modes foundation
+  selectionMode    String   @default("PER_ITEM") // PER_BID | PER_ITEM | PER_GROUP | AUTO_MIN_PRICE | MANUAL_WEIGHTED
+  weightingCriteria Json?   // {"price": 0.5, "quality": 0.3, "paymentTerms": 0.2} cho MANUAL_WEIGHTED
+
+  project    Project?             @relation(fields: [projectId], references: [id])
+  pr         PurchaseRequisition? @relation(fields: [prId], references: [id])
+  prDetail   PrDetail?            @relation(fields: [prDetailId], references: [id])
+  quotations Quotation[]
+  pos        PurchaseOrder[]
+  vendors    BidQuoteVendor[]
+  items      BidQuoteItem[]
+  prLinks    BidAnalysisPrLink[]
+  groupSelections BidGroupSelection[]
+  vendorScores    BidVendorScore[]
+
+  @@index([projectId])
+  @@index([bidCode])
+  @@index([prId])
+  @@index([prDetailId])
+  @@index([bidCodeProj, bidCodeYymm])
+  @@index([bidCodeProj, bidCodeMat])
+  @@index([selectionMode])
+}
+
+// F-BID-A: PER_GROUP mode — 1 BID có nhiều group, mỗi group 1 vendor
+model BidGroupSelection {
+  id                   String   @id @default(cuid())
+  bidAnalysisId        String
+  materialSubGroupCode String
+  selectedVendorName   String
+  selectedAt           DateTime @default(now())
+  selectedBy           String   // userId
+  notes                String?
+
+  bidAnalysis BidAnalysis @relation(fields: [bidAnalysisId], references: [id], onDelete: Cascade)
+
+  @@unique([bidAnalysisId, materialSubGroupCode])
+  @@index([bidAnalysisId])
+}
+
+// F-BID-A: MANUAL_WEIGHTED mode — chấm điểm vendor đa tiêu chí
+model BidVendorScore {
+  id              String   @id @default(cuid())
+  bidAnalysisId   String
+  vendorName      String
+  priceScore      Float    @default(0)  // 0-100
+  qualityScore    Float    @default(0)  // 0-100
+  paymentScore    Float    @default(0)  // 0-100
+  overallScore    Float    @default(0)  // weighted sum
+  scoredAt        DateTime @default(now())
+  scoredBy        String   // userId
+  notes           String?
+
+  bidAnalysis BidAnalysis @relation(fields: [bidAnalysisId], references: [id], onDelete: Cascade)
+
+  @@unique([bidAnalysisId, vendorName])
+  @@index([bidAnalysisId])
+}
+
+// Junction table: BidAnalysis ↔ PrDetail (many-to-many)
+// 1 BID có thể gom items từ nhiều PR; 1 PR item có thể nằm trong nhiều BID (re-bid)
+model BidAnalysisPrLink {
+  bidAnalysisId String
+  prDetailId    String
+  createdAt     DateTime @default(now())
+
+  bidAnalysis BidAnalysis @relation(fields: [bidAnalysisId], references: [id], onDelete: Cascade)
+  prDetail    PrDetail    @relation(fields: [prDetailId], references: [id], onDelete: Cascade)
+
+  @@id([bidAnalysisId, prDetailId])
+  @@index([prDetailId])
+}
+
+// Vendor tham gia 1 bid
+model BidQuoteVendor {
+  id          String   @id @default(uuid())
+  bidId       String
+  vendorName  String   // VSAN, HSC, FUJIMOTO, GNEE, ...
+  vendorCode  String?
+  vendorType  String   @default("DOMESTIC") // DOMESTIC | IMPORT
+  vendorOrder Int      @default(0) // Thứ tự cột trong sheet (0, 1, 2...)
+  currency    String   @default("VND")
+  totalQuote  Float    @default(0) // Tổng tiền báo giá của vendor này
+  isWinner       Boolean  @default(false)
+  notes          String?
+  quoteFilePath  String?  // path tương đối: "bid-quotes/<bidId>/<filename>"
+  quoteFileName  String?  // tên file gốc NCC gửi (VD: "BaoGia_VSAN_A003.xlsx")
+  createdAt      DateTime @default(now())
+
+  bid    BidAnalysis      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  offers BidQuoteOffer[]
+
+  @@index([bidId])
+}
+
+// Item trong bid (1 row)
+model BidQuoteItem {
+  id              String   @id @default(uuid())
+  bidId           String
+  itemOrder       Int      @default(0)
+  itemCode        String?  // I95-VPK-019
+  itemName        String?  // NUT-3/4"-A563-BLACK
+  profile         String?
+  grade           String?  // Mác PR
+  gradeBuy        String?  // Mác mua thực tế
+  uom             String?
+  qtyPR           Float    @default(0) // Số lượng PR
+  qtyToBuy        Float    @default(0) // Số lượng cần mua
+  // Estimation (dự toán)
+  estimateUnitPrice Float  @default(0)
+  estimateTotal     Float  @default(0)
+  // Đã mua (đến hiện tại)
+  alreadyBoughtAmount Float @default(0)
+  selectedVendorName  String? // Vendor chọn (manually từ "Lựa chọn" col)
+  notes               String?
+  createdAt           DateTime @default(now())
+
+  bid    BidAnalysis     @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  offers BidQuoteOffer[]
+
+  @@index([bidId])
+}
+
+// Offer của 1 vendor cho 1 item (cell giao bid×item)
+// Vd: VSAN báo giá cho NUT-3/4: phạm vi V, đơn giá 8800, thành tiền 10120000
+model BidQuoteOffer {
+  id          String   @id @default(uuid())
+  itemId      String
+  vendorId    String
+  scope       String?  // "V" / "X" / phạm vi
+  unitPrice   Float    @default(0) // Đơn giá báo
+  totalPrice  Float    @default(0) // Thành tiền
+  deliveryTerm String? // Tiến độ giao hàng (vd "45 days, Plain coating")
+  remarks     String?
+  createdAt   DateTime @default(now())
+
+  // qualitySource: phân biệt nguồn data của offer (B-CPVT-005)
+  // EXCEL_SCRAPE: từ parse Excel BID ANALYSIS (mặc định, 1,509 offers cũ)
+  // CLAUDE_READ: extract chất lượng cao qua Claude Vision API (OCRP Sprint P3)
+  // MANUAL: nhập tay qua UI
+  qualitySource String @default("EXCEL_SCRAPE")
+
+  item   BidQuoteItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  vendor BidQuoteVendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, vendorId])
+  @@index([itemId])
+  @@index([vendorId])
+  @@index([qualitySource])
+}
+
+// Quotation cũ — giữ nguyên backward compat
+model Quotation {
+  id           String   @id @default(uuid())
+  bidId        String
+  vendorName   String
+  vendorCode   String?
+  totalPrice   Float
+  unitPrice    Float    @default(0)
+  currency     String   @default("VND")
+  deliveryDays Int      @default(0)
+  isWinner     Boolean  @default(false)
+  certOrigin   String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  bid          BidAnalysis @relation(fields: [bidId], references: [id])
+}
+
+// Module: Vendor master — nhà cung cấp
+// CRUD đầy đủ với MST, địa chỉ, đại diện, ngành hàng, rating
+model Vendor {
+  id              String   @id @default(uuid())
+  code            String?  @unique // Mã nội bộ (VD: NCC-001)
+  name            String   @unique // Tên công ty
+  shortName       String?  // Tên gọi tắt (VSAN, GNEE, APEC)
+  taxCode         String?  // Mã số thuế
+  address         String?
+  city            String?
+  country         String?  @default("Việt Nam")
+  phone           String?
+  email           String?
+  website         String?
+  // Người đại diện
+  contactName     String?
+  contactTitle    String?
+  contactPhone    String?
+  contactEmail    String?
+  // Ngành hàng (comma-separated hoặc JSON)
+  categories      String?  // "Thép tấm, Thép hình, Bu lông"
+  vendorType      String   @default("DOMESTIC") // DOMESTIC | IMPORT | MIXED
+  // Banking info (B-CPVT-012 — enrich từ OCRP vendor_master_v1)
+  bank            String?  // "Ngân hàng Techcombank - CN Đông Đô"
+  accountNo       String?  // Số tài khoản — string vì có thể bắt đầu = 0
+  // Đánh giá
+  rating          Int?     // 1-5 sao
+  // Status
+  status          String   @default("ACTIVE") // ACTIVE | INACTIVE | BLACKLIST
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([name])
+  @@index([taxCode])
+}
+
+// Module 5: Kế hoạch thanh toán — mỗi row 1 entry trong sheet "Kế hoạch thanh toán"
+model PaymentSchedule {
+  id              String   @id @default(uuid())
+  projectId       String?
+  contractDetailId String? // Link với ContractDetail nếu match được số HĐ
+  // Fields theo cấu trúc Excel "Kế hoạch thanh toán"
+  rowOrder        Int      @default(0)
+  supplier        String?
+  saleContract    String?  // Số sale contract / VD: IBS-FY260115
+  projectCode     String?  // DA 095, G07, ...
+  value           Float    @default(0) // Value (CIF Hải Phòng) hoặc giá trước thuế
+  currency        String   @default("VND")
+  paymentMethod   String?  // T/T | LC 100% | DP | ...
+  signDate        DateTime?
+  lcDate          DateTime? // Ngày mở L/C
+  etd             DateTime? // Ngày tàu xuất phát
+  eta             DateTime? // Ngày tàu đến
+  documentDate    DateTime? // Ngày nhận chứng từ
+  paymentMonth    String?   // VD "Tháng 2", "Tháng 4"
+  lcDeadline      DateTime? // Deadline of L/C
+  notes           String?
+  status          String   @default("PLANNED") // PLANNED | DUE | PAID | OVERDUE
+  paidDate        DateTime?
+  paidAmount      Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project        Project?       @relation(fields: [projectId], references: [id])
+  contractDetail ContractDetail? @relation(fields: [contractDetailId], references: [id])
+
+  @@index([projectId])
+  @@index([supplier])
+  @@index([paymentMonth])
+}
+
+// ================================================================
+// BLOCK 4: PO & LOGISTICS
+// ================================================================
+
+model PurchaseOrder {
+  id        String   @id @default(uuid())
+  bidId     String?
+  poCode    String   @unique
+  vendorName String?
+  totalValue Float   @default(0)
+  currency   String  @default("VND")
+  status    String   @default("ISSUED")
+  // ISSUED | PARTIAL_RECEIVED | FULLY_RECEIVED | CLOSED | CANCELLED
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bid             BidAnalysis?     @relation(fields: [bidId], references: [id])
+  contractDetails ContractDetail[]
+  grns            GoodsReceivedNote[]
+}
+
+// Phiếu nhập kho (Goods Received Note)
+model GoodsReceivedNote {
+  id              String   @id @default(uuid())
+  purchaseOrderId String
+  grnCode         String   @unique // GRN-2026-001
+  warehouseLocation String? // Kho A | Kho B | Kho Ngoài Trời
+  receivedBy      String?  // userId kho tiếp nhận
+  qcInspectedBy   String?  // userId QC kiểm tra
+  qcStatus        String   @default("PENDING") // PENDING | PASSED | FAILED | PARTIAL
+  receivedAt      DateTime @default(now())
+  notes           String?
+
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  lineItems     GRNLineItem[]
+}
+
+// Chi tiết từng dòng vật tư trong GRN
+model GRNLineItem {
+  id            String @id @default(uuid())
+  grnId         String
+  itemCode      String
+  itemName      String
+  uom           String
+  orderedQty    Float  @default(0)
+  receivedQty   Float  @default(0) // Số lượng thực tế nhận được
+  rejectedQty   Float  @default(0) // Số lượng bị reject bởi QC
+  acceptedQty   Float  @default(0) // = receivedQty - rejectedQty
+  receivedWeight Float @default(0) // tấn
+  notes         String?
+
+  grn GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+}
+
+// Tồn kho thực tế (cập nhật mỗi lần GRN được confirm)
+model Inventory {
+  id            String   @id @default(uuid())
+  itemCode      String   @unique
+  itemName      String?
+  uom           String
+  onHandQty     Float    @default(0) // Số lượng thực tế trong kho
+  allocatedQty  Float    @default(0) // Đã cấp phát cứng (Gate 3)
+  availableQty  Float    @default(0) // = onHandQty - allocatedQty (computed)
+  warehouseLocation String?
+  lastReceivedAt DateTime?
+  updatedAt     DateTime @updatedAt
+
+  peggings      HardPegging[]
+}
+
+// Gate 3: Cứng hóa tồn kho — 1 lô vật tư gắn cứng cho 1 PR Detail cụ thể
+model HardPegging {
+  id          String   @id @default(uuid())
+  inventoryId String
+  prDetailId  String
+  peggedQty   Float    @default(0)
+  peggedBy    String?  // userId thực hiện
+  peggedAt    DateTime @default(now())
+  status      String   @default("ACTIVE") // ACTIVE | RELEASED | CONSUMED
+
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+}
+
+// ─── F04 — Alert Center (Reconciliation alerts dashboard) ────────────────────
+// Persist resolved-state cho alerts trong project_reconciliation.json (DA snapshot).
+// canonicalKey = key trong reconciliation[].canonical_key (e.g. "23-052-B-189").
+model AlertResolution {
+  id           String   @id @default(cuid())
+  canonicalKey String   @unique @map("canonical_key")
+  resolvedBy   String   @map("resolved_by")
+  resolvedAt   DateTime @default(now()) @map("resolved_at")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("alert_resolution")
+}

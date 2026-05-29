@@ -1,0 +1,2 @@
+# Đặt fullchain.pem + privkey.pem vào folder này trước khi start Nginx
+# Xem deploy/README.md mục "SSL certificate"

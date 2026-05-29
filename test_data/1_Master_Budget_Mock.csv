@@ -1,0 +1,7 @@
+STT;Nhóm vật tư;Danh mục vật tư;Đơn vị tính;Khối lượng/ Số lượng;Đơn giá (vnd);Thành tiền (vnd);Tỷ lệ (%)
+A;VTC;Vật tư chính;;;;;
+1;VTC0103;Thép ống carbon (Sch 80 - Lưu chất ăn mòn);kg;25000;20000;500000000;10%
+2;VTC0101;Thép tấm carbon (AH36);kg;150000;18500;2775000000;55%
+B;VPK;Vật tư phụ - Phụ kiện đường ống;;;;;
+3;VPK0201;Van cổng 2" 800LB SW;chiếc;50;1500000;75000000;1.5%
+4;VPK0202;Mặt bích rèn CL 300 RF;chiếc;100;450000;45000000;0.9%

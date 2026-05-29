@@ -1,0 +1,43 @@
+﻿;;"CÔNG TY CỔ PHẦN CÔNG NGHIỆP NẶNG IBS 
+IBS HEAVY INDUSTRY JOINT STOCK COMPANY
+Add.: KM6, Quốc lộ 5, Phường Hồng Bàng, Thành phố Hải Phòng
+";;;;;;;;;
+DỰ TOÁN CHI PHÍ VẬT TƯ;;;;;;;;;;;
+;;;;;;Mẫu số:  QT30-DT03;;;;;
+STT;Nhóm vật tư;Danh mục vật tư;Đơn vị tính;Khối lượng/ Số lượng;"Đơn giá
+(vnd)";"Thành tiền
+(vnd)";Tỷ lệ (%);;;;
+A;VTC;Vật tư chính;; -   ;; 29.025.326.200 ;84,50%;;;;
+1;VTC01;Thép carbon các loại;kg; -   ; -   ; -   ;;;;;
+;VTC0101;Thép tấm carbon;kg; -   ; -   ; -   ;;;;;
+;VTC0102;Thép hình carbon;kg; -   ; -   ; -   ;;;;;
+;VTC0103;Thép ống carbon;kg; -   ; -   ; -   ;;;;;
+;VTC0104;Thép carbon khác;kg; -   ; -   ; -   ;;;;;
+2;VTC02;Thép Hợp kim các loại;kg;;;;;;;;
+;VTC0201;Thép tấm Hợp kim;kg; -   ; -   ; -   ;;;;;
+;VTC0202;Thép hình Hợp kim;kg; -   ; -   ; -   ;;;;;
+;VTC0203;Thép ống Hợp kim;kg; -   ; -   ; -   ;;;;;
+;VTC0204;Thép hợp kim khác;kg; -   ; -   ; -   ;;;;;
+3;VTC03;Tấm sàn, grating …;kg; -   ; -   ; -   ;;;;;
+4;VTC04;Vât tư bảo ôn;kg; -   ; -   ; -   ;;;;;
+B;VPK;Vật tư phụ kiện, bu lông…;; -   ; -   ;;0,00%;Vật tư chính đã có tính;;;
+1;VPK01;Phụ kiện;; -   ; -   ; -   ;;;;;
+2;VPK02;Phụ kiện khác;; -   ; -   ; -   ;;;;;
+C;VDK;Vật tư đóng kiện;; -   ; -   ; 4.435.023.258 ;12,91%;;;;
+1;VDK01;Thép carbon các loại;; -   ; -   ; -   ;;;;;
+2;VDK02;Vật tư phụ kiện, bu lông…;; -   ; -   ; -   ;;;;;
+3;VDK03;Vật tư phụ các loại khác;; -   ; -   ; -   ;;;;;
+D;VBP;Vật tư làm biện pháp;; -   ; -   ;;0,00%;Chưa có/ Sản xuất;;;
+1;VBP01;Thép carbon các loại;;;;;;;;;
+2;VBP02;Vật tư phụ kiện, bu lông…;;;;;;;;;
+3;VDK03;Vật tư biện pháp khác;;;;;;;;;
+E;VTH;Vật tư tiêu hao;;;; 398.339.091 ;1,16%;Quá ít;;;
+1;VTH01;Vật tư hàn;; -   ; -   ; -   ;;;;;
+2;VTH02;Khí công nghiệp;;;; -   ;;;;;
+3;VTH03;Vật tư phụ các loại;;;; -   ;;;;;
+F;VTS;Vật tư làm sạch và sơn;;;; 490.286.996 ;1,43%;Quá ít;;;
+G;VTP;Vật tư dự phòng;;;; -   ;0,00%;Chưa có;;;
+;;TỔNG CỘNG (A+B+C+D);;;; 34.348.975.544 ;100%;;;;
+;;;;;;;;;;;
+;;;;;;Ngày…...tháng…...năm 2025;;;;;
+;;;;;;Phòng Thương mại;;;;;

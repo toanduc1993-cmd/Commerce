@@ -1,0 +1,1369 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>IBSHI Procurement — System Logic Canvas</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, 'Inter', 'Segoe UI', sans-serif;
+        background: #0b1729;
+        color: #e2e8f0;
+        padding: 24px;
+        line-height: 1.5;
+      }
+      .container {
+        max-width: 1600px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        background: linear-gradient(90deg, #60a5fa, #818cf8, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 8px;
+      }
+      .subtitle {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-bottom: 32px;
+      }
+
+      h2 {
+        font-size: 18px;
+        color: #60a5fa;
+        margin: 32px 0 12px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      h3 {
+        font-size: 13px;
+        color: #cbd5e1;
+        margin: 16px 0 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+      .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+      .grid-4 { grid-template-columns: repeat(4, 1fr); }
+      .grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+      .card {
+        background: #0f1d36;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 16px;
+        position: relative;
+      }
+      .card.glow {
+        border: 1px solid #3b82f6;
+        box-shadow: 0 0 0 1px #3b82f6, 0 4px 24px rgba(59, 130, 246, 0.2);
+      }
+      .card h4 {
+        font-size: 14px;
+        color: #f1f5f9;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .card .num {
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        color: white;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .card .meta {
+        font-size: 10px;
+        color: #64748b;
+        margin: 4px 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .card .meta span {
+        background: #1e293b;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .card .desc {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 6px;
+      }
+
+      .module-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f1d36 100%);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 14px;
+        position: relative;
+        transition: all 0.2s;
+      }
+      .module-card.module-blue { border-left: 4px solid #3b82f6; }
+      .module-card.module-emerald { border-left: 4px solid #10b981; }
+      .module-card.module-amber { border-left: 4px solid #f59e0b; }
+      .module-card.module-purple { border-left: 4px solid #a855f7; }
+      .module-card.module-rose { border-left: 4px solid #f43f5e; }
+      .module-card.module-cyan { border-left: 4px solid #06b6d4; }
+      .module-card.module-teal { border-left: 4px solid #14b8a6; }
+      .module-card.module-indigo { border-left: 4px solid #6366f1; }
+      .module-card.module-pink { border-left: 4px solid #ec4899; }
+
+      .module-card .badge-step {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #1e293b;
+        color: #94a3b8;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid #475569;
+      }
+      .module-card .name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #f1f5f9;
+        margin-bottom: 4px;
+      }
+      .module-card .path {
+        font-family: ui-monospace, 'Mono', monospace;
+        font-size: 10px;
+        color: #64748b;
+        margin-bottom: 8px;
+      }
+      .module-card .features {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 6px;
+      }
+      .module-card .features span {
+        background: #1e293b;
+        color: #cbd5e1;
+        font-size: 9.5px;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .module-card .stats {
+        margin-top: 6px;
+        font-size: 10px;
+        color: #64748b;
+      }
+      .module-card .stats strong {
+        color: #60a5fa;
+      }
+
+      /* Workflow flow boxes */
+      .flow-row {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+        margin: 12px 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      .flow-step {
+        flex: 1;
+        min-width: 110px;
+        background: #0f1d36;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 10px;
+        position: relative;
+      }
+      .flow-step.done {
+        background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+        border-color: #10b981;
+      }
+      .flow-step.active {
+        background: linear-gradient(135deg, #78350f 0%, #451a03 100%);
+        border-color: #f59e0b;
+      }
+      .flow-step .step-num {
+        font-size: 10px;
+        color: #94a3b8;
+        font-weight: 700;
+      }
+      .flow-step .step-name {
+        font-size: 11px;
+        color: #f1f5f9;
+        font-weight: 700;
+        margin: 4px 0;
+      }
+      .flow-step .step-data {
+        font-size: 9px;
+        color: #64748b;
+        line-height: 1.4;
+      }
+      .flow-arrow {
+        align-self: center;
+        color: #475569;
+        font-size: 16px;
+      }
+
+      /* Schema box */
+      .schema-box {
+        background: #0a1525;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: ui-monospace, monospace;
+        font-size: 10px;
+      }
+      .schema-box .table-name {
+        color: #60a5fa;
+        font-weight: 700;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .schema-box .pk {
+        color: #f59e0b;
+      }
+      .schema-box .fk {
+        color: #a855f7;
+      }
+      .schema-box .field {
+        color: #94a3b8;
+        padding: 1px 0;
+      }
+      .schema-box .field strong {
+        color: #cbd5e1;
+      }
+      .schema-box .relation {
+        color: #10b981;
+        font-style: italic;
+        margin-top: 4px;
+      }
+
+      /* Data flow diagram */
+      .data-flow {
+        background: #0a1525;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 16px 0;
+      }
+
+      /* Pipe diagram */
+      .pipe {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+      }
+      .pipe .left, .pipe .right {
+        background: #0f1d36;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 11px;
+      }
+      .pipe .arrow {
+        color: #60a5fa;
+        font-size: 18px;
+      }
+
+      /* Color tags */
+      .tag {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .tag-frontend { background: #1e3a8a; color: #93c5fd; }
+      .tag-backend { background: #065f46; color: #6ee7b7; }
+      .tag-db { background: #581c87; color: #d8b4fe; }
+      .tag-parser { background: #7c2d12; color: #fdba74; }
+      .tag-api { background: #831843; color: #fbcfe8; }
+
+      /* Legend */
+      .legend {
+        display: flex;
+        gap: 12px;
+        margin: 12px 0;
+        flex-wrap: wrap;
+        font-size: 10px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+      }
+
+      /* Footer stats */
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+        margin: 16px 0;
+      }
+      .stat-box {
+        background: #0f1d36;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+      }
+      .stat-box .v {
+        font-size: 20px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .stat-box .l {
+        font-size: 9px;
+        color: #64748b;
+        margin-top: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* Code block */
+      pre {
+        background: #0a1525;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 10px;
+        font-family: ui-monospace, monospace;
+        font-size: 10px;
+        color: #94a3b8;
+        overflow-x: auto;
+        margin: 8px 0;
+      }
+      pre .keyword { color: #c084fc; }
+      pre .string { color: #86efac; }
+      pre .field { color: #93c5fd; }
+      pre .comment { color: #64748b; font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🏗 IBSHI Procurement System — Logic Architecture Canvas</h1>
+      <p class="subtitle">
+        Kiến trúc hệ thống quản lý mua sắm vật tư · <strong>10 modules</strong> · 15 DB tables · 5
+        projects · 1.351 PR items · 81 bid analyses · <strong>245 contracts (76,9 tỷ VND)</strong>
+        · <strong>124 vendors</strong> · 97 arrivals · Docker production-ready
+      </p>
+
+      <!-- ═══════════ STATS OVERVIEW ═══════════ -->
+      <div class="stats-row">
+        <div class="stat-box"><div class="v">5</div><div class="l">Projects</div></div>
+        <div class="stat-box"><div class="v">1,351</div><div class="l">PR Items</div></div>
+        <div class="stat-box"><div class="v">81</div><div class="l">Bid Analyses</div></div>
+        <div class="stat-box"><div class="v">245</div><div class="l">Contracts</div></div>
+        <div class="stat-box"><div class="v">124</div><div class="l">Vendors</div></div>
+        <div class="stat-box"><div class="v">97</div><div class="l">Arrivals</div></div>
+        <div class="stat-box"><div class="v">31</div><div class="l">Payments</div></div>
+        <div class="stat-box"><div class="v">76.9 tỷ</div><div class="l">VND Total</div></div>
+      </div>
+
+      <!-- ═══════════ TECH STACK ═══════════ -->
+      <h2>📚 Tech Stack & Architecture</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h4>🎨 Frontend <span class="tag tag-frontend">Next.js 16</span></h4>
+          <div class="meta">
+            <span>React 19</span><span>TypeScript</span><span>Tailwind v4</span
+            ><span>Turbopack</span><span>Standalone build</span>
+          </div>
+          <div class="desc">
+            App Router · Server Components · Sticky headers · Excel-like 100+ col tables · Dark
+            navy theme #1B365D · output: standalone cho Docker
+          </div>
+        </div>
+        <div class="card">
+          <h4>⚙️ Backend <span class="tag tag-backend">Express 5</span></h4>
+          <div class="meta">
+            <span>Node 22</span><span>Prisma 7</span><span>JWT + bcrypt</span
+            ><span>express-rate-limit</span><span>Helmet CSP strict</span>
+          </div>
+          <div class="desc">
+            REST API · Rate limit login 5/15min · API 200/min · Upload 20/10min · CSP
+            default-src 'self' · HSTS preload · trust proxy
+          </div>
+        </div>
+        <div class="card">
+          <h4>💾 Database <span class="tag tag-db">PostgreSQL 17</span></h4>
+          <div class="meta">
+            <span>Docker internal</span><span>Driver: pg adapter</span
+            ><span>binaryTargets: musl</span>
+          </div>
+          <div class="desc">
+            15 models · Cascade delete · Indexed FK · KHÔNG expose port ra host · pg_data
+            persistent volume
+          </div>
+        </div>
+        <div class="card">
+          <h4>🐳 Deployment <span class="tag tag-backend">Docker Compose</span></h4>
+          <div class="meta">
+            <span>4 services</span><span>multi-stage</span><span>tini PID1</span
+            ><span>non-root user</span>
+          </div>
+          <div class="desc">
+            postgres · backend · frontend · nginx trong network
+            <code style="color: #fbbf24">ibshi_net</code>. Healthcheck + restart unless-stopped.
+          </div>
+        </div>
+        <div class="card">
+          <h4>🌐 Reverse Proxy <span class="tag tag-backend">Nginx 1.27</span></h4>
+          <div class="meta">
+            <span>SSL terminate</span><span>TLS 1.2/1.3</span><span>HSTS</span
+            ><span>rate limit zones</span>
+          </div>
+          <div class="desc">
+            HTTPS 443 → route /api → backend · / → frontend · /_next/static cache 1y · login
+            limit 1r/s burst 5
+          </div>
+        </div>
+        <div class="card">
+          <h4>🔐 Security Hardening <span class="tag tag-api">Production-grade</span></h4>
+          <div class="meta">
+            <span>bcrypt 12</span><span>JWT 64-byte</span><span>2-layer rate limit</span
+            ><span>audit log</span>
+          </div>
+          <div class="desc">
+            Login brute-force chặn · Change-password self-service · Helmet strict CSP ·
+            frame-ancestors 'none'
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ 10 MODULES MAP ═══════════ -->
+      <h2>🗂 10 Modules — Sidebar Map (v3 sau refactor 7 ngày)</h2>
+      <div class="grid grid-3">
+        <div class="module-card module-blue">
+          <span class="badge-step">B0</span>
+          <div class="name">📊 Dashboard</div>
+          <div class="path">/dashboard</div>
+          <div class="features">
+            <span>KPI cards</span><span>Top vendors</span><span>Group breakdown</span>
+          </div>
+          <div class="stats">
+            Real-time stats từ <strong>/api/v1/dashboard/stats</strong> · 76,9 tỷ VND
+          </div>
+        </div>
+
+        <div class="module-card module-cyan">
+          <span class="badge-step">B0</span>
+          <div class="name">📁 Dự Án</div>
+          <div class="path">/projects</div>
+          <div class="features">
+            <span>5 projects</span><span>PR count + KL</span>
+          </div>
+          <div class="stats">Master data · code 25-VPI/BRA/IBS/WNC/GEN</div>
+        </div>
+
+        <div class="module-card module-blue">
+          <span class="badge-step">B1</span>
+          <div class="name">📦 Theo Dõi Mua Hàng</div>
+          <div class="path">/mua-hang</div>
+          <div class="features">
+            <span>119 cols</span><span>16 REVs</span><span>DOM+IMP</span><span>QC</span>
+          </div>
+          <div class="stats">
+            <strong>1.351 items</strong> · Master Tracking 12 cụm cột Excel-style
+          </div>
+        </div>
+
+        <div class="module-card module-emerald">
+          <span class="badge-step">B2</span>
+          <div class="name">💰 Báo Giá</div>
+          <div class="path">/bao-gia</div>
+          <div class="features">
+            <span>Upload Excel</span><span>Status filter</span><span>4 KPIs</span>
+          </div>
+          <div class="stats"><strong>81 bids</strong> · Parser BID ANALYSIS sheets</div>
+        </div>
+
+        <div class="module-card module-amber">
+          <span class="badge-step">B3</span>
+          <div class="name">⚖️ So Sánh Báo Giá</div>
+          <div class="path">/so-sanh-bao-gia</div>
+          <div class="features">
+            <span>Vendor cards</span><span>Min price highlight</span><span>Select winner</span>
+          </div>
+          <div class="stats">Sidebar list bids · Comparison full Excel format</div>
+        </div>
+
+        <div class="module-card module-indigo">
+          <span class="badge-step">B4</span>
+          <div class="name">📄 Hợp Đồng</div>
+          <div class="path">/hop-dong</div>
+          <div class="features">
+            <span>DOM 218 / IMP 27</span><span>Expand line items</span
+            ><span>IMP timeline</span><span>PO merged</span>
+          </div>
+          <div class="stats">
+            <strong>245 contracts</strong> · 1.578 items · PO = Hợp đồng (merged)
+          </div>
+        </div>
+
+        <div class="module-card module-rose">
+          <span class="badge-step">B5</span>
+          <div class="name">💳 Thanh Toán</div>
+          <div class="path">/thanh-toan</div>
+          <div class="features">
+            <span>Month buckets</span><span>Mark paid</span><span>L/C deadline</span>
+          </div>
+          <div class="stats">
+            <strong>31 schedules</strong> · T/T · LC 100% · DP · 11,1 tỷ trong T2
+          </div>
+        </div>
+
+        <div class="module-card module-purple glow">
+          <span class="badge-step">B6 ★NEW</span>
+          <div class="name">🏭 Nhà Cung Cấp — CRUD đầy đủ</div>
+          <div class="path">/vendors</div>
+          <div class="features">
+            <span>Full CRUD</span><span>MST · địa chỉ · liên hệ</span><span>Soft/hard delete</span
+            ><span>Contract history drawer</span><span>Auto-seed</span>
+          </div>
+          <div class="stats">
+            <strong>124 vendors</strong> · Hùng Nguyên 241 HĐ/22,9 tỷ · VSAN · GNEE · APEC
+          </div>
+        </div>
+
+        <div class="module-card module-teal">
+          <span class="badge-step">—</span>
+          <div class="name">📋 Danh Mục Vật Tư (read-only)</div>
+          <div class="path">/inventory</div>
+          <div class="features">
+            <span>Master catalog</span><span>Group filter</span><span>Search profile/grade</span>
+          </div>
+          <div class="stats">~1.351 mã · VPK 438 / VTC 652 / VDK 261 · ERP khác track tồn kho</div>
+        </div>
+
+        <div class="module-card module-pink glow">
+          <span class="badge-step">B7 ★NEW</span>
+          <div class="name">📥 Hàng Về & QC</div>
+          <div class="path">/warehouse</div>
+          <div class="features">
+            <span>Arrivals tracker</span><span>Inspection CRUD inline</span
+            ><span>Handover SX</span><span>4 milestones</span>
+          </div>
+          <div class="stats">
+            <strong>97 arrivals</strong> · 62 đã bàn giao SX · 623 tấn · từ
+            ContractDetail.arrivedDate + InspectionRecord
+          </div>
+        </div>
+
+        <div class="module-card module-blue">
+          <span class="badge-step">B8 ★NEW</span>
+          <div class="name">⚙️ Cài Đặt Tài Khoản</div>
+          <div class="path">/settings</div>
+          <div class="features">
+            <span>Change password</span><span>Strength meter</span><span>Auto logout</span>
+          </div>
+          <div class="stats">
+            Self-service đổi mật khẩu · bcrypt 12 rounds · không cho reuse password cũ
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ 11-STEP WORKFLOW ═══════════ -->
+      <h2>🔄 Workflow Mua Sắm — 11 Bước</h2>
+      <div class="data-flow">
+        <div class="flow-row">
+          <div class="flow-step done">
+            <div class="step-num">B1</div>
+            <div class="step-name">Tiếp nhận PR</div>
+            <div class="step-data">PrDetail.itemCode, reqQty, profile, grade, uom</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step done">
+            <div class="step-num">B2</div>
+            <div class="step-name">Gửi RFQ</div>
+            <div class="step-data">BidAnalysis.create(projectId, subject)</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step done">
+            <div class="step-num">B3</div>
+            <div class="step-name">Nhận báo giá</div>
+            <div class="step-data">BidQuoteVendor[] · BidQuoteOffer.unitPrice</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step done">
+            <div class="step-num">B4</div>
+            <div class="step-name">So sánh BG</div>
+            <div class="step-data">Compare offers · Min price highlight</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step active">
+            <div class="step-num">B5</div>
+            <div class="step-name">Làm rõ KT</div>
+            <div class="step-data">actualProfile ≠ profile → warning</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step active">
+            <div class="step-num">B6</div>
+            <div class="step-name">Chuyển đổi VT</div>
+            <div class="step-data">PrDetail.remarks · spec swap</div>
+          </div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-step done">
+            <div class="step-num">B7</div>
+            <div class="step-name">Ký HĐ</div>
+            <div class="step-data">
+              ContractDetail (số HĐ, vendor, đơn giá, total VAT/noVAT)
+            </div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step done">
+            <div class="step-num">B8</div>
+            <div class="step-name">Giao hàng</div>
+            <div class="step-data">
+              IMP: importLCDate · cifDate · arrivedDate · customsDate
+            </div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step done">
+            <div class="step-num">B9</div>
+            <div class="step-name">Nghiệm thu QC</div>
+            <div class="step-data">InspectionRecord.result · acceptedWeight · reportNo</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step done">
+            <div class="step-num">B10</div>
+            <div class="step-name">Bàn giao SX</div>
+            <div class="step-data">
+              handoverToProductDate · <strong>62/97</strong> đã bàn giao
+            </div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step done">
+            <div class="step-num">B11</div>
+            <div class="step-name">Thanh toán</div>
+            <div class="step-data">PaymentSchedule · PATCH status=PAID · mark paid UI</div>
+          </div>
+        </div>
+        <div
+          style="
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: #052e1a;
+            border: 1px solid #10b981;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #6ee7b7;
+          "
+        >
+          ✅ <strong>11/11 bước đã có UI + data real</strong>. Module 7 (Hàng Về &amp; QC) mới
+          hoàn thiện bước B9 nghiệm thu QC với inspection inline form. Module 6 (Nhà Cung Cấp)
+          cung cấp master data cho toàn workflow.
+        </div>
+      </div>
+
+      <!-- ═══════════ DATA FLOW PIPELINE ═══════════ -->
+      <h2>🔌 Data Flow Pipeline — Excel → DB</h2>
+      <div class="data-flow">
+        <h3>1️⃣ Upload PR (Module 1)</h3>
+        <div class="pipe">
+          <div class="left">
+            📄 <strong>PR 090.xlsx</strong> hoặc<br /><strong>Theo dõi dự án XXX.xlsx</strong>
+            <div style="font-size: 10px; color: #64748b">237 valid items</div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="right">
+            🔧 <strong>fileParser.js</strong> + <strong>prValidator.js</strong>
+            <div style="font-size: 10px; color: #64748b">
+              detectHeader · skip noise · group detect (VTC/VPK/VDK)
+            </div>
+          </div>
+        </div>
+        <div class="pipe">
+          <div class="left">
+            🔧 Validated rows
+            <div style="font-size: 10px; color: #64748b">
+              + auto-detect materialGroupCode
+            </div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="right">
+            💾 <strong>PrDetail</strong> + <strong>PurchaseRequisition</strong>
+            <div style="font-size: 10px; color: #64748b">
+              prImportController.importPR()
+            </div>
+          </div>
+        </div>
+
+        <h3>2️⃣ Update Procurement Status</h3>
+        <div class="pipe">
+          <div class="left">
+            📄 <strong>Theo dõi dự án XXX.xlsx</strong> · sheet master 119-164 cols
+            <div style="font-size: 10px; color: #64748b">
+              VẬT TƯ TRONG NƯỚC + Mua sắm nước ngoài blocks
+            </div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="right">
+            🔧 <strong>procurementUpdater.js</strong>
+            <div style="font-size: 10px; color: #64748b">
+              dynamic header detection · DOM 13 + IMP 18 cols
+            </div>
+          </div>
+        </div>
+        <div class="pipe">
+          <div class="left">Mapping rows by itemCode</div>
+          <div class="arrow">→</div>
+          <div class="right">
+            💾 <strong>ContractDetail</strong> upsert + <strong>InspectionRecord</strong> link
+            <div style="font-size: 10px; color: #64748b">
+              auto-create missing PrDetails
+            </div>
+          </div>
+        </div>
+
+        <h3>3️⃣ Upload Bid Analyses (Module 2)</h3>
+        <div class="pipe">
+          <div class="left">
+            📄 <strong>Sheets BID ANALYSIS</strong>
+            <div style="font-size: 10px; color: #64748b">
+              45+ sheets/file · "VSAN 26-1", "Hùng nguyên 29-1", "Giải tình ..."
+            </div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="right">
+            🔧 <strong>bidAnalysisParser.js</strong>
+            <div style="font-size: 10px; color: #64748b">
+              detect vendors · parse offers · winner detection
+            </div>
+          </div>
+        </div>
+        <div class="pipe">
+          <div class="left">Parsed bid + vendors + items + offers</div>
+          <div class="arrow">→</div>
+          <div class="right">
+            💾 <strong>BidAnalysis</strong> + <strong>BidQuoteVendor</strong> +
+            <strong>BidQuoteItem</strong> + <strong>BidQuoteOffer</strong>
+          </div>
+        </div>
+
+        <h3>4️⃣ Upload Payment Schedule (Module 5)</h3>
+        <div class="pipe">
+          <div class="left">
+            📄 <strong>Sheet "Kế hoạch thanh toán"</strong>
+            <div style="font-size: 10px; color: #64748b">
+              14 cols: STT · SUPPLIER · SALE CONTRACT · VALUE · L/C · ETD · ETA · ...
+            </div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="right">
+            🔧 <strong>paymentScheduleParser.js</strong>
+            <div style="font-size: 10px; color: #64748b">
+              column auto-mapping · skip footer rows
+            </div>
+          </div>
+        </div>
+        <div class="pipe">
+          <div class="left">31 payment entries</div>
+          <div class="arrow">→</div>
+          <div class="right">
+            💾 <strong>PaymentSchedule</strong>
+            <div style="font-size: 10px; color: #64748b">
+              link với ContractDetail nếu match saleContract
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ DB SCHEMA RELATIONSHIPS ═══════════ -->
+      <h2>💾 Database Schema — 15 Models</h2>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #3b82f6"></div>
+          Master data
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #10b981"></div>
+          PR data (Module 1)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #f59e0b"></div>
+          Bid (Module 2/3)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #6366f1"></div>
+          Contract (Module 4)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #f43f5e"></div>
+          Payment (Module 5)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #a855f7"></div>
+          Vendor Master ★ (Module 6)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #ec4899"></div>
+          Arrivals + QC ★ (Module 7)
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <!-- Project -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #60a5fa">▣ Project</div>
+          <div class="field"><span class="pk">id</span> · String @id</div>
+          <div class="field"><strong>code</strong> · String unique <span class="comment">// 25-VPI-I-095</span></div>
+          <div class="field"><strong>name</strong>, client, refNo</div>
+          <div class="field"><strong>status</strong> · active/completed/on-hold</div>
+          <div class="relation">→ has many: PR, Bid, Payment, Budget, FabCat</div>
+        </div>
+
+        <!-- PurchaseRequisition -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #6ee7b7">▣ PurchaseRequisition</div>
+          <div class="field"><span class="pk">id</span> · <span class="fk">projectId</span></div>
+          <div class="field"><strong>prRef</strong>, department, status</div>
+          <div class="field"><strong>createdAt</strong></div>
+          <div class="relation">→ has many: PrDetail, BidAnalysis</div>
+        </div>
+
+        <!-- PrDetail -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #6ee7b7">▣ PrDetail (CHÍNH)</div>
+          <div class="field"><span class="pk">id</span> · <span class="fk">prId</span></div>
+          <div class="field"><strong>itemCode, itemName</strong></div>
+          <div class="field">profile, grade, uom, unitWeight</div>
+          <div class="field">netQty, netWeight, reqQty, reqWeight</div>
+          <div class="field">remainQty, toBuyQty, materialGroup</div>
+          <div class="field"><strong>statusFlag</strong>, remarks, requiredDate</div>
+          <div class="relation">→ has many: Contract, FabAlloc, Bid, Inspection</div>
+        </div>
+
+        <!-- MaterialGroup -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #93c5fd">▣ MaterialGroup / SubGroup</div>
+          <div class="field"><strong>code</strong> · VTC/VPK/VDK/VBP/VTH/VTS/VTP</div>
+          <div class="field"><strong>name, nameEn, letter</strong></div>
+          <div class="relation">↔ subgroups: VTC01-04 / VPK01-02 / ...</div>
+        </div>
+
+        <!-- ContractDetail -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #c7d2fe">▣ ContractDetail</div>
+          <div class="field"><span class="pk">id</span> · <span class="fk">prDetailId</span></div>
+          <div class="field"><strong>contractType</strong> · DOMESTIC/IMPORT</div>
+          <div class="field"><strong>contractNo, vendorName</strong></div>
+          <div class="field">contractQty, contractWeight, contractDate</div>
+          <div class="field">unitPriceNoVAT, vatRate, totalNoVAT, totalWithVAT</div>
+          <div class="field comment">// IMP fields:</div>
+          <div class="field">importLCDate, exportPort, cifDate</div>
+          <div class="field">paymentDate, customsDate, arrivedDate</div>
+          <div class="field">qcInvitationDate, handoverToProductDate</div>
+          <div class="relation">→ has many: Inspection, PaymentSchedule</div>
+        </div>
+
+        <!-- InspectionRecord -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #c7d2fe">▣ InspectionRecord</div>
+          <div class="field"><span class="pk">id</span> · <span class="fk">contractDetailId</span></div>
+          <div class="field"><strong>reportNo, inspectionDate</strong></div>
+          <div class="field">inspectedQty, acceptedWeight</div>
+          <div class="field"><strong>result</strong> · Pass/Fail/Đạt</div>
+        </div>
+
+        <!-- BidAnalysis -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #fbbf24">▣ BidAnalysis</div>
+          <div class="field"><span class="pk">id</span> · <span class="fk">projectId</span></div>
+          <div class="field"><strong>bidCode</strong> · "VSAN 26-1"</div>
+          <div class="field"><strong>subject</strong>, bidDate</div>
+          <div class="field"><strong>status</strong> · OPEN/EVAL/SELECTED/...</div>
+          <div class="field"><strong>selectedVendorId</strong></div>
+          <div class="relation">→ has many: Vendor, Item</div>
+        </div>
+
+        <!-- BidQuoteVendor -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #fbbf24">▣ BidQuoteVendor</div>
+          <div class="field"><span class="pk">id</span> · <span class="fk">bidId</span></div>
+          <div class="field"><strong>vendorName</strong>, vendorOrder</div>
+          <div class="field"><strong>vendorType</strong> · DOM/IMP</div>
+          <div class="field">currency, totalQuote</div>
+          <div class="field"><strong>isWinner</strong> · Boolean</div>
+        </div>
+
+        <!-- BidQuoteItem + Offer -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #fbbf24">▣ BidQuoteItem + Offer</div>
+          <div class="field"><strong>BidQuoteItem</strong></div>
+          <div class="field"> ├ itemCode, itemName, profile, grade</div>
+          <div class="field"> ├ qtyPR, qtyToBuy</div>
+          <div class="field"> └ estimateUnitPrice, alreadyBoughtAmount</div>
+          <div class="field"><strong>BidQuoteOffer</strong> (cell item × vendor)</div>
+          <div class="field"> ├ scope · "V" / "X"</div>
+          <div class="field"> └ unitPrice, totalPrice</div>
+        </div>
+
+        <!-- PaymentSchedule -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #fda4af">▣ PaymentSchedule</div>
+          <div class="field"><span class="pk">id</span> · <span class="fk">projectId, contractDetailId</span></div>
+          <div class="field"><strong>supplier, saleContract</strong></div>
+          <div class="field">value, currency, paymentMethod</div>
+          <div class="field">signDate, lcDate, etd, eta, documentDate</div>
+          <div class="field"><strong>paymentMonth</strong> · "Tháng 2"</div>
+          <div class="field">lcDeadline, status, paidDate, paidAmount</div>
+        </div>
+
+        <!-- Vendor Master ★NEW -->
+        <div class="schema-box" style="border-color: #a855f7">
+          <div class="table-name" style="color: #d8b4fe">▣ Vendor ★NEW (Module 6)</div>
+          <div class="field"><span class="pk">id</span> · uuid</div>
+          <div class="field"><strong>name</strong> @unique, shortName, code</div>
+          <div class="field"><strong>taxCode</strong> (MST), address, city, country</div>
+          <div class="field">phone, email, website</div>
+          <div class="field">contactName, contactTitle, contactPhone, contactEmail</div>
+          <div class="field">categories · ngành hàng (comma-separated)</div>
+          <div class="field"><strong>vendorType</strong> · DOMESTIC/IMPORT/MIXED</div>
+          <div class="field">rating 1-5, notes</div>
+          <div class="field"><strong>status</strong> · ACTIVE/INACTIVE/BLACKLIST</div>
+          <div class="relation">← seed từ ContractDetail + BidQuoteVendor (124 NCC)</div>
+        </div>
+
+        <!-- Auth + Audit -->
+        <div class="schema-box">
+          <div class="table-name" style="color: #93c5fd">▣ User + AuditLog</div>
+          <div class="field"><strong>username, password (bcrypt 12)</strong></div>
+          <div class="field"><strong>role</strong> · ADMIN/MUA_HANG/KY_THUAT/QC/WAREHOUSE/BOD</div>
+          <div class="field"><strong>isActive</strong> · có thể disable account</div>
+          <div class="field comment">// AuditLog: LOGIN/CHANGE_PASSWORD/CREATE_USER + ip</div>
+        </div>
+
+        <!-- PurchaseOrder (legacy, merged) -->
+        <div class="schema-box" style="opacity: 0.6">
+          <div class="table-name" style="color: #d8b4fe">▣ PurchaseOrder (legacy)</div>
+          <div class="field"><strong>poCode</strong> unique, vendorName, totalValue</div>
+          <div class="field comment">// Schema legacy — PO đã merge vào /hop-dong</div>
+          <div class="field comment">// Route vẫn giữ cho back-compat: /api/v1/pos/generate</div>
+          <div class="relation">→ contractDetails, grns (chưa dùng tới)</div>
+        </div>
+      </div>
+
+      <!-- ═══════════ BACKEND ENDPOINTS MAP ═══════════ -->
+      <h2>🔌 Backend Endpoints Map (~40 routes)</h2>
+      <div class="grid grid-2">
+        <div class="card glow">
+          <h4>🔐 Auth + Rate Limit ★</h4>
+          <pre><span class="keyword">POST</span> /api/v1/auth/login <span class="comment">// loginLimiter 5/15min</span>
+<span class="keyword">GET</span>  /api/v1/auth/me
+<span class="keyword">POST</span> /api/v1/auth/change-password ★NEW
+<span class="keyword">POST</span> /api/v1/admin/users <span class="comment">// ADMIN only</span></pre>
+        </div>
+        <div class="card">
+          <h4>📦 PR (Module 1) + uploadLimiter</h4>
+          <pre><span class="keyword">POST</span> /api/v1/prs/import
+<span class="keyword">POST</span> /api/v1/prs/update-procurement
+<span class="keyword">GET</span>  /api/v1/prs <span class="comment">// 1.351 items</span></pre>
+        </div>
+        <div class="card">
+          <h4>💰 Bid Analyses (Module 2/3)</h4>
+          <pre><span class="keyword">POST</span> /api/v1/bid-analyses/upload
+<span class="keyword">GET</span>  /api/v1/bid-analyses
+<span class="keyword">GET</span>  /api/v1/bid-analyses/:id
+<span class="keyword">POST</span> /api/v1/bid-analyses/:id/select-vendor</pre>
+        </div>
+        <div class="card">
+          <h4>📄 Contracts (Module 4)</h4>
+          <pre><span class="keyword">GET</span>  /api/v1/contracts <span class="comment">// aggregate 245</span>
+<span class="keyword">GET</span>  /api/v1/contracts/:contractNo</pre>
+        </div>
+        <div class="card">
+          <h4>💳 Payment Schedules (Module 5)</h4>
+          <pre><span class="keyword">POST</span> /api/v1/payment-schedules/upload
+<span class="keyword">GET</span>  /api/v1/payment-schedules
+<span class="keyword">PATCH</span> /api/v1/payment-schedules/:id</pre>
+        </div>
+        <div class="card glow">
+          <h4>🏭 Vendor Master (Module 6) ★NEW</h4>
+          <pre><span class="keyword">GET</span>  /api/v1/vendor-master
+<span class="keyword">GET</span>  /api/v1/vendor-master/:id <span class="comment">// + contract history</span>
+<span class="keyword">POST</span> /api/v1/vendor-master
+<span class="keyword">PATCH</span> /api/v1/vendor-master/:id
+<span class="keyword">DELETE</span> /api/v1/vendor-master/:id <span class="comment">// ?hard=true</span>
+<span class="keyword">POST</span> /api/v1/vendor-master/seed <span class="comment">// ADMIN auto-seed</span></pre>
+        </div>
+        <div class="card glow">
+          <h4>📥 Arrivals + QC (Module 7) ★NEW</h4>
+          <pre><span class="keyword">GET</span>  /api/v1/arrivals <span class="comment">// ?qc=PENDING&type=IMPORT</span>
+<span class="keyword">GET</span>  /api/v1/arrivals/stats
+<span class="keyword">PATCH</span> /api/v1/arrivals/:id <span class="comment">// arrivedDate/handover</span>
+<span class="keyword">POST</span> /api/v1/arrivals/:id/inspections
+<span class="keyword">PATCH</span> /api/v1/arrivals/inspections/:id
+<span class="keyword">DELETE</span> /api/v1/arrivals/inspections/:id</pre>
+        </div>
+        <div class="card">
+          <h4>📊 Read-only lists</h4>
+          <pre><span class="keyword">GET</span>  /api/v1/projects <span class="comment">// 5</span>
+<span class="keyword">GET</span>  /api/v1/material-catalog
+<span class="keyword">GET</span>  /api/v1/dashboard/stats</pre>
+        </div>
+        <div class="card">
+          <h4>🏭 Fab Allocations</h4>
+          <pre><span class="keyword">GET</span>  /api/v1/projects/:id/fab-categories
+<span class="keyword">GET</span>  /api/v1/prs/:id/fab-allocations
+<span class="keyword">POST</span> /api/v1/prs/details/:id/fab-allocations
+<span class="keyword">DELETE</span> /api/v1/prs/details/:id/fab-allocations</pre>
+        </div>
+      </div>
+
+      <!-- ═══════════ FILE STRUCTURE TREE ═══════════ -->
+      <h2>📁 File Structure (v3 sau refactor 7 ngày)</h2>
+      <div class="grid grid-2">
+        <div class="schema-box">
+          <div class="table-name">📂 backend/src/</div>
+          <pre style="background: transparent; border: none; padding: 0">
+├ <span class="field">app.js</span> <span class="comment">(Helmet CSP strict + apiLimiter)</span>
+├ <span class="field">controllers/</span>
+│  ├ <span style="color: #fbbf24">authController.js</span> <span class="comment">(+ changePassword ★)</span>
+│  ├ <span style="color: #93c5fd">prImportController.js</span> <span class="comment">(M1)</span>
+│  ├ <span style="color: #93c5fd">procurementUpdateController.js</span>
+│  ├ <span style="color: #fbbf24">bidAnalysisController.js</span> <span class="comment">(M2/3)</span>
+│  ├ <span style="color: #c7d2fe">contractController.js</span> <span class="comment">(M4)</span>
+│  ├ <span style="color: #fda4af">paymentScheduleController.js</span> <span class="comment">(M5)</span>
+│  ├ <span style="color: #d8b4fe">vendorController.js ★NEW</span> <span class="comment">(M6 CRUD+seed)</span>
+│  ├ <span style="color: #f9a8d4">arrivalsController.js ★NEW</span> <span class="comment">(M7 QC+handover)</span>
+│  ├ listController.js
+│  ├ biddingController.js
+│  ├ poController.js <span class="comment">(legacy)</span>
+│  ├ fabAllocationController.js
+│  └ documentController.js
+├ <span class="field">services/</span>
+│  ├ <span style="color: #fdba74">fileParser.js</span>
+│  ├ <span style="color: #fdba74">prValidator.js</span>
+│  ├ <span style="color: #fdba74">procurementUpdater.js</span>
+│  ├ <span style="color: #fdba74">bidAnalysisParser.js</span>
+│  └ <span style="color: #fdba74">paymentScheduleParser.js</span>
+├ <span class="field">routes/</span>
+│  ├ authRoute.js <span class="comment">(+ loginLimiter)</span>
+│  ├ importRoutes.js <span class="comment">(+ uploadLimiter)</span>
+│  └ procurementRoutes.js <span class="comment">(+ vendor + arrivals)</span>
+├ <span class="field">middleware/</span>
+│  ├ authMiddleware.js
+│  ├ uploadMiddleware.js
+│  └ <span style="color: #6ee7b7">rateLimiter.js ★NEW</span> <span class="comment">(3 limiters)</span>
+└ <span class="field">Dockerfile ★NEW</span> <span class="comment">(multi-stage Node 22 alpine)</span></pre>
+        </div>
+
+        <div class="schema-box">
+          <div class="table-name">📂 frontend/src/app/</div>
+          <pre style="background: transparent; border: none; padding: 0">
+├ <span class="field">login/</span>
+├ <span class="field">dashboard/</span>
+├ <span class="field">projects/</span>
+├ <span style="color: #93c5fd">mua-hang/</span> <span class="comment">(Module 1)</span>
+├ <span style="color: #6ee7b7">bao-gia/</span> <span class="comment">(Module 2)</span>
+├ <span style="color: #fbbf24">so-sanh-bao-gia/</span> <span class="comment">(Module 3)</span>
+├ <span style="color: #c7d2fe">hop-dong/</span> <span class="comment">(Module 4 — merged PO)</span>
+├ <span style="color: #fda4af">thanh-toan/</span> <span class="comment">(Module 5)</span>
+├ <span style="color: #d8b4fe">vendors/ ★REWRITE</span> <span class="comment">(Module 6 full CRUD)</span>
+├ <span style="color: #5eead4">inventory/ ★SIMPLIFIED</span> <span class="comment">(catalog read-only)</span>
+├ <span style="color: #f9a8d4">warehouse/ ★REWRITE</span> <span class="comment">(Module 7 arrivals+QC)</span>
+├ <span style="color: #6ee7b7">settings/ ★NEW</span> <span class="comment">(change password + strength)</span>
+└ <span class="comment">po/ ← DELETED (merged vào /hop-dong)</span>
+
+<span class="comment">📂 components/</span>
+├ layout/Sidebar.tsx <span class="comment">(10 entries + Settings)</span>
+├ <span style="color: #93c5fd">mua-hang/MasterTrackingTable.tsx</span> <span class="comment">(119 cols)</span>
+└ ...
+
+<span class="comment">📂 root/</span>
+├ <span class="field">docker-compose.yml ★NEW</span>
+├ <span class="field">.env.example ★NEW</span>
+└ <span class="field">deploy/ ★NEW</span>
+   ├ README.md <span class="comment">(deploy guide)</span>
+   ├ PRE_GOLIVE_CHECKLIST.md <span class="comment">(53 items)</span>
+   ├ nginx/nginx.conf + conf.d/
+   └ uat/
+      ├ smoke_test.sh <span class="comment">(19 endpoints)</span>
+      ├ UAT_CHECKLIST.md
+      └ UAT_SCENARIOS.md</pre>
+        </div>
+      </div>
+
+      <!-- ═══════════ KEY DESIGN DECISIONS ═══════════ -->
+      <h2>🎯 Key Design Decisions</h2>
+      <div class="grid grid-2">
+        <div class="card">
+          <h4>📊 Excel-First Layout</h4>
+          <div class="desc">
+            Tất cả bảng tracking đều mirror 1:1 cấu trúc Excel mẫu. Sticky columns, group headers,
+            sub-headers, color coding để user quen Excel có thể dùng ngay không cần training.
+          </div>
+        </div>
+        <div class="card">
+          <h4>🔧 Dynamic Header Detection</h4>
+          <div class="desc">
+            Mỗi project file có offset cột khác nhau (col 9 vs col 12 vs col 7). Parser scan header
+            row tìm "Item/STT" rồi build column map động — không hardcode.
+          </div>
+        </div>
+        <div class="card">
+          <h4>🔗 Linkage qua itemCode</h4>
+          <div class="desc">
+            BidAnalysis → BidQuoteItem.itemCode link với PrDetail.itemCode. Contract → ContractDetail
+            cũng link tương tự. Tất cả modules đều có thể trace ngược về 1 PR item.
+          </div>
+        </div>
+        <div class="card">
+          <h4>♻️ Upsert Logic</h4>
+          <div class="desc">
+            Re-upload cùng file không tạo duplicate. Match by (contractNo, prDetailId) hoặc
+            (supplier, saleContract) để update existing thay vì create.
+          </div>
+        </div>
+        <div class="card">
+          <h4>🏷 Auto-detect Project</h4>
+          <div class="desc">
+            Sheet name match pattern <code style="color: #fbbf24">25-XXX-X-XXX</code> → tự detect
+            projectCode. Fallback dùng prefix itemCode (I95, I90) → match project tương ứng.
+          </div>
+        </div>
+        <div class="card">
+          <h4>🎨 Workflow 11 Steps</h4>
+          <div class="desc">
+            Mỗi PrDetail có thể auto-infer trạng thái workflow từ data: có contract → "Đã ký HĐ",
+            có arrivedDate → "Hàng đang về", có inspection PASS → "Nghiệm thu", có handover →
+            "Đã nhập kho".
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ DEPLOYMENT STACK ═══════════ -->
+      <h2>🚀 Production Deployment Stack</h2>
+      <div class="data-flow">
+        <div
+          style="
+            font-family: ui-monospace, monospace;
+            font-size: 11px;
+            color: #cbd5e1;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.6;
+          "
+        >
+<span style="color: #64748b">                ┌───────────────────────────┐</span>
+<span style="color: #94a3b8">  Internet/LAN →</span><span style="color: #64748b"> │</span>  <span style="color: #60a5fa">Nginx (443/80)</span>           <span style="color: #64748b">│</span>
+<span style="color: #64748b">                │</span>  <span style="color: #94a3b8">· SSL terminate TLS 1.2/1.3</span> <span style="color: #64748b">│</span>
+<span style="color: #64748b">                │</span>  <span style="color: #94a3b8">· Rate limit login 1r/s</span>    <span style="color: #64748b">│</span>
+<span style="color: #64748b">                │</span>  <span style="color: #94a3b8">· HSTS + CSP + HTTP→HTTPS</span>  <span style="color: #64748b">│</span>
+<span style="color: #64748b">                └─────┬──────────────┬──────┘</span>
+<span style="color: #64748b">                      │              │</span>
+<span style="color: #94a3b8">                /, /_next/*</span>    <span style="color: #94a3b8">/api/*, /uploads/*</span>
+<span style="color: #64748b">                      │              │</span>
+<span style="color: #64748b">                ┌─────▼─────┐   ┌────▼──────┐</span>
+<span style="color: #64748b">                │</span> <span style="color: #6ee7b7">frontend</span>  <span style="color: #64748b">│</span>   <span style="color: #64748b">│</span>  <span style="color: #fbbf24">backend</span>  <span style="color: #64748b">│</span>
+<span style="color: #64748b">                │</span> Next.js 16<span style="color: #64748b">│</span>   <span style="color: #64748b">│</span> Express 5 <span style="color: #64748b">│</span>
+<span style="color: #64748b">                │</span> standalone<span style="color: #64748b">│</span>   <span style="color: #64748b">│</span> Prisma 7  <span style="color: #64748b">│</span>
+<span style="color: #64748b">                │</span>  :3000    <span style="color: #64748b">│</span>   <span style="color: #64748b">│</span>  :5005    <span style="color: #64748b">│</span>
+<span style="color: #64748b">                └───────────┘   └─────┬─────┘</span>
+<span style="color: #64748b">                                      │</span>
+<span style="color: #64748b">                                ┌─────▼──────┐</span>
+<span style="color: #64748b">                                │</span>  <span style="color: #a855f7">postgres</span>  <span style="color: #64748b">│</span>
+<span style="color: #64748b">                                │</span>   :5432    <span style="color: #64748b">│</span>
+<span style="color: #64748b">                                │</span> (internal)<span style="color: #64748b">│</span> <span style="color: #ef4444">← KHÔNG expose host</span>
+<span style="color: #64748b">                                └────────────┘</span>
+        </div>
+        <div style="margin-top: 16px; font-size: 11px; color: #94a3b8">
+          Tất cả 4 services chạy trong docker network
+          <code style="color: #fbbf24">ibshi_net</code>. Chỉ Nginx expose port 80/443 ra host.
+          Backend/frontend/postgres isolate hoàn toàn. Volumes persistent:
+          <code style="color: #6ee7b7">pg_data</code>, <code style="color: #6ee7b7">uploads</code
+          >, <code style="color: #6ee7b7">nginx_logs</code>.
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <h4>🛡️ Security Layers (defense-in-depth)</h4>
+          <pre>Layer 1: <span class="field">Nginx</span>
+  · TLS 1.2/1.3 + HSTS preload
+  · login limit 1r/s burst 5
+  · api limit 20r/s
+  · max body 35M
+
+Layer 2: <span class="field">Helmet CSP</span>
+  · default-src 'self'
+  · frame-ancestors 'none'
+  · object-src 'none'
+  · referrer same-origin
+
+Layer 3: <span class="field">express-rate-limit</span>
+  · login 5 fail/15min/IP
+  · API 200 req/min/IP
+  · upload 20 file/10min/IP
+
+Layer 4: <span class="field">Auth</span>
+  · bcrypt 12 rounds
+  · JWT 64-byte hex secret
+  · audit log mọi LOGIN
+  · isActive flag disable user</pre>
+        </div>
+        <div class="card">
+          <h4>✅ UAT Coverage</h4>
+          <pre><span class="comment">// deploy/uat/smoke_test.sh</span>
+<span style="color: #6ee7b7">19/19 endpoints PASS</span>
+  · /health + auth flow
+  · Dashboard + lists
+  · All 5 business modules
+  · Vendor Master + Arrivals
+  · 404 + 401 unauth
+  · Rate limit verified
+
+<span class="comment">// UAT_CHECKLIST.md</span>
+· 13 sections · 80 test cases
+· Bug log + severity P0/P1/P2
+· Sign-off 3 phòng
+
+<span class="comment">// UAT_SCENARIOS.md</span>
+· 7 E2E business flows
+· Theo role: TM/KT/QC/BOD/KT
+· Cross-check Excel ↔ DB</pre>
+        </div>
+        <div class="card">
+          <h4>📋 Pre Go-Live Checklist</h4>
+          <pre><span class="comment">// deploy/PRE_GOLIVE_CHECKLIST.md</span>
+<span style="color: #6ee7b7">9 sections · 53 items</span>
+
+1. Security (12) — JWT, CORS, firewall
+2. Code quality (7) — build + lint
+3. Docker build (6)
+4. Database (6) — migrate + backup
+5. Nginx + DNS (6)
+6. Data validation (5)
+7. User + training (6)
+8. Rollback plan (5)
+9. Documentation (5)
+
+<span style="color: #fbbf24">Go/No-Go criteria</span>
+· T-1: freeze code + full checklist
+· T-0: deploy 08:00 → 17:00
+· T+1: monitor + hotfix
+· T+7: retrospective</pre>
+        </div>
+      </div>
+
+      <!-- ═══════════ KNOWN GAPS ═══════════ -->
+      <h2>⚠️ Known Gaps & Future Work</h2>
+      <div class="grid grid-3">
+        <div class="card" style="border-color: #10b981">
+          <h4>✅ Module PO → Hợp đồng (merged)</h4>
+          <div class="desc">
+            PO không còn module riêng. Tất cả PO đã merge vào /hop-dong, route /po đã xóa khỏi
+            sidebar. Legacy schema PurchaseOrder giữ lại cho back-compat.
+          </div>
+        </div>
+        <div class="card" style="border-color: #10b981">
+          <h4>✅ Vendor Master CRUD</h4>
+          <div class="desc">
+            Model Vendor đầy đủ (MST, địa chỉ, liên hệ, ngành hàng, rating). Seed 124 NCC từ
+            contracts + bids. Drawer detail + lịch sử giao dịch.
+          </div>
+        </div>
+        <div class="card" style="border-color: #10b981">
+          <h4>✅ Warehouse rebuild → Arrivals tracker</h4>
+          <div class="desc">
+            Track 4 milestones: hàng về → mời QC → kết quả → bàn giao SX. Inline inspection form.
+            97 arrivals / 62 bàn giao.
+          </div>
+        </div>
+        <div class="card" style="border-color: #f59e0b">
+          <h4>⚠️ Tests chưa setup Jest/Vitest</h4>
+          <div class="desc">
+            Chỉ có smoke_test.sh. Production-quality cần unit test (controllers) + integration
+            test (DB). Thêm sau go-live.
+          </div>
+        </div>
+        <div class="card" style="border-color: #f59e0b">
+          <h4>⚠️ Document upload (PDF HĐ/QC)</h4>
+          <div class="desc">
+            Schema có model Document nhưng chưa có UI upload PDF HĐ gốc + scan certificates QC.
+            Phase 2.
+          </div>
+        </div>
+        <div class="card" style="border-color: #f59e0b">
+          <h4>⚠️ REVs history trong Master Tracking</h4>
+          <div class="desc">
+            16 cột "Dự trù lần X" đang hiển thị "—" vì backend chưa có schema lưu REV history.
+            Phase 2.
+          </div>
+        </div>
+        <div class="card" style="border-color: #f59e0b">
+          <h4>⚠️ Vendor dedup (case/spacing)</h4>
+          <div class="desc">
+            Seed 124 NCC còn duplicate do khác case/spacing (Gnee vs GNEE, Hoàng Hà vs HOÀNG HÀ).
+            Cần normalize pass để gộp lại.
+          </div>
+        </div>
+        <div class="card" style="border-color: #f59e0b">
+          <h4>⚠️ Bid winner selection</h4>
+          <div class="desc">
+            0/81 bids đã chọn winner. Để BOD tự làm qua UAT scenario 4. Nên auto-detect winner từ
+            cột "Lựa chọn" trong Excel gốc.
+          </div>
+        </div>
+        <div class="card" style="border-color: #10b981">
+          <h4>✅ Git push rule</h4>
+          <div class="desc">
+            User control: KHÔNG push git tự động. Chỉ commit local khi có lệnh "PUSH GIT".
+          </div>
+        </div>
+      </div>
+
+      <p
+        style="
+          text-align: center;
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 1px solid #1e293b;
+          color: #64748b;
+          font-size: 11px;
+        "
+      >
+        IBSHI Procurement System v3 · Cập nhật 2026-04-09 · <strong>10 modules</strong> · 15 DB
+        tables · ~40 endpoints · Docker production-ready · UAT 19/19 smoke test PASS
+      </p>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- S3-3 Monthly 1st Sunday 04:00 uploads archival -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ibshi.vattu.uploadsarchive</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/trinhhuuhung/Desktop/HUNGAI/HUNGTH OBSIDIAN V/HUNGTH OBSIDIAN/VẬT TƯ/scripts/uploads_archive.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Day</key><integer>1</integer>
+        <key>Hour</key><integer>4</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/vattu-uploads-archive.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/vattu-uploads-archive.err</string>
+</dict>
+</plist>

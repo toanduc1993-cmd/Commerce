@@ -1,0 +1,57 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "IBS Procurement ERP — Backend API",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "db:start": "rm -f pg_data/postmaster.pid && /opt/homebrew/opt/postgresql@18/bin/pg_ctl -D pg_data start -o '-p 54321'",
+    "db:stop": "/opt/homebrew/opt/postgresql@18/bin/pg_ctl -D pg_data stop",
+    "db:docker": "docker compose -f ../docker-compose.dev.yml up -d postgres",
+    "db:seed": "ADMIN_INIT_PASSWORD=Admin@IBS2026 node run_seed.js",
+    "format": "prettier --write \"src/**/*.{js,ts}\" \"prisma/**/*.{ts,js}\"",
+    "format:check": "prettier --check \"src/**/*.{js,ts}\" \"prisma/**/*.{ts,js}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "keywords": [],
+  "author": "IBS Heavy Industry",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/adapter-pg": "7.6.0",
+    "@prisma/client": "7.6.0",
+    "bcryptjs": "3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "csrf-csrf": "^4.0.3",
+    "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
+    "express": "5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "nanoid": "^5.1.11",
+    "pg": "^8.20.0",
+    "pino": "^9.14.0",
+    "pino-pretty": "^11.3.0",
+    "xlsx": "^0.18.5",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.0.0",
+    "prettier": "^3.8.1",
+    "prisma": "7.6.0",
+    "supertest": "^7.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.9"
+  }
+}

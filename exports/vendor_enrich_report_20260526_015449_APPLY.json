@@ -1,0 +1,471 @@
+{
+  "mode": "APPLY",
+  "timestamp": "2026-05-26T01:54:49.426586",
+  "ocr_file": "/Users/trinhhuuhung/Desktop/HUNGAI/HUNGTH OBSIDIAN V/HUNGTH OBSIDIAN/IBSHI/mua-hang/_index/vendor_master_v1.ndjson",
+  "fuzzy_cutoff": 90,
+  "stats": {
+    "tax_match": 2,
+    "fuzzy_match": 45,
+    "no_match_insert": 79,
+    "skipped_no_data": 0,
+    "vendors_with_actual_update": 47,
+    "fields_distribution": {
+      "taxCode": 26,
+      "address": 47,
+      "city": 32,
+      "country": 47,
+      "shortName": 47,
+      "vendorType": 47,
+      "bank": 47,
+      "accountNo": 45,
+      "contactName": 14,
+      "contactTitle": 42
+    }
+  },
+  "samples_updated": [
+    {
+      "db_id": "b6318d0d-337b-4d0c-bd5d-6d17ecb729b5",
+      "db_name": "TRUNG HẢI",
+      "ocr_name": "CHI NHÁNH CÔNG TY CỔ PHẦN TRỪ MỐI- KHỬ TRÙNG TẠI HẢI PHÒNG",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo"
+      ],
+      "n_fields": 8
+    },
+    {
+      "db_id": "c25d6897-eb98-4bff-be59-a56ee4b4bb86",
+      "db_name": "Thịnh Phát",
+      "ocr_name": "CONG TY TNHH INOX THỊNH PHAT",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 10
+    },
+    {
+      "db_id": "d256c3fe-667e-4684-aac8-2bdbbe138a25",
+      "db_name": "Hùng Nguyên",
+      "ocr_name": "CONG TY TNHH THUONG MAI HUNG NGUYEN Š",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "0510c524-5aa9-44d2-bbf0-9c2251230754",
+      "db_name": "Phúc Châu",
+      "ocr_name": "CONG TY TNHH THUONG MẠI VA XÂY LAP PHÚC CHAU",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 10
+    },
+    {
+      "db_id": "62910f4a-c46d-4712-80ea-9cf7c5916dee",
+      "db_name": "Tuấn Long",
+      "ocr_name": "CONG TY TNHH THUONG MẠI VÀ DICH VỤ TUAN LONG",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 10
+    },
+    {
+      "db_id": "d959e883-7432-428d-a602-ff17283f2feb",
+      "db_name": "VSAN",
+      "ocr_name": "CONG TY TNHH VSAN",
+      "match_method": "tax_code",
+      "fields_updated": [
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "71a44c91-720b-42a4-b66a-9e88f5748e1f",
+      "db_name": "WINWIN",
+      "ocr_name": "CÔNG TY CO PHAN WINWIN",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "b61da894-f730-4944-844e-38be6b2af58f",
+      "db_name": "Xalaco",
+      "ocr_name": "CÔNG TY CO PHAN XALACO",
+      "match_method": "tax_code",
+      "fields_updated": [
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "5df2e13c-21f2-4be7-9ede-1eafcca30820",
+      "db_name": "Tân Thành",
+      "ocr_name": "CÔNG TY TNHH CO KHÍ XÂY DUNG TÂN TRƯỜNG THÀNH _ !:lc¿y",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 8
+    },
+    {
+      "db_id": "f134b816-8134-4198-b8d8-6cd505e5db9d",
+      "db_name": "Trần Toàn",
+      "ocr_name": "CÔNG TY TNHH DỊCH VỤ VA THUONG MẠI TRAN TOÀN",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "217f9ce6-8dc1-4e0b-ba38-d3ff492414f3",
+      "db_name": "Hoàng Anh Minh",
+      "ocr_name": "CÔNG TY TNHH PHAT TRIEN THUONG MẠI HOÀNG ANH MINH [m",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 8
+    },
+    {
+      "db_id": "9d02937d-8ea3-4708-93ad-3d9207584e79",
+      "db_name": "CÔNG TY TNHH SẢN XUẤT & THƯƠNG MẠI HT - ADH VIỆT NAM",
+      "ocr_name": "CÔNG TY TNHH SẢN XUẤT & THƯƠNG MẠI HT - ADH VIỆT",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "contactTitle"
+      ],
+      "n_fields": 8
+    },
+    {
+      "db_id": "e854d368-1424-4abc-a1ae-d454b04b3c2d",
+      "db_name": "QUANG THỊNH",
+      "ocr_name": "CÔNG TY TNHH TM & DV THÉP QUANG THỊNH PHÁT",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "af577b19-359f-440d-b2df-9db4f7a25064",
+      "db_name": "TITAN",
+      "ocr_name": "CÔNG TY TNHH ĐẦU TƯ TITAN",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 10
+    },
+    {
+      "db_id": "0409b21f-0aaa-402f-9c1f-9570fec903d5",
+      "db_name": "Ngọc Hiếu",
+      "ocr_name": "CÔNG TY TRÁCH NHIỆM HỮU HAN THƯƠNG MAI NGỌC HIẾU ol 1",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "95994651-5546-4138-af33-c2867b73e2bc",
+      "db_name": "MRO",
+      "ocr_name": "Cổ phan SUPER MRO Việt",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 9
+    },
+    {
+      "db_id": "f8404639-68f8-4d92-a4f9-3caefa763aaf",
+      "db_name": "ĐẠI PHÁT COMPOSITE",
+      "ocr_name": "Cổ phan Đại Phát Composite",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 10
+    },
+    {
+      "db_id": "22499078-f406-470a-a5eb-b4f61238aabe",
+      "db_name": "APEC",
+      "ocr_name": "Cổ phần thép Apec",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactTitle"
+      ],
+      "n_fields": 8
+    },
+    {
+      "db_id": "67490fe8-af38-487f-a3bd-214e0d0c9fcd",
+      "db_name": "Nguyên Hanh",
+      "ocr_name": "Cổ phần thương mại và công nghiệp Nguyên Hanh",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 10
+    },
+    {
+      "db_id": "338b1c6a-04ef-43cb-97ec-f3a753e47a32",
+      "db_name": "Tam Đa",
+      "ocr_name": "Cổ phần đầu tư và thương mại Tam Đa",
+      "match_method": "fuzzy_name@100",
+      "fields_updated": [
+        "taxCode",
+        "address",
+        "city",
+        "country",
+        "shortName",
+        "vendorType",
+        "bank",
+        "accountNo",
+        "contactName",
+        "contactTitle"
+      ],
+      "n_fields": 10
+    }
+  ],
+  "samples_inserted": [
+    {
+      "ocr_name": "CN MIEN BÁC - CONG TY TNHH THIET BI VA DO DAC GEOTEX",
+      "ocr_tax": "1801666996"
+    },
+    {
+      "ocr_name": "CONG TY CO PHAN CÔNG NGHIỆP NANG IBS nem nắn",
+      "ocr_tax": "0201593769"
+    },
+    {
+      "ocr_name": "CONG TY CO PHAN CÔNG NGHIỆP WELDCOM",
+      "ocr_tax": "0101629796"
+    },
+    {
+      "ocr_name": "CONG TY CO PHAN THÉP HÙNG CƯỜNG",
+      "ocr_tax": "0200654539"
+    },
+    {
+      "ocr_name": "CONG TY TNHH CÔNG NGHIỆP TUNG",
+      "ocr_tax": "0106468574"
+    },
+    {
+      "ocr_name": "CONG TY TNHH CÔNG NGHỆ TỰ ĐỘNG HÓA HOÀNG",
+      "ocr_tax": "0201339000"
+    },
+    {
+      "ocr_name": "CONG TY TNHH NAM THANG",
+      "ocr_tax": "0200807168"
+    },
+    {
+      "ocr_name": "CONG TY TNHH THUONG MAI DICH VU THANH",
+      "ocr_tax": "0202085278"
+    },
+    {
+      "ocr_name": "CONG TY TNHH THUONG MẠI VINH HUNG LONG",
+      "ocr_tax": "0202158776"
+    },
+    {
+      "ocr_name": "CONG TY TNHH THƯƠNG MẠI XUẤT NHẬP KHẨU VA DỊCH VỤ VẬN",
+      "ocr_tax": "0202135313"
+    },
+    {
+      "ocr_name": "CPTM Đông Trọng Thịnh",
+      "ocr_tax": "0200612070"
+    },
+    {
+      "ocr_name": "Chi nhánh Công ty TNHH MTV Điện lực Hải Phòng - Điện lực Hồng",
+      "ocr_tax": "0200340211"
+    },
+    {
+      "ocr_name": "CÔNG TY CO PHAN HANG HAI LIÊN MINH",
+      "ocr_tax": "0200905493"
+    },
+    {
+      "ocr_name": "CÔNG TY CỔ PHẦN HPH LOGISTICS",
+      "ocr_tax": "0201743894"
+    },
+    {
+      "ocr_name": "CÔNG TY CỔ PHẦN ĐẦU TƯ SAO Á D.C",
+      "ocr_tax": "0201147203"
+    },
+    {
+      "ocr_name": "CÔNG TY CỔ PHẦN ĐẦU TƯ THƯƠNG MẠI & VẬN TẢI QUỐC TẾ HOÀNG",
+      "ocr_tax": "0201875770"
+    },
+    {
+      "ocr_name": "CÔNG TY TNHH CÔNG NGHIỆP DỊCH VỤ THƯƠNG MẠI VIỆT",
+      "ocr_tax": "0104399117"
+    },
+    {
+      "ocr_name": "CÔNG TY TNHH DỊCH VỤ THƯƠNG MẠI TÂM TOÀN PHÁT",
+      "ocr_tax": "2400830351"
+    },
+    {
+      "ocr_name": "CÔNG TY TNHH ETS TOÀN CẦU LOGISTICS VINA",
+      "ocr_tax": "0315348062"
+    },
+    {
+      "ocr_name": "CÔNG TY TNHH FUJI THUẬN",
+      "ocr_tax": "0314203152"
+    }
+  ]
+}

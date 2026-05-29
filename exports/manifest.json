@@ -1,0 +1,14 @@
+{
+  "exported_at": "2026-05-25T16:35:22.759621",
+  "from_db": "127.0.0.1:54321/vpi_procurement",
+  "files": [
+    {
+      "name": "bid_quote_master.ndjson",
+      "count": 1578
+    },
+    {
+      "name": "prdetail_master.ndjson",
+      "count": 1351
+    }
+  ]
+}

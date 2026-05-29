@@ -1,0 +1,170 @@
+[
+  {
+    "id": "ddd6eb39-94e9-427c-a341-11cefd979738",
+    "bidCode": "BID-BRA090-2604-ALL-004",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "abc45f21-a400-49e7-a2a2-ae5dd93b5160",
+    "bidCode": "BID-GEN007-2604-ALL-002",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "ffc74ed5-a06d-47fc-a184-91db25f64ca6",
+    "bidCode": "BID-BRA090-2512-ALL-001",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "6748ca3b-9397-4e1e-b7e8-0e83c4ca14c6",
+    "bidCode": "BID-BRA090-2512-ALL-003",
+    "itemLevelCount": 55,
+    "had_both": true
+  },
+  {
+    "id": "fe22161d-b8c0-4379-b53d-b59326cb9fda",
+    "bidCode": "BID-BRA090-2604-ALL-003",
+    "itemLevelCount": 2,
+    "had_both": true
+  },
+  {
+    "id": "c71b4914-69e8-44f3-8359-21932c02f65c",
+    "bidCode": "BID-BRA090-2604-ALL-005",
+    "itemLevelCount": 10,
+    "had_both": true
+  },
+  {
+    "id": "c26f6da8-0d0c-439a-9ece-5704ee3a4da8",
+    "bidCode": "BID-WNC097-2604-ALL-005",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "680e3477-34d6-44b8-89e3-1aa3cf7501dd",
+    "bidCode": "BID-WNC097-2604-ALL-008",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "75446e41-9858-4259-85ee-131724cafa62",
+    "bidCode": "BID-GEN007-2604-ALL-001",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "109282f9-c679-45b8-8114-a1afa79391bf",
+    "bidCode": "BID-GEN007-2604-MIX-001",
+    "itemLevelCount": 2,
+    "had_both": true
+  },
+  {
+    "id": "9bbc0abc-08d7-45eb-9294-942e896ea9b1",
+    "bidCode": "BID-GEN007-2604-VPK-002",
+    "itemLevelCount": 10,
+    "had_both": true
+  },
+  {
+    "id": "464f0e1a-74e8-4b59-81df-cea736c8fd7e",
+    "bidCode": "BID-BRA090-2512-ALL-002",
+    "itemLevelCount": 15,
+    "had_both": true
+  },
+  {
+    "id": "63d7866d-c2ba-4fb7-92e3-316e400ecd92",
+    "bidCode": "BID-BRA090-2604-ALL-001",
+    "itemLevelCount": 14,
+    "had_both": true
+  },
+  {
+    "id": "e4a6f0ec-04a8-4091-8c99-914aaf918fde",
+    "bidCode": "BID-BRA090-2604-ALL-002",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "0b7466cb-fa00-4faf-96d0-5fb03ba70d34",
+    "bidCode": "BID-BRA090-2604-ALL-006",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "1cc2dcf5-807e-42ba-9a01-1ef70620a9b5",
+    "bidCode": "BID-VPI095-2601-MIX-003",
+    "itemLevelCount": 12,
+    "had_both": true
+  },
+  {
+    "id": "b4fc46c7-1349-44c3-98d2-eef8ff005d88",
+    "bidCode": "BID-VPI095-2601-VPK-001",
+    "itemLevelCount": 76,
+    "had_both": true
+  },
+  {
+    "id": "8aebdddb-dbc9-4494-b7a5-d44769e5e49e",
+    "bidCode": "BID-VPI095-2601-VPK-002",
+    "itemLevelCount": 14,
+    "had_both": true
+  },
+  {
+    "id": "db0f7ae8-0efd-4d9a-bb40-dbe49229f322",
+    "bidCode": "BID-VPI095-2604-VDK-001",
+    "itemLevelCount": 93,
+    "had_both": true
+  },
+  {
+    "id": "b45804e5-4642-4e02-a97f-60648161bee9",
+    "bidCode": "BID-VPI095-2604-VPK-001",
+    "itemLevelCount": 6,
+    "had_both": true
+  },
+  {
+    "id": "51f144ea-423a-4d92-abbf-dd0b2b5f7ebe",
+    "bidCode": "BID-VPI095-2604-MIX-007",
+    "itemLevelCount": 3,
+    "had_both": true
+  },
+  {
+    "id": "bc6254de-560e-4196-881b-6ce36cdb07b9",
+    "bidCode": "BID-GEN007-2604-VPK-001",
+    "itemLevelCount": 5,
+    "had_both": true
+  },
+  {
+    "id": "710cf052-7bd5-4913-bd5f-203cbb3655ab",
+    "bidCode": "BID-VPI095-2604-MIX-001",
+    "itemLevelCount": 2,
+    "had_both": true
+  },
+  {
+    "id": "13274679-0b80-4099-a493-9a20f69b73f8",
+    "bidCode": "BID-VPI095-2604-VTC-001",
+    "itemLevelCount": 4,
+    "had_both": true
+  },
+  {
+    "id": "a5c0ac04-5a11-4ae0-bcba-939e15e1a4b1",
+    "bidCode": "BID-WNC097-2512-ALL-001",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "74310fc7-9af1-4171-9ea0-cc9cb62a754e",
+    "bidCode": "BID-WNC097-2512-ALL-002",
+    "itemLevelCount": 1,
+    "had_both": true
+  },
+  {
+    "id": "ae4ab0b9-0bc6-4a2b-bcb0-01d6d8c14796",
+    "bidCode": "BID-WNC097-2607-ALL-001",
+    "itemLevelCount": 7,
+    "had_both": true
+  },
+  {
+    "id": "145156a5-a58b-43b4-bf0d-04cf7c88e38d",
+    "bidCode": "BID-WNC097-2604-ALL-001",
+    "itemLevelCount": 1,
+    "had_both": true
+  }
+]

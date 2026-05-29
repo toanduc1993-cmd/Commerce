@@ -1,0 +1,444 @@
+// =================================================================
+// PRISMA SCHEMA v3 — IBS Heavy Industry E-Procurement
+// Cap nhat: 06/04/2026 — Domain: ETO Shipbuilding / Steel Fabrication
+// Phan anh dung cau truc file mau thuc te:
+//   - Nhom vat tu: VTC/VPK/VDK/VBP/VTH/VTS/VTP (Mau Du Toan.csv)
+//   - Hang muc gia cong: INLET-U1/SCR/BURNER/BOX1..N/STACK/KCTC/KCDK
+//   - Vong doi mua sam: PR → Bid → PO (DOM+IMP) → GRN → QC → Pegging
+// =================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ================================================================
+// BLOCK 0: AUTH & AUDIT
+// ================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // BCrypt hash
+  name      String
+  role      String   @default("KY_THUAT")
+  // MUA_HANG | KY_THUAT | QC | WAREHOUSE | BOD | ADMIN
+  dept      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // LOGIN | CREATE_PR | APPROVE_BID | GEN_PO | GRN | ALLOCATE
+  userId     String?
+  entityId   String?
+  entityType String?
+  details    String?  // JSON string
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+// ================================================================
+// BLOCK 1: MASTER DATA
+// ================================================================
+
+model Project {
+  id        String   @id @default(uuid())
+  code      String   @unique  // 25-VPI-I-095 | 25-BRA-I-090
+  name      String            // BISON (VOGT POWER PROJECT)
+  client    String?           // VOGT POWER INTERNATIONAL
+  refNo     String?           // I-095-ENG-001-REV 08
+  status    String   @default("active") // active | completed | on-hold
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  budgets               ProjectBudget[]
+  prs                   PurchaseRequisition[]
+  fabricationCategories FabricationCategory[]
+}
+
+// Nhom vat tu cap 1 — mapping voi Mau Du Toan.csv
+// A=VTC | B=VPK | C=VDK | D=VBP | E=VTH | F=VTS | G=VTP
+model MaterialGroup {
+  id        String @id @default(uuid())
+  code      String @unique // VTC | VPK | VDK | VBP | VTH | VTS | VTP
+  name      String          // Vat tu chinh | Vat tu phu kien | Vat tu dong kien...
+  nameEn    String?         // Main Material | Accessory | Packing Material
+  letter    String?         // A | B | C | D | E | F | G
+  sortOrder Int    @default(0)
+
+  subGroups     MaterialSubGroup[]
+  prDetails     PrDetail[]
+  budgets       ProjectBudget[]
+}
+
+// Nhom vat tu cap 2 — VTC01=Thep carbon, VTC02=Thep hop kim, VPK01=Phu kien...
+model MaterialSubGroup {
+  id        String @id @default(uuid())
+  groupId   String
+  code      String @unique // VTC01 | VTC02 | VTC03 | VPK01 | VDK01 | VTH01...
+  name      String          // Thep carbon cac loai | Thep hinh | Thep ong...
+  sortOrder Int    @default(0)
+
+  group     MaterialGroup @relation(fields: [groupId], references: [id])
+  prDetails PrDetail[]
+}
+
+// Hang muc gia cong — phan bo vat tu theo tung assembly/module
+// Du an I-095: INLET-U1 | SCR-U1 | BURNER-U1 | BASE PLATE | OUTLET DUCT |
+//              TOP BEAM | BOX1 | BOX2 | BOX3 | BOX4 | BOX5 | BOX6 | STACK | STAIR TOWER
+// Du an I-090: KCTC | KCDK | ...
+model FabricationCategory {
+  id        String @id @default(uuid())
+  projectId String
+  code      String          // INLET-U1 | SCR-U1 | KCTC | KCDK
+  name      String          // Vat tu Inlet U1 | Ket cau thep chinh
+  sortOrder Int    @default(0)
+
+  project     Project @relation(fields: [projectId], references: [id])
+  allocations PrDetailFabAllocation[]
+
+  @@unique([projectId, code])
+}
+
+model ProjectBudget {
+  id              String  @id @default(uuid())
+  projectId       String
+  materialGroupId String?
+  itemCode        String
+  itemName        String
+  uom             String
+  limitQty        Float   // Gate 1: gioi han so luong tu BOM
+  unitPriceEst    Float?  // Gate 2: don gia du toan
+  totalEst        Float?  // Thanh tien du toan
+  notes           String?
+
+  project       Project        @relation(fields: [projectId], references: [id])
+  materialGroup MaterialGroup? @relation(fields: [materialGroupId], references: [id])
+
+  @@index([projectId, itemCode])
+}
+
+// ================================================================
+// BLOCK 2: PURCHASE REQUISITION
+// ================================================================
+
+model PurchaseRequisition {
+  id           String   @id @default(uuid())
+  projectId    String
+  prRef        String   @unique // PR-25-VPI-I-095-1746000000000
+  refDocNo     String?           // I-095-ENG-001-REV 08 (PR)
+  department   String            // ENGINEERING / Thiet ke
+  revisionNo   String?           // REV 08
+  status       String   @default("SOURCING")
+  // DRAFT | SOURCING | APPROVED | PO_ISSUED | CLOSED
+  requestedBy  String?
+  approvedBy   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project  Project @relation(fields: [projectId], references: [id])
+  details  PrDetail[]
+  bids     BidAnalysis[]
+}
+
+model PrDetail {
+  id                  String  @id @default(uuid())
+  prId                String
+  materialGroupId     String? // VTC | VPK | VDK
+  materialSubGroupId  String? // VTC01 | VTC02 | VPK01
+  
+  // Dinh danh
+  itemCode            String  // I90-A1 | I95-VTC01-001
+  itemName            String  // Ton tam | Thep hinh-H | Bulong mong
+  
+  // Thong so ky thuat
+  profile             String? // PL10x2000x6000 | HEA200 | UNP200 | ANCHOR BOLT M42
+  grade               String? // SS400 | ASTM A36 | A572-GR50 | 1.0577(S355J2)
+  uom                 String  // m | m2 | kg | pcs | sets | Tam | Cay
+  unitWeight          Float   @default(0)  // Kg/m2 hoac Kg/pcs
+
+  // So luong yeu cau (tu BOM / thiet ke)
+  netQty              Float   @default(0)  // So luong tinh (Net Quantity)
+  netWeight           Float   @default(0)  // = netQty x unitWeight
+  reqQty              Float   @default(0)  // Du tru mua (co the > netQty do hao hut)
+  reqWeight           Float   @default(0)  // = reqQty x unitWeight
+
+  // Ton kho tan dung
+  remainQty           Float   @default(0)  // Tan dung ton kho / Remain
+  remainWeight        Float   @default(0)
+
+  // So luong phai mua sam thuc te
+  toBuyQty            Float   @default(0)  // = reqQty - remainQty
+  toBuyWeight         Float   @default(0)
+
+  // Ngay yeu cau
+  requiredDate        DateTime?  // Ngay ban giao vat tu (Material available date)
+  urgency             String  @default("Normal") // Normal | Urgent | Critical
+
+  // Trang thai workflow
+  statusFlag          String  @default("Cho bao gia")
+  // Cho bao gia | Dang dam phan | Da ky HD | Hang dang ve | Da nghiem thu | Da nhap kho
+  materialStatus      String? // Du | Thieu | Thua (computed)
+
+  remarks             String? // Ghi chu ky thuat
+  revNotes            String? // REV8-IBS | REV3-KHACH HANG
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  pr               PurchaseRequisition  @relation(fields: [prId], references: [id])
+  materialGroup    MaterialGroup?       @relation(fields: [materialGroupId], references: [id])
+  materialSubGroup MaterialSubGroup?   @relation(fields: [materialSubGroupId], references: [id])
+  fabAllocations   PrDetailFabAllocation[]
+  contracts        ContractDetail[]
+  inventoryAllocs  InventoryAllocation[]
+
+  @@index([prId])
+  @@index([itemCode])
+  @@index([statusFlag])
+  @@index([materialGroupId])
+}
+
+// Phan bo so luong vat tu theo hang muc gia cong
+// 1 PrDetail -> nhieu FabricationCategory (INLET 38 m2, SCR 11 m2, BOX1 4 m2...)
+model PrDetailFabAllocation {
+  id                    String @id @default(uuid())
+  prDetailId            String
+  fabricationCategoryId String
+  qty                   Float  @default(0)
+  weight                Float  @default(0)
+  notes                 String?
+
+  prDetail            PrDetail            @relation(fields: [prDetailId], references: [id])
+  fabricationCategory FabricationCategory @relation(fields: [fabricationCategoryId], references: [id])
+
+  @@unique([prDetailId, fabricationCategoryId])
+}
+
+// ================================================================
+// BLOCK 3: BIDDING & SOURCING
+// ================================================================
+
+model BidAnalysis {
+  id          String   @id @default(uuid())
+  prId        String
+  title       String?
+  status      String   @default("PENDING")
+  // PENDING | RFQ_SENT | BIDS_RECEIVED | BOD_APPROVED | REJECTED
+  gate15Pass  Boolean  @default(false)  // Gate 1.5 Bid Matrix
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  pr          PurchaseRequisition @relation(fields: [prId], references: [id])
+  quotations  Quotation[]
+  pos         PurchaseOrder[]
+}
+
+model Quotation {
+  id              String   @id @default(uuid())
+  bidId           String
+  vendorName      String
+  vendorCode      String?
+  totalPriceNoVAT Float    @default(0)
+  vatRate         Float    @default(10)
+  totalPriceVAT   Float    @default(0)
+  currency        String   @default("VND")
+  deliveryDays    Int      @default(0)
+  certOrigin      String?  // Nhat Ban (JIS) | Han Quoc | An Do
+  certStandard    String?  // JIS | ASTM | EN | SS
+  isWinner        Boolean  @default(false)
+  isBlacklisted   Boolean  @default(false)
+  blacklistReason String?
+  submittedAt     DateTime?
+  notes           String?
+
+  bid BidAnalysis @relation(fields: [bidId], references: [id])
+}
+
+// ================================================================
+// BLOCK 4: CONTRACT & PURCHASE ORDER
+// Tach rieng DOM (trong nuoc) va IMP (nhap khau)
+// ================================================================
+
+model PurchaseOrder {
+  id          String   @id @default(uuid())
+  bidId       String?
+  poCode      String   @unique  // PO-2025-0001
+  poType      String   @default("DOMESTIC")  // DOMESTIC | IMPORT
+  status      String   @default("ISSUED")
+  // ISSUED | PARTIALLY_RECEIVED | RECEIVED | CLOSED | CANCELLED
+  gate2Pass   Boolean  @default(false)
+  inflationPct Float   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bid             BidAnalysis?   @relation(fields: [bidId], references: [id])
+  contractDetails ContractDetail[]
+  grns            GoodsReceiptNote[]
+}
+
+// Chi tiet hop dong tung dong vat tu — columns chinh trong bang Excel theo doi
+model ContractDetail {
+  id              String   @id @default(uuid())
+  prDetailId      String
+  purchaseOrderId String?
+  contractType    String   // DOMESTIC | IMPORT
+
+  // Thong tin hop dong
+  contractNo      String?  // 90.1/HDKT-2025/IBS-VSAN | 150725/HN-IBS
+  vendorName      String?  // Hung Nguyen | VSAN | Ngoc Hieu
+
+  // Thong so vat tu thuc te mua (co the khac spec PR do thay the)
+  actualProfile   String?
+  actualGrade     String?
+
+  // So luong theo hop dong
+  contractQty     Float    @default(0)
+  contractWeight  Float    @default(0)
+  contractDate    DateTime?
+
+  // Gia
+  unitPriceNoVAT  Float    @default(0)
+  vatRate         Float    @default(10)
+  totalNoVAT      Float    @default(0)
+  totalWithVAT    Float    @default(0)
+
+  // Chi cho IMPORT
+  importLCDate    DateTime?  // Ngay mo LC
+  exportPort      String?    // Cang xuat
+  cifDate         DateTime?  // Ngay CIF
+  arrivedDate     DateTime?  // Ngay hang ve kho
+  handoverDate    DateTime?  // Ban giao san xuat
+
+  // Giao hang
+  deliveryDate       DateTime?
+  actualHandoverDate DateTime?
+  handoverQty        Float    @default(0)
+
+  status  String   @default("ACTIVE") // ACTIVE | CANCELLED | COMPLETED
+  notes   String?
+  createdAt DateTime @default(now())
+
+  prDetail      PrDetail       @relation(fields: [prDetailId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  @@index([prDetailId])
+  @@index([contractNo])
+}
+
+// ================================================================
+// BLOCK 5: GRN & QC
+// ================================================================
+
+model GoodsReceiptNote {
+  id                String   @id @default(uuid())
+  purchaseOrderId   String
+  reportNo          String?
+  receiptDate       DateTime @default(now())
+  warehouseLocation String   @default("Kho Chinh")
+  receivedBy        String?
+  status            String   @default("PENDING_QC")
+  // PENDING_QC | QC_PASSED | QC_FAILED | ACCEPTED
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  items         GRNItem[]
+}
+
+model GRNItem {
+  id              String @id @default(uuid())
+  grnId           String
+  prDetailId      String
+  receivedQty     Float  @default(0)
+  receivedWeight  Float  @default(0)
+
+  // QC Nghiem thu
+  qcReportNo       String?
+  qcDate           DateTime?
+  qcWeightAccepted Float    @default(0)
+  qcResult         String?  // PASS | FAIL | CONDITIONAL
+  qcNotes          String?
+
+  grn GoodsReceiptNote @relation(fields: [grnId], references: [id])
+
+  @@index([prDetailId])
+}
+
+// ================================================================
+// BLOCK 6: KHO & HARD PEGGING (Gate 3)
+// ================================================================
+
+model Inventory {
+  id             String   @id @default(uuid())
+  itemCode       String   @unique
+  itemName       String?
+  uom            String
+  onHandQty      Float    @default(0)
+  onHandWeight   Float    @default(0)
+  allocatedQty   Float    @default(0)
+  allocatedWeight Float   @default(0)
+  updatedAt      DateTime @updatedAt
+
+  allocations InventoryAllocation[]
+}
+
+model InventoryAllocation {
+  id              String   @id @default(uuid())
+  inventoryId     String
+  prDetailId      String
+  allocatedQty    Float    @default(0)
+  allocatedWeight Float    @default(0)
+  allocatedBy     String?
+  allocatedAt     DateTime @default(now())
+  status          String   @default("ACTIVE") // ACTIVE | RELEASED
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id])
+  prDetail  PrDetail  @relation(fields: [prDetailId], references: [id])
+
+  @@index([prDetailId])
+}
+
+// ================================================================
+// BLOCK 7: VENDOR MASTER
+// ================================================================
+
+model Vendor {
+  id              String   @id @default(uuid())
+  code            String   @unique  // HN | NH | VSAN
+  name            String            // Hung Nguyen | Ngoc Hieu | VSAN
+  country         String   @default("VN")
+  certOrigin      String?
+  certStandard    String?
+  isBlacklisted   Boolean  @default(false)
+  blacklistReason String?
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  createdAt       DateTime @default(now())
+}
+
+// ================================================================
+// BLOCK 8: DOCUMENTS
+// ================================================================
+
+model Document {
+  id         String   @id @default(uuid())
+  entityId   String
+  entityType String   // PURCHASE_ORDER | GRN | CONTRACT | PR
+  docType    String   // CO | CQ | MTR | INVOICE | PACKING_LIST | TEST_CERT
+  fileName   String
+  fileUrl    String
+  uploadedBy String?
+  uploadedAt DateTime @default(now())
+  notes      String?
+}

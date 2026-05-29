@@ -1,0 +1,75 @@
+{
+  "mode": "DRY RUN",
+  "min_confidence": "medium",
+  "stats": {
+    "high": 1,
+    "medium": 15,
+    "low": 44,
+    "skipped_threshold": 44,
+    "applied": 11,
+    "skipped_already_set": 5,
+    "missing_bid": 0
+  },
+  "samples": [
+    {
+      "bidId": "efd4691c",
+      "bidCode": "WINWIN grating",
+      "confidence": "medium",
+      "pdf": "121. Giai trinh MSDT Grating - Winwin HD 25-VPI-I-095.pdf"
+    },
+    {
+      "bidId": "6748ca3b",
+      "bidCode": "Vật tư đóng kiện Hoàng hà 090",
+      "confidence": "medium",
+      "pdf": "86. Giai trinh MSDT Bulong dong kien Hoang Ha 25-BRA-I-090.p"
+    },
+    {
+      "bidId": "fe22161d",
+      "bidCode": "Vật tư Hùng Nguyên",
+      "confidence": "medium",
+      "pdf": "39. Giai trinh MSDT - Thep Hung Nguyen 25-BRA-I-090.pdf"
+    },
+    {
+      "bidId": "c71b4914",
+      "bidCode": "Vật tư đóng kiện Hoàng hà2",
+      "confidence": "medium",
+      "pdf": "86. Giai trinh MSDT Bulong dong kien Hoang Ha 25-BRA-I-090.p"
+    },
+    {
+      "bidId": "0b7466cb",
+      "bidCode": "Vật tư đóng kiện của Hoàng Hà",
+      "confidence": "medium",
+      "pdf": "86. Giai trinh MSDT Bulong dong kien Hoang Ha 25-BRA-I-090.p"
+    },
+    {
+      "bidId": "ddd6eb39",
+      "bidCode": "Vật tư Quang Thịnh Phát",
+      "confidence": "high",
+      "pdf": "67. Giai trinh MSDt Thep - Quang Thinh Phat 25-BRA-I-090.pdf"
+    },
+    {
+      "bidId": "ffc74ed5",
+      "bidCode": "Vật tư sơn 090",
+      "confidence": "medium",
+      "pdf": "216. Giai trinh MSDT Son - Phuc Chau 25-BRA-I-090LK.pdf"
+    },
+    {
+      "bidId": "abc45f21",
+      "bidCode": "Giải tình Quang Thịnh Phát",
+      "confidence": "medium",
+      "pdf": "92. Giai trinh MSDT Thep hop den 60 - Quang thinh Phat 25-GE"
+    },
+    {
+      "bidId": "a52497ec",
+      "bidCode": "Giải tình Hoàng Hà vit",
+      "confidence": "medium",
+      "pdf": "85. Giai trinh MSDT Vit ban ton Hoang Ha 25-WNC-I-097.pdf"
+    },
+    {
+      "bidId": "29656149",
+      "bidCode": "Giải tình Hoàng Hà vit 26-1",
+      "confidence": "medium",
+      "pdf": "85. Giai trinh MSDT Vit ban ton Hoang Ha 25-WNC-I-097.pdf"
+    }
+  ]
+}

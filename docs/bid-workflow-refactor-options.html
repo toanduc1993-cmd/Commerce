@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>BID Workflow — Phân tích chi tiết + 4 phương án refactor</title>
+<!-- Markmap CDN — interactive mindmap renderer -->
+<script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.16"></script>
+<style>
+  :root {
+    --brand: #1B365D;
+    --brand-soft: #DEEBF7;
+    --accent: #ED7D31;
+    --success: #2E7D32;
+    --warning: #F9A825;
+    --danger: #C62828;
+    --info: #0d6efd;
+    --gray-50: #F8FAFC;
+    --gray-100: #F1F5F9;
+    --gray-200: #E2E8F0;
+    --gray-300: #CBD5E1;
+    --gray-400: #94A3B8;
+    --gray-500: #64748B;
+    --gray-700: #334155;
+    --gray-900: #0F172A;
+    --c-b2: #2E75B6;
+    --c-b3: #4CAF50;
+    --c-b4: #FF9800;
+    --c-b5: #9C27B0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    color: var(--gray-900);
+    background: var(--gray-50);
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
+  header {
+    background: linear-gradient(135deg, var(--brand) 0%, #2C4F8A 100%);
+    color: white;
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  }
+  h1 { margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
+  .subtitle { opacity: .9; font-size: 14px; }
+  h2 {
+    color: var(--brand);
+    border-bottom: 3px solid var(--brand);
+    padding: 16px 0 8px;
+    margin: 40px 0 16px;
+    font-size: 22px;
+  }
+  h3 {
+    color: var(--brand);
+    margin: 20px 0 8px;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  h4 {
+    color: var(--gray-700);
+    margin: 14px 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  code {
+    background: rgba(0,0,0,.06);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--gray-700);
+  }
+  .label { color: var(--gray-500); font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+
+  /* Nav TOC */
+  .toc {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .toc a {
+    text-decoration: none;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: all .15s;
+  }
+  .toc a:hover { background: var(--brand); color: white; }
+
+  /* Page card */
+  .page-card {
+    background: white;
+    border-radius: 10px;
+    margin: 16px 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    overflow: hidden;
+    border-top: 4px solid var(--brand);
+  }
+  .page-card.b2 { border-top-color: var(--c-b2); }
+  .page-card.b3 { border-top-color: var(--c-b3); }
+  .page-card.b4 { border-top-color: var(--c-b4); }
+  .page-card.b5 { border-top-color: var(--c-b5); }
+  .page-header {
+    padding: 16px 20px;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .step-circle {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-weight: 800;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .page-card.b2 .step-circle { background: var(--c-b2); }
+  .page-card.b3 .step-circle { background: var(--c-b3); }
+  .page-card.b4 .step-circle { background: var(--c-b4); }
+  .page-card.b5 .step-circle { background: var(--c-b5); }
+  .page-title-block { flex: 1; }
+  .page-title-block .h-name {
+    font-size: 16px; font-weight: 700; color: var(--brand);
+  }
+  .page-title-block .h-path {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--gray-500);
+  }
+  .page-meta {
+    display: flex; gap: 12px;
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+  .page-body {
+    padding: 16px 20px;
+  }
+
+  /* Section blocks within page card */
+  .section {
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    margin: 12px 0;
+    padding: 12px 14px;
+    background: white;
+  }
+  .section-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--brand);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .ico {
+    display: inline-flex;
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+
+  /* Mini tables */
+  .mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin: 4px 0;
+  }
+  .mini-table th, .mini-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--gray-100);
+    text-align: left;
+    vertical-align: top;
+  }
+  .mini-table th {
+    background: var(--gray-50);
+    font-weight: 700;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .3px;
+  }
+  .mini-table tbody tr:hover { background: var(--gray-50); }
+
+  /* Button mini chips */
+  .btn-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .btn-create { background: var(--brand-soft); color: var(--brand); }
+  .btn-export { background: #E8F5E9; color: var(--success); }
+  .btn-delete { background: #FFEBEE; color: var(--danger); }
+  .btn-link { background: #E3F2FD; color: var(--info); }
+  .btn-warn { background: #FFF8E1; color: #F57C00; }
+
+  /* API endpoints styling */
+  .api-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 0;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+  }
+  .api-method {
+    padding: 2px 7px; border-radius: 3px;
+    font-weight: 700; font-size: 10.5px;
+    color: white;
+  }
+  .api-get { background: #43A047; }
+  .api-post { background: #1E88E5; }
+  .api-put { background: #FB8C00; }
+  .api-delete { background: #E53935; }
+
+  /* Modal nested cards */
+  .modal-card {
+    background: #FAFAFA;
+    border-left: 4px solid var(--accent);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin: 8px 0;
+  }
+  .modal-card.create { border-left-color: var(--c-b2); }
+  .modal-card.import { border-left-color: var(--c-b3); }
+  .modal-card.quote { border-left-color: var(--c-b4); }
+  .modal-card-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--brand);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-tag {
+    background: var(--brand);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+
+  /* Duplicate / conflict callouts */
+  .dup-row {
+    background: #FFF3E0;
+    border-left: 4px solid var(--warning);
+    padding: 8px 12px;
+    margin: 6px 0;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .conflict-row {
+    background: #FFEBEE;
+    border-left: 4px solid var(--danger);
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 4px;
+  }
+  .conflict-title {
+    font-weight: 700;
+    color: var(--danger);
+    margin-bottom: 6px;
+  }
+
+  /* Refactor option cards */
+  .option-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    border-top: 6px solid var(--brand);
+  }
+  .option-card.A { border-top-color: var(--success); }
+  .option-card.B { border-top-color: var(--info); }
+  .option-card.C { border-top-color: var(--accent); }
+  .option-card.D { border-top-color: #7B1FA2; }
+  .option-header {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 12px;
+  }
+  .option-letter {
+    font-size: 28px; font-weight: 900;
+    width: 50px; height: 50px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    color: white;
+    flex-shrink: 0;
+  }
+  .option-card.A .option-letter { background: var(--success); }
+  .option-card.B .option-letter { background: var(--info); }
+  .option-card.C .option-letter { background: var(--accent); }
+  .option-card.D .option-letter { background: #7B1FA2; }
+  .option-tagline { font-size: 18px; font-weight: 700; }
+  .option-summary { color: var(--gray-700); font-size: 13px; margin-top: 4px; }
+  .option-meta {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 10px 0;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .badge-effort-low { background: #E8F5E9; color: var(--success); }
+  .badge-effort-med { background: #FFF8E1; color: #F57C00; }
+  .badge-effort-high { background: #FFEBEE; color: var(--danger); }
+  .badge-risk-low { background: #E3F2FD; color: #1565C0; }
+  .badge-risk-med { background: #FFF3E0; color: #E65100; }
+  .badge-risk-high { background: #FCE4EC; color: #AD1457; }
+  .badge-rec { background: var(--success); color: white; }
+
+  /* Migration mapping table */
+  .migration-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12.5px;
+    background: white;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .migration-table thead { background: var(--gray-700); color: white; }
+  .migration-table th, .migration-table td {
+    padding: 8px 12px; border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+  .migration-table tbody tr:hover { background: var(--gray-50); }
+  .arrow-cell {
+    color: var(--accent);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  /* Pros / Cons grid */
+  .pros-cons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .pros, .cons {
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+  }
+  .pros { background: #E8F5E9; border-left: 3px solid var(--success); }
+  .cons { background: #FFEBEE; border-left: 3px solid var(--danger); }
+  .pros h4, .cons h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
+  .pros h4 { color: var(--success); }
+  .cons h4 { color: var(--danger); }
+  .pros ul, .cons ul { margin: 0; padding-left: 18px; }
+  .pros li, .cons li { margin: 3px 0; line-height: 1.4; }
+
+  /* Diagram ASCII block */
+  .diag-block {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* Comparison summary table */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .summary-table thead { background: var(--brand); color: white; }
+  .summary-table th, .summary-table td { padding: 10px 12px; border-bottom: 1px solid var(--gray-200); }
+  .summary-table th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
+  .summary-table tbody tr:hover { background: var(--gray-50); }
+  .summary-table td.center { text-align: center; }
+  .dot-green { color: var(--success); font-size: 18px; }
+  .dot-yellow { color: #F57C00; font-size: 18px; }
+  .dot-red { color: var(--danger); font-size: 18px; }
+
+  details { margin: 10px 0; }
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 12px;
+    background: var(--gray-100);
+    border-radius: 4px;
+    user-select: none;
+  }
+  summary:hover { background: var(--gray-200); }
+  details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+  .recommendation {
+    background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+    border: 2px solid var(--success);
+    border-radius: 12px;
+    padding: 18px;
+    margin: 20px 0;
+  }
+  .recommendation h3 { color: #1B5E20; margin-top: 0; }
+
+  footer {
+    text-align: center;
+    color: var(--gray-500);
+    padding: 24px 0;
+    font-size: 12px;
+    border-top: 1px solid var(--gray-200);
+    margin-top: 40px;
+  }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: var(--gray-100); color: var(--gray-700); }
+
+  /* Mindmap container styling */
+  .mindmap-wrap {
+    background: white;
+    border: 2px solid var(--brand);
+    border-radius: 12px;
+    margin: 20px 0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  }
+  .mindmap-header {
+    background: var(--brand);
+    color: white;
+    padding: 12px 18px;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mindmap-header .hint {
+    font-weight: 400;
+    font-size: 11.5px;
+    opacity: .85;
+  }
+  .markmap {
+    width: 100%;
+    height: 700px;
+    background: var(--gray-50);
+  }
+  .mindmap-wrap.option-mm .markmap { height: 500px; }
+  .mindmap-wrap.small-mm .markmap { height: 420px; }
+
+  /* 2-column side-by-side comparison */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 24px 0;
+  }
+  .compare-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07);
+    display: flex;
+    flex-direction: column;
+  }
+  .compare-card.opt-A { border: 2px solid var(--success); }
+  .compare-card.opt-B { border: 2px solid var(--info); }
+  .compare-card.opt-C { border: 2px solid var(--accent); }
+  .compare-card.opt-D { border: 2px solid #7B1FA2; }
+
+  .compare-card-header {
+    padding: 14px 16px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .compare-card.opt-A .compare-card-header { background: linear-gradient(135deg, var(--success) 0%, #43A047 100%); }
+  .compare-card.opt-B .compare-card-header { background: linear-gradient(135deg, var(--info) 0%, #1E88E5 100%); }
+  .compare-card.opt-C .compare-card-header { background: linear-gradient(135deg, var(--accent) 0%, #F57C00 100%); }
+  .compare-card.opt-D .compare-card-header { background: linear-gradient(135deg, #7B1FA2 0%, #9C27B0 100%); }
+
+  .compare-letter {
+    font-size: 24px;
+    font-weight: 900;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .compare-card-title { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .compare-card-sub { font-size: 12px; opacity: .9; }
+
+  .compare-meta-row {
+    padding: 8px 16px;
+    background: var(--gray-50);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .compare-section {
+    padding: 14px 16px;
+  }
+  .compare-section + .compare-section { border-top: 1px solid var(--gray-200); }
+  .compare-section h5 {
+    margin: 0 0 8px;
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .compare-section.pros-section h5 { color: var(--success); }
+  .compare-section.cons-section h5 { color: var(--danger); }
+  .compare-section.detail-section h5 { color: var(--brand); }
+
+  .compare-list { margin: 0; padding: 0; list-style: none; }
+  .compare-list li {
+    padding: 6px 8px;
+    margin: 4px 0;
+    border-radius: 4px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    position: relative;
+    padding-left: 26px;
+  }
+  .compare-list li::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 11px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  /* Shared (neutral) points */
+  .compare-list li.shared {
+    background: var(--gray-50);
+    color: var(--gray-700);
+  }
+  .compare-list li.shared::before { background: var(--gray-400); }
+  /* UNIQUE strong points — bôi màu */
+  .compare-list li.unique-pro {
+    background: #C8E6C9;
+    color: #1B5E20;
+    font-weight: 600;
+    box-shadow: 0 0 0 1px rgba(46,125,50,.35) inset;
+  }
+  .compare-list li.unique-pro::before {
+    background: var(--success);
+    box-shadow: 0 0 0 3px rgba(46,125,50,.25);
+  }
+  /* UNIQUE weak points — bôi màu */
+  .compare-list li.unique-con {
+    background: #FFCDD2;
+    color: #B71C1C;
+    font-weight: 600;
+    box-shadow: 0 0 0 1px rgba(198,40,40,.35) inset;
+  }
+  .compare-list li.unique-con::before {
+    background: var(--danger);
+    box-shadow: 0 0 0 3px rgba(198,40,40,.25);
+  }
+  /* Strong-disadvantage (deal-breaker) */
+  .compare-list li.dealbreaker {
+    background: #FFCDD2;
+    color: #B71C1C;
+    font-weight: 700;
+    border: 2px solid var(--danger);
+    padding-left: 30px;
+  }
+  .compare-list li.dealbreaker::before {
+    background: var(--danger);
+    width: 10px; height: 10px;
+    top: 10px; left: 10px;
+    box-shadow: 0 0 0 3px rgba(198,40,40,.3);
+  }
+
+  .compare-legend {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 12px;
+  }
+  .compare-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  @media (max-width: 900px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔬 BID Workflow — Phân tích layered + 4 phương án refactor</h1>
+  <div class="subtitle">Mỗi page · Mỗi section · Mỗi nút · Mỗi API · Mapping refactor chi tiết · 2026-05-27</div>
+</header>
+
+<div class="wrap">
+
+  <!-- TOC -->
+  <div class="toc">
+    <a href="#current">📍 Hiện trạng 4 pages</a>
+    <a href="#mindmap-section">🗺️ Mindmap</a>
+    <a href="#page-b2">📨 B2 Yêu cầu BG</a>
+    <a href="#page-b3">📥 B3 Báo giá</a>
+    <a href="#page-b4">⚖️ B4 So sánh</a>
+    <a href="#page-b5">✓ B5 Duyệt</a>
+    <a href="#modals">🪟 3 Modals</a>
+    <a href="#shared">🔁 Code duplicate</a>
+    <a href="#option-a">🟢 Phương án A</a>
+    <a href="#option-b">🔵 Phương án B</a>
+    <a href="#option-c">🟠 Phương án C</a>
+    <a href="#option-d">🟣 Phương án D</a>
+    <a href="#compare">📊 So sánh nhanh</a>
+    <a href="#deepcompare">⚖️ So sánh đối-1 (highlight)</a>
+  </div>
+
+  <!-- ───── HIỆN TRẠNG ───── -->
+  <h2 id="current">📍 Hiện trạng tổng quan</h2>
+  <p>
+    <strong>4 pages + 3 modals</strong> tổng <strong>~3,657 LOC</strong> phục vụ workflow Bước 2 → 5 quy trình mua hàng IBSHI.
+    Tất cả pages đều fetch từ cùng 1 bảng <code>BidAnalysis</code> (BackEnd), nhưng góc nhìn UX khác nhau theo status.
+  </p>
+
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th>Page</th>
+        <th>Path</th>
+        <th>LOC</th>
+        <th>Status BID</th>
+        <th>Vai trò</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong style="color:var(--c-b2)">B2 Yêu cầu báo giá</strong></td>
+        <td><code>/yeu-cau-bao-gia</code></td>
+        <td class="center">513</td>
+        <td><span class="pill">OPEN</span></td>
+        <td>Tạo RFQ, theo dõi vendor đã/chưa gửi</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--c-b3)">B3 Báo giá</strong></td>
+        <td><code>/bao-gia</code></td>
+        <td class="center">657</td>
+        <td><span class="pill">EVALUATING</span></td>
+        <td>Upload Excel, list bids, xem báo giá NCC</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--c-b4)">B4 So sánh báo giá</strong></td>
+        <td><code>/so-sanh-bao-gia</code></td>
+        <td class="center">422</td>
+        <td><span class="pill">→ SELECTED</span></td>
+        <td>Matrix items × vendors, chọn NCC per-BID</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--c-b5)">B5 Duyệt báo giá</strong></td>
+        <td><code>/duyet-bao-gia</code></td>
+        <td class="center">564</td>
+        <td><span class="pill">→ CONTRACTED</span></td>
+        <td>Chọn NCC per-item, tạo PO/HĐ</td>
+      </tr>
+    </tbody>
+  </table>
+
+
+
+  <!-- ═════ MINDMAP — TOÀN BỘ HỆ THỐNG ═════ -->
+  <h2 id="mindmap-section">🗺️ Mindmap — Cấu trúc cây phân nhánh</h2>
+  <p>
+    3 mindmap interactive (click vào nốt để fold/unfold, kéo để di chuyển, scroll zoom). Render bằng <a href="https://markmap.js.org/" target="_blank">Markmap.js</a>.
+  </p>
+
+  <div class="mindmap-wrap">
+    <div class="mindmap-header">
+      <span>🗺️ Mindmap 1 — Toàn bộ cấu trúc hiện tại (4 pages + 3 modals + APIs)</span>
+      <span class="hint">Click node để fold/unfold · Scroll để zoom · Drag để di chuyển</span>
+    </div>
+    <div class="markmap">
+<script type="text/template">
+# BID Workflow — 4 pages + 3 modals
+## 📨 B2 · Yêu cầu báo giá
+### Path: /yeu-cau-bao-gia
+### Status: OPEN
+### LOC: 513
+### 📑 Header
+- Breadcrumb: "Quy trình mua sắm › Bước 2"
+- H1: "Danh Mục Yêu Cầu Báo Giá"
+- Header buttons
+  - **+ Tạo RFQ mới** → CreateRfqModal
+  - **📤 Import batch** → ImportRfqBatchModal
+### 📊 KPI cards (4)
+- Tổng RFQ = bids.length
+- Báo giá nhận được = sum(vendors.length)
+- Chờ chọn NCC = OPEN+EVALUATING
+- Đã chọn NCC = SELECTED+CONTRACTED
+### 🔎 Toolbar
+- Search: bidCode, subject
+- Filter: project, status (multi), bidDate (range)
+### 📋 Table 9 cột
+- BidCode + Subject (BidCodeDisplay)
+- Dự án · Ngày · NCC count · Tổng giá trị · Status
+- **Per-row actions**
+  - ⬇ Excel → GET /export-rfq
+  - ✗ Huỷ (chỉ OPEN, 0 vendor) → DELETE /bid-analyses/:id
+  - So sánh → /so-sanh-bao-gia
+### 🪟 Expand panel: VendorsExpandPanel
+- Vendor cards grid 3 cols
+- + Nhập báo giá NCC → EnterVendorQuoteModal
+- Xem so sánh → /so-sanh
+### 🌐 APIs
+- GET /api/v1/bid-analyses
+- GET /api/v1/bid-analyses/:id/export-rfq
+- DELETE /api/v1/bid-analyses/:id
+
+## 📥 B3 · Báo giá
+### Path: /bao-gia
+### Status: EVALUATING
+### LOC: 657
+### 📑 Header
+- H1: "Báo Giá Vật Tư" (KHÔNG breadcrumb)
+- **📤 Upload Báo Giá** → upload modal (inline)
+- Search inline (w-64)
+### 📊 KPI cards (4)
+- Tổng đợt báo giá
+- Tổng items
+- Vendors tham gia (unique set)
+- Tỷ lệ đã chọn (%)
+### 🔎 Toolbar
+- Search bid/subject/vendor
+- Status quick-pills
+- Project select
+### 📋 Table 10 cột
+- BidCode → **link** /so-sanh
+- Subject (truncate)
+- Items count · NCC count · NCC trúng · Tổng giá trị
+- **KHÔNG có action button per-row**
+### 🪟 Expand panel: VendorQuotationsPanel
+- Vendor cards (load GET /:id on open)
+- Matrix so sánh → /so-sanh
+- Duyệt báo giá → /duyet
+### 📤 Upload Excel modal
+- Drag-drop .xlsx max 5MB → POST /upload
+### 🌐 APIs
+- GET /api/v1/bid-analyses
+- POST /api/v1/bid-analyses/upload
+- GET /api/v1/bid-analyses/:id (expand)
+
+## ⚖️ B4 · So sánh báo giá
+### Path: /so-sanh-bao-gia
+### Layout: sidebar + main
+### LOC: 422
+### 📋 Sidebar (w-72)
+- List bids · click select · active state
+- KHÔNG search/filter
+### 📑 Main header
+- H1: bidDetail.subject
+- ⬇ Tải file gốc → GET /:id/download
+- ← Quay lại
+### 🎴 Vendor cards (grid-4)
+- Type · name · total quote
+- **Chọn NCC này** ⚠️ → POST /:bidId/select-vendor/:vendorId (PER-BID)
+### 🔢 Comparison Matrix
+- Sticky 2-row header
+- Items × Vendors (3 cols/vendor)
+- Highlight: yellow min unit price · emerald winner column
+### ⚠️ Mâu thuẫn UX
+- "Chọn NCC này" = 1 NCC cho TOÀN BỘ BID
+### 🌐 APIs
+- GET /bid-analyses + /:id + /:id/download
+- POST /:bidId/select-vendor/:vendorId
+
+## ✓ B5 · Duyệt báo giá
+### Path: /duyet-bao-gia
+### Layout: sidebar + main
+### LOC: 564
+### 📋 Sidebar (giống B4)
+### 📑 Main header
+- H1 + metadata
+- **🤝 Tạo PO/HĐ** → POST /:id/create-po
+- ✓ Đã có PO → /hop-dong
+- ⚖ Xem matrix → /so-sanh
+### 📊 Summary stats (grid-4)
+- Tổng items · Đã duyệt · Chờ duyệt · Tổng giá trị
+- Data: GET /:id/approval-summary
+### 📋 Section 1: Item Selection
+- Bảng item × vendor unit/total prices
+- **Dropdown NCC duyệt** per item
+- ⚠️ → PUT /:bid/items/:item/select-vendor (PER-ITEM)
+### 📊 Section 2: Approval Summary
+- Group by vendor
+- Items + total value
+### ⚠️ Mâu thuẫn UX
+- "Chọn NCC" mỗi item 1 vendor khác — KHÁC B4
+### 🌐 APIs
+- GET /bid-analyses + /:id + /:id/approval-summary
+- PUT /:bid/items/:item/select-vendor
+- POST /:id/create-po
+
+## 🪟 Modals (3)
+### CreateRfqModal (620 LOC)
+- Step 1: Chọn PR items (filter, search, bulk select, shift+click)
+- Step 2: Confirm + tạo
+- API: POST /from-pr hoặc /from-pr-bulk-by-group
+### ImportRfqBatchModal (367 LOC)
+- Tải mẫu Excel → GET /export-template
+- Upload .xlsx → POST /import-rfq-batch
+### EnterVendorQuoteModal (414 LOC)
+- Vendor info: name + type + currency
+- Items quote table
+- API: POST /:bidId/quotes
+
+## 🔁 Shared/Duplicate
+### Helpers (4 lần copy-paste)
+- fmtMoney · fmtNum · fmtDate
+- STATUS_LABEL / STATUS_CFG
+### Components overlap
+- VendorsExpandPanel (B2) vs VendorQuotationsPanel (B3)
+- Sidebar B4 ≈ Sidebar B5
+### Over-fetch
+- fetchBidAnalyses() không filter — 4 pages load 100%
+### Types
+- BidAnalysisRow · ApprovalSummary · ItemQuote
+</script>
+    </div>
+  </div>
+
+
+  <!-- ═════ PAGE B2 — DEEP DIVE ═════ -->
+  <div class="page-card b2" id="page-b2">
+    <div class="page-header">
+      <div class="step-circle">2</div>
+      <div class="page-title-block">
+        <div class="h-name">Yêu cầu báo giá</div>
+        <div class="h-path">/yeu-cau-bao-gia/page.tsx · 513 LOC</div>
+      </div>
+      <div class="page-meta">
+        <span>Status: OPEN</span><span>·</span><span>RFQ creator + tracker</span>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📑</span>Header</div>
+        <table class="mini-table">
+          <tr><th>Item</th><th>Nội dung</th></tr>
+          <tr><td>Breadcrumb</td><td>"Quy trình mua sắm › <strong>Bước 2: Yêu cầu báo giá</strong>"</td></tr>
+          <tr><td>H1</td><td>"Danh Mục Yêu Cầu Báo Giá"</td></tr>
+          <tr><td>Subtitle</td><td>"Sau khi nhận PR · Trước khi so sánh báo giá · Theo dõi NCC nào đã/chưa gửi báo giá"</td></tr>
+          <tr><td>Action buttons (header)</td><td>
+            <span class="btn-chip btn-warn">📤 Import batch</span> → mở <code>&lt;ImportRfqBatchModal&gt;</code><br>
+            <span class="btn-chip btn-create">＋ Tạo RFQ mới</span> → mở <code>&lt;CreateRfqModal&gt;</code>
+          </td></tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📊</span>KPI Cards (4 cards, grid-cols-4)</div>
+        <table class="mini-table">
+          <tr><th>#</th><th>Label</th><th>Value</th><th>Source</th><th>Icon</th></tr>
+          <tr><td>1</td><td>Tổng RFQ</td><td>=bids.length</td><td>fetchBidAnalyses</td><td>forward_to_inbox</td></tr>
+          <tr><td>2</td><td>Báo giá nhận được</td><td>=sum(b.vendors.length)</td><td>computed FE</td><td>mark_email_read</td></tr>
+          <tr><td>3</td><td>Chờ chọn NCC</td><td>=count(status ∈ {OPEN, EVALUATING})</td><td>computed FE</td><td>pending_actions</td></tr>
+          <tr><td>4</td><td>Đã chọn NCC</td><td>=count(status ∈ {SELECTED, CONTRACTED})</td><td>computed FE</td><td>verified</td></tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🔎</span>Toolbar (filter + search)</div>
+        <div>Search: <code>bidCode</code>, <code>subject</code></div>
+        <div>Column filters: <code>bidCode</code> (text) · <code>subject</code> (text) · <code>project.code</code> (select) · <code>status</code> (multiSelect) · <code>bidDate</code> (dateRange)</div>
+        <div style="margin-top:6px"><strong>Component:</strong> <code>&lt;TableSearch&gt;</code> + <code>&lt;ColumnFilter&gt;</code> + <code>&lt;ActiveFilterChips&gt;</code> (via <code>useTableFilters</code> hook)</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📋</span>Table — 9 cột</div>
+        <table class="mini-table">
+          <tr><th>#</th><th>Cột</th><th>Source / Formatter</th></tr>
+          <tr><td>1</td><td>Expand icon</td><td>chevron_right rotate 90°</td></tr>
+          <tr><td>2-3</td><td>Mã RFQ / Bid + Chủ đề</td><td><code>&lt;BidCodeDisplay&gt;</code> colSpan=2</td></tr>
+          <tr><td>4</td><td>Dự án</td><td>b.project?.code</td></tr>
+          <tr><td>5</td><td>Ngày RFQ</td><td><code>fmtDate(b.bidDate)</code></td></tr>
+          <tr><td>6</td><td>NCC đã gửi</td><td>badge với b.vendors.length</td></tr>
+          <tr><td>7</td><td>Tổng giá trị nhận</td><td><code>sumReceivedValue(b)</code> — VND+USD</td></tr>
+          <tr><td>8</td><td>Trạng thái</td><td>badge theo STATUS_LABEL[status]</td></tr>
+          <tr><td>9</td><td>Action buttons</td><td>(xem bên dưới)</td></tr>
+        </table>
+        <h4>Per-row actions (cột 9):</h4>
+        <table class="mini-table">
+          <tr><th>Nút</th><th>Điều kiện hiển thị</th><th>Action / API</th></tr>
+          <tr><td><span class="btn-chip btn-export">⬇ Excel</span></td><td>Always</td><td><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id/export-rfq</code> → download blob</td></tr>
+          <tr><td><span class="btn-chip btn-delete">✗ Huỷ</span></td><td>Chỉ khi status=OPEN AND vendors.length=0</td><td>confirm() → <span class="api-method api-delete">DELETE</span> <code>/api/v1/bid-analyses/:id</code> → revert PR statusFlag</td></tr>
+          <tr><td><span class="btn-chip btn-link">So sánh →</span></td><td>Always</td><td>Link <code>/so-sanh-bao-gia?bid={b.id}</code></td></tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🪟</span>Expandable panel — VendorsExpandPanel</div>
+        <ul>
+          <li>Title: "${vendors.length} nhà cung cấp đã gửi báo giá"</li>
+          <li>Buttons:
+            <ul>
+              <li><span class="btn-chip btn-create">＋ Nhập báo giá NCC</span> → mở <code>&lt;EnterVendorQuoteModal&gt;</code></li>
+              <li><span class="btn-chip btn-link">Xem chi tiết so sánh →</span> Link <code>/so-sanh-bao-gia?bid={id}</code></li>
+            </ul>
+          </li>
+          <li>Cards grid 3 cột: vendor name + type badge + winner badge + total quote</li>
+          <li>Empty state: "Chưa có NCC nào gửi báo giá" + button nhập BG đầu tiên</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🌐</span>API endpoints used</div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses</code> — list</div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id/export-rfq</code> — Excel RFQ form</div>
+        <div class="api-row"><span class="api-method api-delete">DELETE</span> <code>/api/v1/bid-analyses/:id</code> — cancel + revert</div>
+        <div style="font-size:12px; color:var(--gray-500); margin-top:6px">Modals (CreateRfqModal/ImportRfqBatchModal/EnterVendorQuoteModal) gọi thêm 5+ endpoints khác.</div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═════ PAGE B3 — DEEP DIVE ═════ -->
+  <div class="page-card b3" id="page-b3">
+    <div class="page-header">
+      <div class="step-circle">3</div>
+      <div class="page-title-block">
+        <div class="h-name">Báo giá</div>
+        <div class="h-path">/bao-gia/page.tsx · 657 LOC</div>
+      </div>
+      <div class="page-meta">
+        <span>Status: EVALUATING</span><span>·</span><span>Upload Excel + view bids</span>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📑</span>Header</div>
+        <table class="mini-table">
+          <tr><th>Item</th><th>Nội dung</th></tr>
+          <tr><td>Breadcrumb</td><td><strong>KHÔNG có</strong> (simplified)</td></tr>
+          <tr><td>H1</td><td>"Báo Giá Vật Tư"</td></tr>
+          <tr><td>Subtitle</td><td>"Bid Analyses từ các đợt báo giá NCC · Upload từ file Excel 'Theo dõi dự án'"</td></tr>
+          <tr><td>Action buttons</td><td>
+            Search input (w-64) — search inline<br>
+            <span class="btn-chip btn-create">📤 Upload Báo Giá</span> → mở inline upload modal
+          </td></tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📊</span>KPI Cards (4 cards)</div>
+        <table class="mini-table">
+          <tr><th>#</th><th>Label</th><th>Value</th><th>Icon</th></tr>
+          <tr><td>1</td><td>Tổng đợt báo giá</td><td>bids.length + "X đã chọn NCC"</td><td>request_quote</td></tr>
+          <tr><td>2</td><td>Tổng items</td><td>sum(b._count?.items)</td><td>inventory_2</td></tr>
+          <tr><td>3</td><td>Vendors tham gia</td><td>unique set of all vendors</td><td>domain</td></tr>
+          <tr><td>4</td><td>Tỷ lệ đã chọn</td><td>round(selectedCount/totalBids*100)%</td><td>verified</td></tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🔎</span>Toolbar</div>
+        <ul>
+          <li><strong>Search:</strong> bidCode + subject + vendor name</li>
+          <li><strong>Status quick-pills:</strong> Tất cả / Đang mở / Đang đánh giá / Đã chọn NCC / Đã ký HĐ</li>
+          <li><strong>Project select dropdown:</strong> filter by project.code</li>
+          <li><strong>Advanced filters:</strong> bidCode, subject, bidDate (dateRange)</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📋</span>Table — 10 cột</div>
+        <table class="mini-table">
+          <tr><th>#</th><th>Cột</th><th>Source / Formatter</th></tr>
+          <tr><td>1</td><td>Expand icon</td><td>chevron_right rotate</td></tr>
+          <tr><td>2</td><td>Bid Code</td><td><strong>Link</strong> → <code>/so-sanh-bao-gia?bid={id}</code></td></tr>
+          <tr><td>3</td><td>Subject</td><td>truncate max-w-[320px]</td></tr>
+          <tr><td>4</td><td>Dự án</td><td>b.project?.code</td></tr>
+          <tr><td>5</td><td>Ngày</td><td>fmtDate</td></tr>
+          <tr><td>6</td><td>Items</td><td>b._count?.items</td></tr>
+          <tr><td>7</td><td>NCC</td><td>b.vendors.length</td></tr>
+          <tr><td>8</td><td>NCC trúng</td><td>winner.vendorName hoặc "Chưa chọn"</td></tr>
+          <tr><td>9</td><td>Tổng giá trị</td><td>fmtMoney(winner.totalQuote)</td></tr>
+          <tr><td>10</td><td>Trạng thái</td><td>badge per STATUS_CFG</td></tr>
+        </table>
+        <h4>Per-row action:</h4>
+        <p style="font-size:12.5px; color:var(--gray-700)">
+          <strong>KHÔNG có action button</strong> — chỉ click row để expand panel.
+          Để action → expand row trước, rồi click Link bên trong panel.
+        </p>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🪟</span>Expandable panel — VendorQuotationsPanel</div>
+        <ul>
+          <li>Title: "Báo giá chi tiết của ${vendors.length} NCC · {bidCode}"</li>
+          <li>Links:
+            <span class="btn-chip btn-link">Matrix so sánh →</span> <code>/so-sanh-bao-gia?bid={id}</code> ·
+            <span class="btn-chip btn-link">Duyệt báo giá →</span> <code>/duyet-bao-gia?bid={id}</code>
+          </li>
+          <li>Cards grid: vendor name + type + currency + isWinner + items count + total</li>
+          <li>Loads data: <span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id</code> trên panel open</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📥</span>Upload modal (inline overlay)</div>
+        <ul>
+          <li>Project select (optional, auto-detect từ file)</li>
+          <li>Drag-drop zone, accept .xlsx/.xls, max 5 MB</li>
+          <li>Button "Upload &amp; Parse" → <span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/upload</code></li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🌐</span>API endpoints used</div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses</code></div>
+        <div class="api-row"><span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/upload</code></div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id</code> (cho expand panel)</div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═════ PAGE B4 — DEEP DIVE ═════ -->
+  <div class="page-card b4" id="page-b4">
+    <div class="page-header">
+      <div class="step-circle">4</div>
+      <div class="page-title-block">
+        <div class="h-name">So sánh báo giá</div>
+        <div class="h-path">/so-sanh-bao-gia/page.tsx · 422 LOC</div>
+      </div>
+      <div class="page-meta">
+        <span>Layout: sidebar + main</span><span>·</span><span>Matrix view</span>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📐</span>Layout 2-panel</div>
+        <div class="diag-block">┌─ Sidebar (w-72) ──┬─ Main detail (flex-1) ───────────────┐
+│ List of BIDs      │ Header (subject, bidCode, project)   │
+│ Click → select    │ Vendor summary cards (grid-cols-4)   │
+│ Active state:     │ ┌──────────────────────────────────┐ │
+│  bg-brand/10      │ │ Comparison table (sticky thead)  │ │
+│  border-l-4       │ │ Items × Vendors matrix           │ │
+│                   │ └──────────────────────────────────┘ │
+└───────────────────┴──────────────────────────────────────┘</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📋</span>Sidebar — Bid list</div>
+        <ul>
+          <li><strong>Header:</strong> "Danh Sách Báo Giá" + count subtitle</li>
+          <li>Per bid item: bidCode (bold) · subject (truncate) · badges (items, vendors, winner emerald)</li>
+          <li><strong>KHÔNG có search/filter</strong> trong sidebar — show all bids</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📑</span>Main — Header</div>
+        <ul>
+          <li>H1: <code>bidDetail.subject</code></li>
+          <li>Metadata: bidCode (mono) · project.code · sourceSheetName (italic)</li>
+          <li>Buttons:
+            <ul>
+              <li><span class="btn-chip btn-export">⬇ Tải file gốc</span> → <span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id/download</code> (chỉ nếu sourceFilePath tồn tại)</li>
+              <li><span class="btn-chip btn-link">← Quay lại danh sách</span></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🎴</span>Vendor summary cards (grid-cols-4)</div>
+        <p>Mỗi card hiển thị: type (🌏/🇻🇳) · vendor name · total quote · isWinner badge ·
+          <span class="btn-chip btn-create">Chọn NCC này</span> (nếu chưa winner)
+          → <span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/:bidId/select-vendor/:vendorId</code>
+        </p>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🔢</span>Comparison Matrix Table</div>
+        <h4>Header (sticky, 2-row):</h4>
+        <table class="mini-table">
+          <tr><th>Row</th><th>Columns</th></tr>
+          <tr><td>1 (main)</td><td>Item · Description · Profile · Grade · SL Mua · SL PR · DT Tổng · Đã mua · [Per vendor × 3] · Lựa chọn · Ghi chú</td></tr>
+          <tr><td>2 (sub, vendor cols)</td><td>Phạm vi · Đơn giá · Thành tiền</td></tr>
+        </table>
+        <h4>Highlight logic:</h4>
+        <ul>
+          <li><strong>Min unit price:</strong> yellow-100 bg + emerald-700 text (tìm giá thấp nhất trong row)</li>
+          <li><strong>Winner column:</strong> emerald-50 bg toàn cột vendor trúng</li>
+          <li><strong>Alternating row:</strong> idx % 2 ? bg-slate-50/30 : ''</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">⚠️</span>Vai trò "Chọn NCC" trên page này</div>
+        <div class="conflict-row">
+          <div class="conflict-title">Chọn NCC trên B4 = chọn 1 NCC trúng cho TOÀN BỘ BID</div>
+          API <code>POST /api/v1/bid-analyses/:bidId/select-vendor/:vendorId</code> set <code>isWinner=true</code> cho vendor đó,
+          tất cả items của BID đều quy theo vendor này. <strong>Khác với B5 (Duyệt) chọn NCC theo từng item.</strong>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🌐</span>API endpoints used</div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses</code></div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id</code></div>
+        <div class="api-row"><span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/:bidId/select-vendor/:vendorId</code></div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id/download</code></div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═════ PAGE B5 — DEEP DIVE ═════ -->
+  <div class="page-card b5" id="page-b5">
+    <div class="page-header">
+      <div class="step-circle">5</div>
+      <div class="page-title-block">
+        <div class="h-name">Duyệt báo giá</div>
+        <div class="h-path">/duyet-bao-gia/page.tsx · 564 LOC</div>
+      </div>
+      <div class="page-meta">
+        <span>Layout: sidebar + main</span><span>·</span><span>Per-item approval + PO creation</span>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📐</span>Layout</div>
+        <div>Cùng pattern sidebar + main như B4 (cùng <code>BidListSidebar</code> tiềm năng tách).</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📑</span>Main — Header</div>
+        <ul>
+          <li>H1: bidDetail.subject + metadata cùng pattern B4</li>
+          <li>Action buttons:
+            <ul>
+              <li><span class="btn-chip btn-create">🤝 Tạo PO / HĐ</span> (nếu status ≠ CONTRACTED, disabled nếu chưa chọn item nào)<br>
+                → confirm dialog → <span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/:id/create-po</code> (body: {})<br>
+                → toast "Đã tạo N PO: [list po codes]"
+              </li>
+              <li><span class="btn-chip btn-export">✓ Đã có PO — Xem /hop-dong</span> (chỉ khi status=CONTRACTED)</li>
+              <li><span class="btn-chip btn-link">⚖️ Xem ma trận so sánh</span> → <code>/so-sanh-bao-gia?bid={id}</code></li>
+              <li><span class="btn-chip btn-link">← Danh sách</span> → <code>/bao-gia</code></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📊</span>Summary stats (grid-cols-4)</div>
+        <table class="mini-table">
+          <tr><th>#</th><th>Label</th><th>Source</th></tr>
+          <tr><td>1</td><td>Tổng items</td><td>summary.totalItems</td></tr>
+          <tr><td>2</td><td>Đã duyệt</td><td>summary.assignedItems (emerald)</td></tr>
+          <tr><td>3</td><td>Chờ duyệt</td><td>summary.pendingItems (amber)</td></tr>
+          <tr><td>4</td><td>Tổng giá trị</td><td>summary.totalApprovedValue (blue)</td></tr>
+        </table>
+        <p style="font-size:12.5px; color:var(--gray-500)">Data từ <span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id/approval-summary</code></p>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📋</span>Section 1 — Item Selection Table</div>
+        <p><strong>Title:</strong> "1. Chọn NCC cho từng item"</p>
+        <table class="mini-table">
+          <tr><th>Cột</th><th>Mô tả</th></tr>
+          <tr><td>Item</td><td>itemCode (mono bold)</td></tr>
+          <tr><td>Mô tả</td><td>itemName truncate</td></tr>
+          <tr><td>Profile/Grade</td><td>kết hợp 2 field</td></tr>
+          <tr><td>SL mua</td><td>fmtNum + UOM</td></tr>
+          <tr><td>[Per vendor × 1 col]</td><td>unitPrice + totalPrice, highlight min/chosen</td></tr>
+          <tr><td><strong>NCC duyệt</strong></td><td><strong>Dropdown</strong> chọn vendor / "— Chưa duyệt —"</td></tr>
+        </table>
+        <h4>Logic dropdown "NCC duyệt":</h4>
+        <p>onChange → <span class="api-method api-put">PUT</span> <code>/api/v1/bid-analyses/:bidId/items/:itemId/select-vendor</code> (body: <code>{vendorName}</code>)</p>
+        <div class="conflict-row">
+          <div class="conflict-title">⚠️ Mâu thuẫn với B4</div>
+          B5 chọn NCC <strong>per-item</strong> (mỗi item 1 vendor khác). Endpoint khác hoàn toàn.
+          Sau khi B4 đã set isWinner cho 1 vendor cho cả BID, B5 vẫn cho phép override per-item → ngữ nghĩa "chọn NCC" mâu thuẫn.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">📊</span>Section 2 — Approval Summary Table</div>
+        <p>Title: "2. Bảng tổng hợp phê duyệt" + count badge</p>
+        <ul>
+          <li>Group by vendor (mỗi vendor 1 group)</li>
+          <li>Header group: vendor name + items count + total value</li>
+          <li>Per item row: code · name · profile · qty · unitPrice · totalPrice</li>
+          <li>Empty state: "Chưa duyệt item nào — bảng sẽ xuất hiện khi anh chọn NCC ở trên"</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="ico">🌐</span>API endpoints used</div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses</code></div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id</code></div>
+        <div class="api-row"><span class="api-method api-get">GET</span> <code>/api/v1/bid-analyses/:id/approval-summary</code></div>
+        <div class="api-row"><span class="api-method api-put">PUT</span> <code>/api/v1/bid-analyses/:bidId/items/:itemId/select-vendor</code></div>
+        <div class="api-row"><span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/:id/create-po</code></div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═════ MODALS ═════ -->
+  <h2 id="modals">🪟 3 Modals chi tiết</h2>
+
+  <div class="modal-card create">
+    <div class="modal-card-title">📝 CreateRfqModal.tsx — 620 LOC (2-step wizard)</div>
+    <p><strong>Mở từ:</strong> /yeu-cau-bao-gia (header "+ Tạo RFQ mới")</p>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:8px">
+      <div>
+        <h4><span class="step-tag">Step 1</span> Chọn PR items</h4>
+        <ul style="font-size:12.5px; margin:4px 0">
+          <li>Project + material group filter</li>
+          <li>Search itemCode/itemName/profile</li>
+          <li>Bulk: "Chọn tất cả" · "📌 Theo PR Ref ▾" · shift+click range</li>
+          <li>Bảng checkbox + 9 cột (mã, tên, quy cách, SL, ĐV, PR ref, nhóm, khẩn)</li>
+        </ul>
+      </div>
+      <div>
+        <h4><span class="step-tag">Step 2</span> Xác nhận + tạo</h4>
+        <ul style="font-size:12.5px; margin:4px 0">
+          <li>Auto bidCode preview (project + matGroup + urgent flag)</li>
+          <li>Subject input (auto-fill từ items, override được)</li>
+          <li>Checkbox: Urgent · 🧰 Tự gom theo Nhóm VT</li>
+          <li>API: <span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/from-pr</code> hoặc <code>/from-pr-bulk-by-group</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-card import">
+    <div class="modal-card-title">📤 ImportRfqBatchModal.tsx — 367 LOC</div>
+    <p><strong>Mở từ:</strong> /yeu-cau-bao-gia (header "Import batch")</p>
+    <ol style="font-size:12.5px">
+      <li><strong>Tải mẫu:</strong> Project + Urgent → <span class="api-method api-get">GET</span> <code>/api/v1/prs/items-for-bidding/export-template</code> → Excel template (cột I "targetRfqKey" vàng)</li>
+      <li><strong>Upload .xlsx:</strong> drag-drop, max 30 MB → <span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/import-rfq-batch</code> (multipart)</li>
+      <li><strong>Kết quả:</strong> grid 4 cells (rows hợp lệ / BID đã tạo / skip / error) + collapsible chi tiết</li>
+    </ol>
+  </div>
+
+  <div class="modal-card quote">
+    <div class="modal-card-title">💰 EnterVendorQuoteModal.tsx — 414 LOC</div>
+    <p><strong>Mở từ:</strong> /yeu-cau-bao-gia (expand panel → "+ Nhập báo giá NCC")</p>
+    <ul style="font-size:12.5px">
+      <li>Vendor info: name (datalist từ existing vendors) · type DOMESTIC/IMPORT · currency VND/USD</li>
+      <li>Items quote table: từng item nhập đơn giá → auto-calc totalPrice (override được) + scope V/X</li>
+      <li>Grand total auto-sum</li>
+      <li>Notes textarea</li>
+      <li>Save: <span class="api-method api-post">POST</span> <code>/api/v1/bid-analyses/:bidId/quotes</code> body: {vendorName, vendorType, currency, notes, items[]}</li>
+    </ul>
+  </div>
+
+
+  <!-- ═════ SHARED LOGIC DUPLICATES ═════ -->
+  <h2 id="shared">🔁 Code duplicates & shared logic</h2>
+
+  <h3>Helpers copy-paste 4 lần</h3>
+  <table class="mini-table">
+    <tr><th>Helper</th><th>Page 1</th><th>Page 2</th><th>Page 3</th><th>Page 4</th></tr>
+    <tr><td><code>fmtMoney(v, cur)</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>fmtNum(v, dec)</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>fmtDate(d)</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>STATUS_LABEL</code> / <code>STATUS_CFG</code></td><td>badge-* class</td><td>inline bg-color</td><td>—</td><td>—</td></tr>
+  </table>
+
+  <h3>Component pattern overlap</h3>
+  <div class="dup-row">
+    <strong>VendorsExpandPanel</strong> (B2) vs <strong>VendorQuotationsPanel</strong> (B3):
+    Cả 2 hiển thị vendor cards grid sau khi expand row. Logic gần giống, props khác chút (B3 fetch detail từ API trên panel open).
+  </div>
+  <div class="dup-row">
+    <strong>Sidebar list bids</strong> trong B4 vs B5: layout identical (w-72, border-r, click select), chỉ khác active state styling.
+  </div>
+  <div class="dup-row">
+    <strong>fetchBidAnalyses()</strong> không filter → cả 4 pages load 100% data rồi filter FE. Over-fetch ~4×.
+  </div>
+
+  <h3>API endpoints shared</h3>
+  <table class="mini-table">
+    <tr><th>Endpoint</th><th>B2</th><th>B3</th><th>B4</th><th>B5</th></tr>
+    <tr><td><code>GET /bid-analyses</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>GET /bid-analyses/:id</code></td><td>—</td><td>✓ (expand)</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>POST /:id/select-vendor/:vid</code></td><td>—</td><td>—</td><td>✓ (per-BID)</td><td>—</td></tr>
+    <tr><td><code>PUT /:bid/items/:item/select-vendor</code></td><td>—</td><td>—</td><td>—</td><td>✓ (per-item)</td></tr>
+    <tr><td><code>POST /:id/create-po</code></td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+    <tr><td><code>DELETE /:id</code></td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  </table>
+
+
+  <!-- ═════ PHƯƠNG ÁN A ═════ -->
+  <h2 id="options">🎯 4 phương án refactor — mapping chi tiết</h2>
+
+  <div class="option-card A" id="option-a">
+    <div class="option-header">
+      <div class="option-letter">A</div>
+      <div>
+        <div class="option-tagline">Giữ 4 pages, extract shared components</div>
+        <div class="option-summary">Tách common logic vào <code>/components/bid/</code> + <code>/lib/format.ts</code>. Resolve mâu thuẫn "chọn NCC". Không thay URL.</div>
+        <div class="option-meta">
+          <span class="badge badge-effort-low">Effort: 1-2 ngày</span>
+          <span class="badge badge-risk-low">Risk: Thấp</span>
+          <span class="badge badge-rec">★ RECOMMENDED (bước 1)</span>
+        </div>
+      </div>
+    </div>
+
+    <h4>Mapping features → shared components mới</h4>
+    <table class="migration-table">
+      <thead>
+        <tr><th>Feature hiện tại</th><th>Vị trí cũ</th><th>→</th><th>Vị trí mới</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>fmtMoney / fmtNum / fmtDate</td><td>4 pages duplicate</td><td class="arrow-cell">→</td><td><code>lib/format.ts</code></td></tr>
+        <tr><td>STATUS_LABEL / badge styling</td><td>4 pages duplicate</td><td class="arrow-cell">→</td><td><code>lib/bid-status.ts</code> + <code>components/bid/StatusBadge.tsx</code></td></tr>
+        <tr><td>Sidebar list bids</td><td>B4 + B5 duplicate</td><td class="arrow-cell">→</td><td><code>components/bid/BidListSidebar.tsx</code></td></tr>
+        <tr><td>Vendor cards expand</td><td>B2 (VendorsExpandPanel) + B3 (VendorQuotationsPanel)</td><td class="arrow-cell">→</td><td><code>components/bid/VendorsPanel.tsx</code> (1 component, prop variant)</td></tr>
+        <tr><td>4 KPI cards</td><td>B2 + B3 layout giống</td><td class="arrow-cell">→</td><td><code>components/bid/BidKpiBar.tsx</code></td></tr>
+        <tr><td>Action buttons row</td><td>B2 Excel/Cancel/So sánh</td><td class="arrow-cell">→</td><td><code>components/bid/BidRowActions.tsx</code> (variant theo status)</td></tr>
+        <tr><td>useTableFilters config BID</td><td>B2 + B3</td><td class="arrow-cell">→</td><td><code>hooks/useBidFilters.ts</code></td></tr>
+      </tbody>
+    </table>
+
+    <h4>🗺️ Mindmap mapping refactor A</h4>
+    <div class="mindmap-wrap option-mm">
+      <div class="mindmap-header">
+        <span>Phương án A — Shared components mapping</span>
+        <span class="hint">4 pages giữ nguyên · Extract common</span>
+      </div>
+      <div class="markmap">
+<script type="text/template">
+# Phương án A · Extract shared
+## 4 pages giữ nguyên URL
+- /yeu-cau-bao-gia
+- /bao-gia
+- /so-sanh-bao-gia
+- /duyet-bao-gia
+## 📦 lib/format.ts (NEW)
+- fmtMoney(v, currency)
+- fmtNum(v, decimals)
+- fmtDate(d)
+## 📦 lib/bid-status.ts (NEW)
+- STATUSES const map
+- getStatusBadgeClass
+## 📦 components/bid/ (NEW)
+### StatusBadge.tsx
+- Dùng bởi cả 4 pages
+- Unified badge styling
+### BidListSidebar.tsx
+- Dùng bởi B4 + B5
+- Props: bids, selectedId, onSelect, statusFilter
+### VendorsPanel.tsx
+- Merge VendorsExpandPanel + VendorQuotationsPanel
+- Props: bid, variant ('preview'|'detail')
+- Tự fetch detail nếu variant='detail'
+### BidKpiBar.tsx
+- 4 KPI cards generic
+- Props: kpis array
+### BidRowActions.tsx
+- Buttons per row theo status
+- Props: bid, onExport, onCancel, onCompare
+## 📦 hooks/useBidFilters.ts (NEW)
+- Config sẵn cho BID columns
+- Reuse useTableFilters
+## ⚠️ Resolve mâu thuẫn "chọn NCC"
+### B4 → READ-ONLY
+- Xóa button "Chọn NCC này"
+- Thay bằng: "Tiếp tục Duyệt →" navigate /duyet
+### B5 → chỉ phương thức duy nhất
+- Dropdown per-item giữ nguyên
+- API: PUT /:bid/items/:item/select-vendor
+### BE deprecated
+- POST /:id/select-vendor/:vid không gọi từ FE nữa
+## 📉 Giảm code
+- ~600 LOC duplicate
+- ~30% tổng
+- Effort: 1-2 ngày
+</script>
+      </div>
+    </div>
+
+    <h4>Resolve mâu thuẫn "chọn NCC"</h4>
+    <div class="diag-block">B4 /so-sanh-bao-gia
+  ┌────────────────────────────────────────┐
+  │ Matrix table (READ-ONLY)               │
+  │ Vendor cards: HIỂN THỊ thông tin       │
+  │ Button: [Tiếp tục Duyệt →]             │  ← XÓA "Chọn NCC này"
+  │         ↓ navigates                    │
+  └────────────────────────────────────────┘
+                ↓
+B5 /duyet-bao-gia
+  ┌────────────────────────────────────────┐
+  │ Dropdown chọn NCC PER-ITEM (giữ)       │
+  │ → Tạo PO/HĐ                            │
+  └────────────────────────────────────────┘
+
+API thay đổi:
+  POST /bid-analyses/:id/select-vendor/:vid  → DEPRECATED (giữ BE, không gọi từ FE)
+  PUT  /:bid/items/:item/select-vendor       → ONLY way to assign vendor</div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>✓ Pros</h4>
+        <ul>
+          <li>Ít breaking, không thay URL</li>
+          <li>Giảm ~600 LOC duplicate (~30%)</li>
+          <li>Resolve UX confusion</li>
+          <li>Building blocks cho phương án B sau này</li>
+          <li>Test e2e dễ (giữ page boundaries)</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>✗ Cons</h4>
+        <ul>
+          <li>Vẫn 4 entries sidebar nav</li>
+          <li>User vẫn nhảy 4 page khi end-to-end 1 BID</li>
+          <li>Vẫn over-fetch fetchBidAnalyses 4 lần</li>
+          <li>Chỉ giải quyết surface, không deep restructure</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═════ PHƯƠNG ÁN B ═════ -->
+  <div class="option-card B" id="option-b">
+    <div class="option-header">
+      <div class="option-letter">B</div>
+      <div>
+        <div class="option-tagline">Gộp 2 pages theo phase (INPUT vs DECISION)</div>
+        <div class="option-summary">B2+B3 → /bao-gia (Quản lý); B4+B5 → /duyet (So sánh & duyệt). Theo tâm lý user phase.</div>
+        <div class="option-meta">
+          <span class="badge badge-effort-med">Effort: 3-4 ngày</span>
+          <span class="badge badge-risk-med">Risk: Vừa</span>
+          <span class="badge badge-rec">★ RECOMMENDED (target dài hạn)</span>
+        </div>
+      </div>
+    </div>
+
+    <h4>Mapping pages cũ → pages mới</h4>
+    <table class="migration-table">
+      <thead>
+        <tr><th>Page cũ</th><th>Phase</th><th>→</th><th>Page mới</th><th>Tab/section trong page</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>/yeu-cau-bao-gia (B2)</td><td rowspan="2" style="background:#E3F2FD"><strong>INPUT</strong></td><td class="arrow-cell">→</td><td rowspan="2"><code>/bao-gia</code> (đổi tên + gộp)</td><td>Tab 1: "📋 Yêu cầu (OPEN)"</td></tr>
+        <tr><td>/bao-gia cũ (B3)</td><td class="arrow-cell">→</td><td>Tab 2: "📥 Đã nhận BG (EVALUATING)"</td></tr>
+        <tr><td>/so-sanh-bao-gia (B4)</td><td rowspan="2" style="background:#F3E5F5"><strong>DECISION</strong></td><td class="arrow-cell">→</td><td rowspan="2"><code>/duyet</code> (đổi tên + gộp)</td><td>Tab 1: "⚖️ So sánh (matrix)"</td></tr>
+        <tr><td>/duyet-bao-gia (B5)</td><td class="arrow-cell">→</td><td>Tab 2: "✓ Duyệt + Tạo PO"</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Mapping features chi tiết</h4>
+    <details>
+      <summary><strong>/bao-gia mới — Phase INPUT (B2+B3 gộp)</strong></summary>
+      <div style="padding:12px">
+        <table class="migration-table">
+          <thead><tr><th>Feature từ B2/B3</th><th>Vị trí mới trong /bao-gia</th></tr></thead>
+          <tbody>
+            <tr><td>Header buttons "+ Tạo RFQ" + "Import batch" (B2)</td><td>Header (luôn hiện)</td></tr>
+            <tr><td>Button "Upload Báo Giá" (B3)</td><td>Header (luôn hiện)</td></tr>
+            <tr><td>Tab 1 "Yêu cầu" — status=OPEN: KPIs B2 + table B2</td><td>Hiển thị khi tab 1 active</td></tr>
+            <tr><td>Tab 2 "Đã nhận" — status=EVALUATING: KPIs B3 + table B3</td><td>Hiển thị khi tab 2 active</td></tr>
+            <tr><td>VendorsExpandPanel + VendorQuotationsPanel</td><td>Merge → 1 panel chung trong cả 2 tab</td></tr>
+            <tr><td>Per-row "Excel" / "Huỷ" / "So sánh" (B2)</td><td>Tab 1: giữ; Tab 2: "Excel" + "Duyệt"</td></tr>
+            <tr><td>Modals: Create / Import / EnterQuote</td><td>Mở từ tab tương ứng, share state</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>/duyet mới — Phase DECISION (B4+B5 gộp)</strong></summary>
+      <div style="padding:12px">
+        <table class="migration-table">
+          <thead><tr><th>Feature từ B4/B5</th><th>Vị trí mới trong /duyet</th></tr></thead>
+          <tbody>
+            <tr><td>Sidebar list bids (B4 + B5 cùng pattern)</td><td>Sidebar chung, filter status (Đang so sánh / Đã chọn / Đã PO)</td></tr>
+            <tr><td>Main detail header (subject, project, sourceFile)</td><td>Top main</td></tr>
+            <tr><td>Tab 1 "So sánh": comparison matrix (B4)</td><td>Read-only matrix view</td></tr>
+            <tr><td>Tab 2 "Duyệt + Tạo PO": dropdown per-item + summary (B5)</td><td>Decision view</td></tr>
+            <tr><td>Button "Tải file gốc" (B4)</td><td>Header (luôn hiện)</td></tr>
+            <tr><td>Button "Tạo PO" (B5)</td><td>Header tab 2 (chỉ khi assignedItems>0)</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px"><strong>Loại bỏ:</strong> button "Chọn NCC này" (per-BID) trong vendor cards của B4 — chỉ duyệt per-item ở tab 2.</div>
+      </div>
+    </details>
+
+    <h4>🗺️ Mindmap mapping refactor B</h4>
+    <div class="mindmap-wrap option-mm">
+      <div class="mindmap-header">
+        <span>Phương án B — 2 pages theo phase Input/Decision</span>
+        <span class="hint">Gộp B2+B3 → /bao-gia · Gộp B4+B5 → /duyet</span>
+      </div>
+      <div class="markmap">
+<script type="text/template">
+# Phương án B · 2 pages theo phase
+## 📨 Phase INPUT · /bao-gia (B2+B3)
+### Mục đích
+- Tạo RFQ + theo dõi báo giá NCC
+- "Nhập data" — chưa quyết định
+### Header (luôn hiện)
+- + Tạo RFQ → CreateRfqModal
+- 📤 Import batch → ImportRfqBatchModal
+- 📊 Upload Excel báo giá
+### Tab 1 · 📋 Yêu cầu (OPEN)
+- Từ B2 cũ
+- KPIs: Tổng RFQ, Báo giá nhận, Chờ chọn, Đã chọn
+- Filter: project, status, bidDate
+- Table 9 cột
+- Per-row: Excel · Huỷ · So sánh
+- Expand: VendorsPanel (variant preview)
+### Tab 2 · 📥 Đã nhận (EVALUATING)
+- Từ B3 cũ
+- KPIs: Bids, Items, Vendors unique, % chọn
+- Filter: status pills, project, search vendor
+- Table 10 cột (link BidCode)
+- Per-row: + Excel + Duyệt link
+- Expand: VendorsPanel (variant detail)
+### Shared trong /bao-gia
+- 1 fetchBidAnalyses (cached, shared)
+- VendorsPanel chung cho cả 2 tab
+- StatusBadge chung
+## ⚖️ Phase DECISION · /duyet (B4+B5)
+### Mục đích
+- So sánh + quyết định + tạo PO
+- "Decision phase" — không nhập nữa
+### Layout 2-panel
+- Sidebar list bids (filter status)
+- Main detail
+### Sidebar (chung)
+- Group by status
+  - Đang so sánh (SELECTED-Pending)
+  - Đã chọn (SELECTED)
+  - Đã tạo PO (CONTRACTED)
+### Main · Tab 1 · ⚖️ So sánh
+- Từ B4 cũ (read-only matrix)
+- Vendor cards (READ-ONLY, không "Chọn NCC")
+- Comparison table items × vendors
+### Main · Tab 2 · ✓ Duyệt + Tạo PO
+- Từ B5 cũ
+- Dropdown NCC per-item
+- Summary by vendor
+- 🤝 Tạo PO/HĐ
+### Header (luôn hiện)
+- ⬇ Tải file gốc
+- ← Danh sách (→ /bao-gia)
+## 🗺️ Sidebar nav
+- Cũ: 4 entries
+- Mới: 2 entries
+  - Bước 2-3: Quản lý báo giá
+  - Bước 4-5: Duyệt + Tạo PO
+## 🔀 URL redirect
+- /yeu-cau-bao-gia → /bao-gia (tab 1)
+- /so-sanh-bao-gia → /duyet (tab 1)
+- /duyet-bao-gia → /duyet (tab 2)
+## 📉 Giảm code
+- ~50% duplicate
+- 2 pages thay 4
+- Effort: 3-4 ngày (sau khi A đã ổn)
+## ⚙️ Prerequisites
+- Cần làm phương án A trước
+- Shared components đã sẵn
+</script>
+      </div>
+    </div>
+
+    <h4>Sidebar nav sau khi merge</h4>
+    <div class="diag-block">Sidebar nav cũ                       Sidebar nav mới
+─────────────────                    ────────────────
+Bước 2: Yêu cầu báo giá       ─┐
+Bước 3: Báo giá               ─┴──► Bước 2-3: Quản lý báo giá  /bao-gia
+Bước 4: So sánh báo giá       ─┐
+Bước 5: Duyệt báo giá         ─┴──► Bước 4-5: Duyệt + Tạo PO  /duyet</div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>✓ Pros</h4>
+        <ul>
+          <li>Match mental model user: INPUT (nhập data) vs DECISION (quyết định)</li>
+          <li>Loại bỏ confusion "chọn NCC" hoàn toàn</li>
+          <li>Giảm 50% navigation (4 → 2 pages)</li>
+          <li>Tab structure cho phép user nhảy ngang trong phase</li>
+          <li>Giảm ~50% LOC duplicate</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>✗ Cons</h4>
+        <ul>
+          <li>Cần redirect URL cũ (giữ 2 file redirect)</li>
+          <li>User cần đào tạo (~1 tuần dùng quen)</li>
+          <li>Effort cao hơn A (cần làm A trước)</li>
+          <li>Test e2e phải viết lại</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═════ PHƯƠNG ÁN C ═════ -->
+  <div class="option-card C" id="option-c">
+    <div class="option-header">
+      <div class="option-letter">C</div>
+      <div>
+        <div class="option-tagline">1 wizard duy nhất, stepper 4 bước</div>
+        <div class="option-summary">Gộp cả 4 → <code>/quan-ly-bao-gia</code>. Stepper switch view theo status BID.</div>
+        <div class="option-meta">
+          <span class="badge badge-effort-high">Effort: ~1 tuần</span>
+          <span class="badge badge-risk-high">Risk: Cao</span>
+        </div>
+      </div>
+    </div>
+
+    <table class="migration-table">
+      <thead><tr><th>Feature</th><th>Vị trí trong wizard</th></tr></thead>
+      <tbody>
+        <tr><td>Tạo RFQ / Import batch</td><td>Step 1 — luôn hiện ở top wizard</td></tr>
+        <tr><td>Nhập báo giá NCC</td><td>Step 2 — active khi BID.status=OPEN/EVALUATING</td></tr>
+        <tr><td>Matrix comparison</td><td>Step 3 — active khi BID có ≥2 vendors</td></tr>
+        <tr><td>Per-item dropdown + Tạo PO</td><td>Step 4 — active khi assignedItems>0</td></tr>
+        <tr><td>4 KPI cards</td><td>1 KPI bar duy nhất hiển thị tổng quan toàn workflow</td></tr>
+      </tbody>
+    </table>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>✓ Pros</h4>
+        <ul><li>UX nhất quán cao nhất</li><li>Stepper visualize workflow rõ</li><li>Share 100% data + state</li></ul>
+      </div>
+      <div class="cons">
+        <h4>✗ Cons</h4>
+        <ul>
+          <li>User khó nhảy ngang vào bước cụ thể</li>
+          <li>Effort lớn (~1 tuần)</li>
+          <li>Break user habits đáng kể</li>
+          <li>Single page nhiều state → dễ bug</li>
+          <li><strong>Không match multi-operator workflow</strong>: operator A nhập BG cho BID-X trong khi operator B đang duyệt BID-Y</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═════ PHƯƠNG ÁN D ═════ -->
+  <div class="option-card D" id="option-d">
+    <div class="option-header">
+      <div class="option-letter">D</div>
+      <div>
+        <div class="option-tagline">1 page, tabs theo status</div>
+        <div class="option-summary"><code>/bao-gia</code> với 4 tabs (Đang mở / Đánh giá / Chờ duyệt / Xong). Mỗi tab có action contextual.</div>
+        <div class="option-meta">
+          <span class="badge badge-effort-high">Effort: ~5 ngày</span>
+          <span class="badge badge-risk-high">Risk: Cao</span>
+        </div>
+      </div>
+    </div>
+
+    <table class="migration-table">
+      <thead><tr><th>Tab</th><th>Status BID</th><th>Action buttons</th><th>Table columns</th></tr></thead>
+      <tbody>
+        <tr><td>🟢 Đang mở</td><td>OPEN</td><td>+ Tạo RFQ · Excel · Huỷ · Tải file</td><td>bidCode + subject + NCC count + status</td></tr>
+        <tr><td>🟡 Đánh giá</td><td>EVALUATING</td><td>Nhập BG NCC · Upload Excel</td><td>+ vendors quoted · total received</td></tr>
+        <tr><td>🔵 Chờ duyệt</td><td>SELECTED</td><td>So sánh matrix · Chọn NCC · Phê duyệt</td><td>+ winner · total approved</td></tr>
+        <tr><td>✓ Xong</td><td>CONTRACTED</td><td>Tạo PO · Xuất HĐ</td><td>+ PO codes</td></tr>
+      </tbody>
+    </table>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>✓ Pros</h4>
+        <ul><li>UX đơn giản nhất</li><li>Status workflow tự nhiên</li><li>1 page duy nhất</li></ul>
+      </div>
+      <div class="cons">
+        <h4>✗ Cons</h4>
+        <ul>
+          <li><strong>Mất matrix view chuyên biệt</strong> của B4 (cần screen real estate riêng)</li>
+          <li>Tab "Chờ duyệt" sẽ rất dày (so sánh + duyệt + tạo PO)</li>
+          <li>Khó organize action buttons khi tăng tab</li>
+          <li>Tab navigation kém phân tách so với phase nav</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═════ COMPARISON ═════ -->
+  <h2 id="compare">📊 So sánh nhanh 4 phương án</h2>
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th>Tiêu chí</th>
+        <th class="center">A. Extract</th>
+        <th class="center">B. 2 pages phase</th>
+        <th class="center">C. 1 wizard</th>
+        <th class="center">D. Status tabs</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Số pages cuối</td><td class="center">4</td><td class="center">2</td><td class="center">1</td><td class="center">1</td></tr>
+      <tr><td>Effort (ngày)</td><td class="center"><span class="dot-green">●</span> 1-2</td><td class="center"><span class="dot-yellow">●</span> 3-4</td><td class="center"><span class="dot-red">●</span> ~7</td><td class="center"><span class="dot-red">●</span> ~5</td></tr>
+      <tr><td>Breaking URL</td><td class="center"><span class="dot-green">●</span> Không</td><td class="center"><span class="dot-yellow">●</span> Vừa (2 redirect)</td><td class="center"><span class="dot-red">●</span> Lớn (4 redirect)</td><td class="center"><span class="dot-red">●</span> Lớn (3 redirect)</td></tr>
+      <tr><td>Giảm duplicate LOC</td><td class="center"><span class="dot-yellow">●</span> ~30%</td><td class="center"><span class="dot-green">●</span> ~50%</td><td class="center"><span class="dot-green">●</span> ~70%</td><td class="center"><span class="dot-green">●</span> ~60%</td></tr>
+      <tr><td>Resolve "chọn NCC" confusion</td><td class="center"><span class="dot-green">●</span> Có</td><td class="center"><span class="dot-green">●</span> Có</td><td class="center"><span class="dot-green">●</span> Có</td><td class="center"><span class="dot-yellow">●</span> 1 phần</td></tr>
+      <tr><td>User nhảy ngang</td><td class="center"><span class="dot-green">●</span> Tốt</td><td class="center"><span class="dot-green">●</span> Tốt (tab)</td><td class="center"><span class="dot-red">●</span> Khó</td><td class="center"><span class="dot-yellow">●</span> Vừa</td></tr>
+      <tr><td>Multi-operator workflow</td><td class="center"><span class="dot-green">●</span> OK</td><td class="center"><span class="dot-green">●</span> OK</td><td class="center"><span class="dot-red">●</span> Kẹt</td><td class="center"><span class="dot-yellow">●</span> OK</td></tr>
+      <tr><td>Đào tạo lại</td><td class="center"><span class="dot-green">●</span> Ít</td><td class="center"><span class="dot-yellow">●</span> Vừa</td><td class="center"><span class="dot-red">●</span> Nhiều</td><td class="center"><span class="dot-yellow">●</span> Vừa</td></tr>
+      <tr><td>Khoa học dài hạn</td><td class="center"><span class="dot-yellow">●</span> Band-aid</td><td class="center"><span class="dot-green">●</span> Best</td><td class="center"><span class="dot-yellow">●</span> Đẹp khó scale</td><td class="center"><span class="dot-yellow">●</span> Cản matrix</td></tr>
+    </tbody>
+  </table>
+
+
+
+  <!-- ═════ DEEP COMPARISON 2-COLUMN ═════ -->
+  <h2 id="deepcompare">⚖️ So sánh đối-1 ưu/nhược điểm — Highlight điểm khác biệt</h2>
+  <p>
+    Mỗi cặp 2 phương án xếp song song. Điểm <strong style="color:var(--success)">UNIQUE</strong> (chỉ phương án đó có)
+    được bôi màu nổi để phân biệt với điểm <strong style="color:var(--gray-500)">CHUNG</strong> (phương án khác cũng có).
+  </p>
+
+  <div class="compare-legend">
+    <div class="legend-item"><span class="legend-dot" style="background:var(--gray-400)"></span> Điểm chung (≥2 phương án có)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--success); box-shadow:0 0 0 3px rgba(46,125,50,.25)"></span> Ưu điểm UNIQUE (chỉ phương án này)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--danger); box-shadow:0 0 0 3px rgba(198,40,40,.25)"></span> Nhược điểm UNIQUE</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--danger); border:2px solid var(--danger)"></span> Deal-breaker (vấn đề nghiêm trọng)</div>
+  </div>
+
+  <!-- ROW 1: A vs B (recommended pair) -->
+  <h3 style="margin-top:24px">🥇 Cặp 1 — Phương án Recommend (Low/Medium risk)</h3>
+  <div class="compare-grid">
+
+    <!-- OPTION A -->
+    <div class="compare-card opt-A">
+      <div class="compare-card-header">
+        <div class="compare-letter">A</div>
+        <div>
+          <div class="compare-card-title">Giữ 4 pages · Extract shared</div>
+          <div class="compare-card-sub">Tách common logic, không đổi URL</div>
+        </div>
+      </div>
+      <div class="compare-meta-row">
+        <span class="badge badge-effort-low">1-2 ngày</span>
+        <span class="badge badge-risk-low">Risk thấp</span>
+        <span class="badge badge-rec">★ Bước 1</span>
+      </div>
+
+      <div class="compare-section pros-section">
+        <h5>✓ Ưu điểm</h5>
+        <ul class="compare-list">
+          <li class="unique-pro">KHÔNG thay URL/sitemap — user giữ thói quen</li>
+          <li class="unique-pro">Effort thấp nhất (1-2 ngày) so với 3 phương án còn lại</li>
+          <li class="unique-pro">Building blocks dùng tiếp cho phương án B</li>
+          <li class="unique-pro">Test e2e đơn giản nhất (giữ page boundaries)</li>
+          <li class="shared">Resolve mâu thuẫn "chọn NCC" 2 nghĩa</li>
+          <li class="shared">Giảm code duplicate (~30%)</li>
+        </ul>
+      </div>
+
+      <div class="compare-section cons-section">
+        <h5>✗ Nhược điểm</h5>
+        <ul class="compare-list">
+          <li class="unique-con">Vẫn giữ 4 entries sidebar nav (overhead navigation)</li>
+          <li class="unique-con">Vẫn over-fetch fetchBidAnalyses 4 lần (chưa optimize)</li>
+          <li class="unique-con">Chỉ giảm duplicate ~30% (thấp nhất trong 4 phương án)</li>
+          <li class="unique-con">Là band-aid — chưa giải quyết structural issue</li>
+          <li class="shared">User vẫn nhảy 4 page khi end-to-end 1 BID</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- OPTION B -->
+    <div class="compare-card opt-B">
+      <div class="compare-card-header">
+        <div class="compare-letter">B</div>
+        <div>
+          <div class="compare-card-title">2 pages theo phase Input/Decision</div>
+          <div class="compare-card-sub">Gộp B2+B3 → /bao-gia · B4+B5 → /duyet</div>
+        </div>
+      </div>
+      <div class="compare-meta-row">
+        <span class="badge badge-effort-med">3-4 ngày</span>
+        <span class="badge badge-risk-med">Risk vừa</span>
+        <span class="badge badge-rec">★ Đích dài hạn</span>
+      </div>
+
+      <div class="compare-section pros-section">
+        <h5>✓ Ưu điểm</h5>
+        <ul class="compare-list">
+          <li class="unique-pro">Match mental model nghiệp vụ: INPUT (nhập data) vs DECISION (quyết định)</li>
+          <li class="unique-pro">Tab nội bộ cho phép user nhảy ngang trong 1 phase mà không reload</li>
+          <li class="unique-pro">Khoa học nhất xét trên dài hạn (state machine clean)</li>
+          <li class="unique-pro">Giảm 50% navigation (4 → 2 sidebar entries)</li>
+          <li class="shared">Resolve "chọn NCC" confusion</li>
+          <li class="shared">Giảm code duplicate (~50%, cao hơn A)</li>
+        </ul>
+      </div>
+
+      <div class="compare-section cons-section">
+        <h5>✗ Nhược điểm</h5>
+        <ul class="compare-list">
+          <li class="unique-con">Cần làm phương án A TRƯỚC (prerequisite — shared components phải có)</li>
+          <li class="unique-con">Cần redirect 2 URL cũ (/yeu-cau-bao-gia, /so-sanh-bao-gia)</li>
+          <li class="unique-con">User cần đào tạo ngắn (~1 tuần dùng quen tab layout)</li>
+          <li class="shared">Effort cao hơn A (3-4 ngày)</li>
+          <li class="shared">Test e2e cần viết lại</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ROW 2: C vs D (aggressive pair) -->
+  <h3 style="margin-top:32px">🚧 Cặp 2 — Phương án Aggressive (High risk, không khuyên)</h3>
+  <div class="compare-grid">
+
+    <!-- OPTION C -->
+    <div class="compare-card opt-C">
+      <div class="compare-card-header">
+        <div class="compare-letter">C</div>
+        <div>
+          <div class="compare-card-title">1 wizard duy nhất, stepper 4 bước</div>
+          <div class="compare-card-sub">Gộp cả 4 → /quan-ly-bao-gia</div>
+        </div>
+      </div>
+      <div class="compare-meta-row">
+        <span class="badge badge-effort-high">~1 tuần</span>
+        <span class="badge badge-risk-high">Risk cao</span>
+      </div>
+
+      <div class="compare-section pros-section">
+        <h5>✓ Ưu điểm</h5>
+        <ul class="compare-list">
+          <li class="unique-pro">UX nhất quán cao nhất — 1 nơi duy nhất quản lý BID</li>
+          <li class="unique-pro">Stepper visualize workflow rõ + đẹp nhất</li>
+          <li class="unique-pro">Share 100% state + data trong cùng page</li>
+          <li class="shared">Resolve "chọn NCC" confusion</li>
+          <li class="shared">Giảm duplicate ~70% (cao nhất)</li>
+        </ul>
+      </div>
+
+      <div class="compare-section cons-section">
+        <h5>✗ Nhược điểm</h5>
+        <ul class="compare-list">
+          <li class="dealbreaker">⛔ KHÔNG match multi-operator workflow — operator A nhập BG cho BID-X trong khi B duyệt BID-Y sẽ kẹt</li>
+          <li class="unique-con">User cực khó nhảy ngang vào 1 bước cụ thể (phải chọn BID trước)</li>
+          <li class="unique-con">Single page nhiều state → dễ bug, khó debug</li>
+          <li class="unique-con">Break user habits đáng kể nhất (4 → 1 URL)</li>
+          <li class="shared">Effort lớn (~1 tuần)</li>
+          <li class="shared">Đào tạo lại nhiều</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- OPTION D -->
+    <div class="compare-card opt-D">
+      <div class="compare-card-header">
+        <div class="compare-letter">D</div>
+        <div>
+          <div class="compare-card-title">1 page · 4 tabs theo status</div>
+          <div class="compare-card-sub">Tabs: Đang mở / Đánh giá / Chờ duyệt / Xong</div>
+        </div>
+      </div>
+      <div class="compare-meta-row">
+        <span class="badge badge-effort-high">~5 ngày</span>
+        <span class="badge badge-risk-high">Risk cao</span>
+      </div>
+
+      <div class="compare-section pros-section">
+        <h5>✓ Ưu điểm</h5>
+        <ul class="compare-list">
+          <li class="unique-pro">Status workflow tự nhiên (theo state machine BidAnalysis.status)</li>
+          <li class="unique-pro">UX đơn giản nhất cho operator mới (1 page, không cần học structure)</li>
+          <li class="unique-pro">Tab theo status = filter sẵn theo workflow stage</li>
+          <li class="shared">1 page duy nhất (cùng C)</li>
+          <li class="shared">Giảm duplicate ~60%</li>
+        </ul>
+      </div>
+
+      <div class="compare-section cons-section">
+        <h5>✗ Nhược điểm</h5>
+        <ul class="compare-list">
+          <li class="dealbreaker">⛔ MẤT comparison matrix chuyên biệt — matrix B4 cần screen real estate riêng, không nhét vừa trong tab</li>
+          <li class="unique-con">Tab "Chờ duyệt" sẽ rất dày: so sánh + duyệt + tạo PO chen chúc</li>
+          <li class="unique-con">Khó organize action buttons khi mỗi tab có 4-5 action khác nhau</li>
+          <li class="unique-con">Resolve "chọn NCC" confusion chỉ 1 phần (vẫn để 2 endpoint API tồn tại)</li>
+          <li class="shared">Effort cao (~5 ngày)</li>
+          <li class="shared">Break user habits</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SUMMARY VERDICT -->
+  <div style="background: var(--gray-50); border-radius: 8px; padding: 16px; margin: 24px 0; border-left: 6px solid var(--brand)">
+    <h3 style="margin-top: 0">📋 Tóm tắt verdict theo cặp</h3>
+    <table class="mini-table">
+      <thead>
+        <tr><th>Cặp</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--success)">A vs B</strong></td>
+          <td>
+            <strong>Tuần tự, không thay thế nhau.</strong> A là step 1 (build foundation), B là step 2 (gộp pages).
+            Combo A→B là path khả thi nhất (~1 tuần tổng).
+          </td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--danger)">C vs D</strong></td>
+          <td>
+            <strong>Cả 2 đều có deal-breaker.</strong> C kẹt multi-operator workflow; D mất matrix chuyên biệt.
+            Không khuyên dùng — effort cao mà không bring proportional value.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ═════ RECOMMENDATION ═════ -->
+  <div class="recommendation">
+    <h3>💡 Em đề xuất: Combo A → B (tuần tự, total ~1 tuần)</h3>
+    <p style="margin:8px 0">
+      <strong>Bước 1 (A, 1-2 ngày):</strong> Extract shared components + resolve mâu thuẫn "chọn NCC".
+      Low risk, giữ user habits, có building blocks sẵn cho bước 2.
+    </p>
+    <p style="margin:8px 0">
+      <strong>Bước 2 (B, 3-4 ngày sau khi A ổn định):</strong> Gộp pages theo phase Input/Decision.
+      Có shared components rồi → refactor nhẹ nhàng hơn.
+    </p>
+    <p style="margin:8px 0 0">
+      <strong>Tránh C và D</strong> vì effort cao mà không bring proportional value, đặc biệt break multi-operator workflow.
+    </p>
+  </div>
+
+
+  <footer>
+    📄 <code>VẬT TƯ/docs/bid-workflow-refactor-options.html</code> · Generated 2026-05-27 ICT · v2 (layered)<br>
+    Phân tích chi tiết 4 pages (2,156 LOC) + 3 modals (1,401 LOC) = 3,557 LOC total
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1079 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>IBSHI Procurement — Entity Relationship Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
+        background: #0b1729;
+        color: #e2e8f0;
+        padding: 24px;
+        line-height: 1.5;
+      }
+      .container {
+        max-width: 1800px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        background: linear-gradient(90deg, #60a5fa, #818cf8, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 8px;
+      }
+      .subtitle {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-bottom: 32px;
+      }
+      h2 {
+        font-size: 18px;
+        color: #60a5fa;
+        margin: 32px 0 12px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #1e293b;
+      }
+      h3 {
+        font-size: 13px;
+        color: #cbd5e1;
+        margin: 16px 0 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      /* 5 Data Blocks overview */
+      .blocks {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin: 16px 0;
+      }
+      .block {
+        border-radius: 10px;
+        padding: 14px;
+        border-width: 1px;
+        border-style: solid;
+      }
+      .block h4 {
+        font-size: 13px;
+        font-weight: 800;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .block .num {
+        background: rgba(255, 255, 255, 0.15);
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+      }
+      .block .tables {
+        font-size: 10px;
+        line-height: 1.7;
+      }
+      .block-0 {
+        background: #1e3a8a;
+        border-color: #3b82f6;
+        color: #dbeafe;
+      }
+      .block-1 {
+        background: #064e3b;
+        border-color: #10b981;
+        color: #d1fae5;
+      }
+      .block-2 {
+        background: #78350f;
+        border-color: #f59e0b;
+        color: #fef3c7;
+      }
+      .block-3 {
+        background: #312e81;
+        border-color: #6366f1;
+        color: #e0e7ff;
+      }
+      .block-4 {
+        background: #7f1d1d;
+        border-color: #ef4444;
+        color: #fee2e2;
+      }
+
+      /* Mermaid container */
+      .mermaid-wrap {
+        background: #0a1525;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 16px 0;
+        overflow-x: auto;
+      }
+      .mermaid {
+        text-align: center;
+      }
+      .mermaid svg {
+        max-width: 100%;
+        height: auto !important;
+      }
+
+      /* Cardinality legend */
+      .legend-box {
+        background: #0f1d36;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 14px;
+        margin: 12px 0;
+      }
+      .legend-box h4 {
+        color: #60a5fa;
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+      .legend-items {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        font-size: 11px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px;
+        background: #0a1525;
+        border-radius: 6px;
+      }
+      .legend-item code {
+        font-family: ui-monospace, monospace;
+        background: #1e293b;
+        color: #fbbf24;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+      }
+
+      /* Entity fields tables */
+      .entity-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+      }
+      .entity-box {
+        background: #0f1d36;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 14px;
+      }
+      .entity-box h4 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #1e293b;
+      }
+      .entity-box h4 .badge {
+        font-size: 9px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .badge.master { background: #1e3a8a; color: #93c5fd; }
+      .badge.pr { background: #065f46; color: #6ee7b7; }
+      .badge.bid { background: #78350f; color: #fde68a; }
+      .badge.contract { background: #3730a3; color: #c7d2fe; }
+      .badge.payment { background: #7f1d1d; color: #fecaca; }
+
+      .entity-box table {
+        width: 100%;
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+        border-collapse: collapse;
+      }
+      .entity-box table tr {
+        border-bottom: 1px solid #1e293b;
+      }
+      .entity-box table tr:last-child {
+        border-bottom: none;
+      }
+      .entity-box table td {
+        padding: 4px 6px;
+      }
+      .entity-box table td:first-child {
+        color: #cbd5e1;
+        width: 40%;
+        font-weight: 600;
+      }
+      .entity-box table td:nth-child(2) {
+        color: #64748b;
+        font-style: italic;
+      }
+      .entity-box .rel {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #1e293b;
+        font-size: 10px;
+        color: #10b981;
+      }
+      .entity-box .rel b {
+        color: #cbd5e1;
+      }
+      .pk { color: #fbbf24; }
+      .fk { color: #a78bfa; }
+      .uk { color: #10b981; }
+
+      /* Zoom sections */
+      .zoom-section {
+        background: #0a1525;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 16px 0;
+      }
+      .zoom-section h3 {
+        color: #60a5fa;
+        font-size: 15px;
+        margin-bottom: 12px;
+      }
+      .zoom-section .desc {
+        color: #94a3b8;
+        font-size: 11px;
+        margin-bottom: 12px;
+      }
+
+      /* Stats row */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        margin: 16px 0;
+      }
+      .stat {
+        background: #0f1d36;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+      }
+      .stat .v {
+        font-size: 20px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .stat .l {
+        font-size: 9px;
+        color: #64748b;
+        margin-top: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>💾 IBSHI Procurement — Entity Relationship Diagram</h1>
+      <p class="subtitle">
+        Sơ đồ quan hệ dữ liệu · 14 models · 5 blocks · Data từ 5 project files thực tế
+      </p>
+
+      <!-- ═══════════ STATS ═══════════ -->
+      <div class="stats">
+        <div class="stat"><div class="v">14</div><div class="l">Models</div></div>
+        <div class="stat"><div class="v">5</div><div class="l">Blocks</div></div>
+        <div class="stat"><div class="v">~30</div><div class="l">Foreign Keys</div></div>
+        <div class="stat"><div class="v">~15</div><div class="l">Indexes</div></div>
+        <div class="stat"><div class="v">5</div><div class="l">Projects</div></div>
+        <div class="stat"><div class="v">1,351</div><div class="l">PR items</div></div>
+        <div class="stat"><div class="v">1,578</div><div class="l">Contracts</div></div>
+      </div>
+
+      <!-- ═══════════ 5 BLOCKS OVERVIEW ═══════════ -->
+      <h2>📦 5 Data Blocks Overview</h2>
+      <div class="blocks">
+        <div class="block block-0">
+          <h4><span class="num">0</span> MASTER DATA</h4>
+          <div class="tables">
+            ▣ Project<br />
+            ▣ User · AuditLog<br />
+            ▣ MaterialGroup<br />
+            ▣ MaterialSubGroup<br />
+            ▣ FabricationCategory<br />
+            ▣ ProjectBudget
+          </div>
+        </div>
+        <div class="block block-1">
+          <h4><span class="num">1</span> PR & CONTRACT</h4>
+          <div class="tables">
+            ▣ PurchaseRequisition<br />
+            ▣ PrDetail ⭐<br />
+            ▣ PrDetailFabAllocation<br />
+            ▣ ContractDetail<br />
+            ▣ InspectionRecord
+          </div>
+        </div>
+        <div class="block block-2">
+          <h4><span class="num">2</span> BID ANALYSIS</h4>
+          <div class="tables">
+            ▣ BidAnalysis ⭐<br />
+            ▣ BidQuoteVendor<br />
+            ▣ BidQuoteItem<br />
+            ▣ BidQuoteOffer<br />
+            ▣ Quotation (legacy)
+          </div>
+        </div>
+        <div class="block block-3">
+          <h4><span class="num">3</span> PO & LOGISTICS</h4>
+          <div class="tables">
+            ▣ PurchaseOrder<br />
+            ▣ GoodsReceivedNote<br />
+            ▣ GRNLineItem<br />
+            ▣ Inventory<br />
+            ▣ HardPegging
+          </div>
+        </div>
+        <div class="block block-4">
+          <h4><span class="num">4</span> PAYMENT</h4>
+          <div class="tables">
+            ▣ PaymentSchedule ⭐<br />
+            <br />
+            <em style="opacity: 0.7; font-size: 9.5px">Link qua saleContract ↔ ContractDetail.contractNo</em>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ CARDINALITY LEGEND ═══════════ -->
+      <div class="legend-box">
+        <h4>📐 Cardinality Notation (Crow's Foot)</h4>
+        <div class="legend-items">
+          <div class="legend-item">
+            <code>||--||</code>
+            <span>1 tới 1 bắt buộc</span>
+          </div>
+          <div class="legend-item">
+            <code>||--o{</code>
+            <span>1 tới nhiều bắt buộc</span>
+          </div>
+          <div class="legend-item">
+            <code>}o--||</code>
+            <span>Nhiều tới 1 tuỳ chọn</span>
+          </div>
+          <div class="legend-item">
+            <code>}o--o{</code>
+            <span>Nhiều tới nhiều</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ FULL ERD ═══════════ -->
+      <h2>🗺 Full Entity Relationship Diagram</h2>
+      <p class="subtitle">Toàn bộ 14 tables và quan hệ giữa chúng</p>
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+erDiagram
+    Project ||--o{ PurchaseRequisition : "has PRs"
+    Project ||--o{ FabricationCategory : "has fab cats"
+    Project ||--o{ ProjectBudget : "has budgets"
+    Project ||--o{ BidAnalysis : "has bids"
+    Project ||--o{ PaymentSchedule : "has payments"
+
+    User ||--o{ AuditLog : "performs"
+
+    PurchaseRequisition ||--o{ PrDetail : "has line items"
+    PurchaseRequisition ||--o{ BidAnalysis : "triggers (opt)"
+
+    MaterialGroup ||--o{ MaterialSubGroup : "contains"
+    MaterialGroup ||--o{ PrDetail : "classifies"
+    MaterialSubGroup ||--o{ PrDetail : "subclassifies"
+
+    PrDetail ||--o{ ContractDetail : "purchased via"
+    PrDetail ||--o{ PrDetailFabAllocation : "allocated to"
+    PrDetail ||--o{ BidAnalysis : "bid (opt)"
+    FabricationCategory ||--o{ PrDetailFabAllocation : "used in"
+
+    ContractDetail ||--o{ InspectionRecord : "inspected by"
+    ContractDetail ||--o{ PaymentSchedule : "paid via"
+    PurchaseOrder ||--o{ ContractDetail : "contains (opt)"
+
+    BidAnalysis ||--o{ BidQuoteVendor : "has vendors"
+    BidAnalysis ||--o{ BidQuoteItem : "has items"
+    BidAnalysis ||--o{ Quotation : "legacy quotes"
+    BidAnalysis ||--o{ PurchaseOrder : "generates (opt)"
+
+    BidQuoteItem ||--o{ BidQuoteOffer : "offered by"
+    BidQuoteVendor ||--o{ BidQuoteOffer : "provides"
+
+    PurchaseOrder ||--o{ GoodsReceivedNote : "received via"
+    GoodsReceivedNote ||--o{ GRNLineItem : "contains items"
+
+    Inventory ||--o{ HardPegging : "pegged to"
+
+    Project {
+        string id PK
+        string code UK "25-VPI-I-095"
+        string name
+        string client
+        string status
+    }
+    PurchaseRequisition {
+        string id PK
+        string projectId FK
+        string prRef
+        string department
+        string status
+    }
+    PrDetail {
+        string id PK
+        string prId FK
+        string itemCode
+        string itemName
+        string profile
+        string grade
+        float netQty
+        float reqQty
+        float toBuyQty
+        string statusFlag
+    }
+    ContractDetail {
+        string id PK
+        string prDetailId FK
+        string purchaseOrderId FK
+        string contractType "DOM|IMP"
+        string contractNo
+        string vendorName
+        float totalNoVAT
+        datetime contractDate
+        datetime importLCDate
+        datetime cifDate
+        datetime arrivedDate
+        datetime paymentDate
+    }
+    InspectionRecord {
+        string id PK
+        string contractDetailId FK
+        string reportNo
+        datetime inspectionDate
+        float acceptedWeight
+        string result "Pass|Fail"
+    }
+    BidAnalysis {
+        string id PK
+        string projectId FK
+        string bidCode
+        string subject
+        datetime bidDate
+        string status
+        string selectedVendorId
+    }
+    BidQuoteVendor {
+        string id PK
+        string bidId FK
+        string vendorName
+        string vendorType "DOM|IMP"
+        float totalQuote
+        boolean isWinner
+    }
+    BidQuoteItem {
+        string id PK
+        string bidId FK
+        string itemCode
+        string itemName
+        float qtyPR
+        float qtyToBuy
+        float estimateTotal
+        string selectedVendorName
+    }
+    BidQuoteOffer {
+        string id PK
+        string itemId FK
+        string vendorId FK
+        string scope
+        float unitPrice
+        float totalPrice
+    }
+    PaymentSchedule {
+        string id PK
+        string projectId FK
+        string contractDetailId FK
+        string supplier
+        string saleContract
+        float value
+        string paymentMethod
+        datetime signDate
+        datetime lcDate
+        datetime etd
+        datetime eta
+        string paymentMonth
+        string status
+    }
+    PurchaseOrder {
+        string id PK
+        string bidId FK
+        string poCode UK
+        string vendorName
+        float totalValue
+        string status
+    }
+    GoodsReceivedNote {
+        string id PK
+        string purchaseOrderId FK
+        string grnCode UK
+        string qcStatus
+    }
+    Inventory {
+        string id PK
+        string itemCode UK
+        float onHandQty
+        float allocatedQty
+    }
+    MaterialGroup {
+        string id PK
+        string code UK "VTC|VPK|VDK"
+        string name
+    }
+    FabricationCategory {
+        string id PK
+        string projectId FK
+        string code
+    }
+        </div>
+      </div>
+
+      <!-- ═══════════ ZOOM 1: PR FLOW ═══════════ -->
+      <h2>🔍 Zoom 1 — PR to Payment Flow</h2>
+      <div class="zoom-section">
+        <h3>Luồng từ PR → HĐ → Thanh toán</h3>
+        <div class="desc">
+          Minh hoạ dòng chảy chính: 1 Project có nhiều PR, mỗi PR có nhiều line items (PrDetail).
+          Mỗi line item có thể được mua qua nhiều Contract (DOM + IMP). Mỗi Contract có QC
+          inspections và liên kết với Payment Schedule.
+        </div>
+        <div class="mermaid">
+erDiagram
+    Project ||--o{ PurchaseRequisition : "1 dự án có N PR"
+    PurchaseRequisition ||--o{ PrDetail : "1 PR có N items"
+    PrDetail ||--o{ ContractDetail : "1 item mua qua N HĐ"
+    ContractDetail ||--o{ InspectionRecord : "1 HĐ có N biên bản QC"
+    ContractDetail ||--o{ PaymentSchedule : "1 HĐ có N đợt thanh toán"
+
+    Project {
+        string code UK "25-VPI-I-095"
+        string name "BISON VOGT POWER"
+    }
+    PurchaseRequisition {
+        string prRef "PR-25-VPI-I-095-001"
+        string department "ENGINEERING"
+        datetime createdAt
+    }
+    PrDetail {
+        string itemCode "I95-VTC01-001"
+        string itemName "Tôn tấm"
+        string profile "PL10x2000X12000"
+        float reqQty "48 m2"
+        string statusFlag
+    }
+    ContractDetail {
+        string contractNo "120825/HN-IBS"
+        string vendorName "Hùng Nguyên"
+        string contractType "DOMESTIC"
+        float totalNoVAT "49326548"
+        datetime contractDate "12/8/2025"
+    }
+    InspectionRecord {
+        string reportNo "QC-001"
+        datetime inspectionDate
+        float acceptedWeight
+        string result "Pass"
+    }
+    PaymentSchedule {
+        string saleContract
+        float value
+        string paymentMethod "LC 100%"
+        string paymentMonth "Tháng 2"
+        string status "PLANNED"
+    }
+        </div>
+      </div>
+
+      <!-- ═══════════ ZOOM 2: BID ANALYSIS ═══════════ -->
+      <h2>🔍 Zoom 2 — Bid Analysis Structure</h2>
+      <div class="zoom-section">
+        <h3>Cấu trúc Bid Analysis (M×N vendors × items)</h3>
+        <div class="desc">
+          Mỗi BidAnalysis có nhiều vendors (cột) và nhiều items (hàng). BidQuoteOffer là cell giao
+          của item × vendor (báo giá cho 1 item bởi 1 vendor). Winner được chọn từ vendors.
+        </div>
+        <div class="mermaid">
+erDiagram
+    BidAnalysis ||--o{ BidQuoteVendor : "có N NCC"
+    BidAnalysis ||--o{ BidQuoteItem : "có N items"
+    BidQuoteItem ||--o{ BidQuoteOffer : "nhận N báo giá"
+    BidQuoteVendor ||--o{ BidQuoteOffer : "cung cấp N báo giá"
+
+    BidAnalysis {
+        string bidCode "VSAN 26-1"
+        string subject "Cung cấp vật tư..."
+        datetime bidDate
+        string status "SELECTED"
+        string selectedVendorId
+    }
+    BidQuoteVendor {
+        string vendorName "VSAN"
+        string vendorType "DOMESTIC"
+        int vendorOrder "0|1|2"
+        float totalQuote "22.3 tỷ"
+        boolean isWinner
+    }
+    BidQuoteItem {
+        string itemCode "I95-VPK-019"
+        string itemName "NUT-3/4 A563"
+        float qtyPR
+        float qtyToBuy
+        float estimateUnitPrice
+        string selectedVendorName
+    }
+    BidQuoteOffer {
+        string scope "V|X"
+        float unitPrice "8800"
+        float totalPrice "10120000"
+    }
+        </div>
+      </div>
+
+      <!-- ═══════════ ZOOM 3: FAB ALLOCATION ═══════════ -->
+      <h2>🔍 Zoom 3 — Fabrication Allocation (N-N)</h2>
+      <div class="zoom-section">
+        <h3>Phân bổ vật tư cho hạng mục gia công</h3>
+        <div class="desc">
+          PrDetailFabAllocation là bảng liên kết N-N giữa PrDetail (mã vật tư) và
+          FabricationCategory (hạng mục gia công: INLET-U1, SCR-U1, BURNER-U1, BOX1-6, ...). Cho
+          biết mỗi mã vật tư được phân bổ bao nhiêu cho từng hạng mục sản xuất.
+        </div>
+        <div class="mermaid">
+erDiagram
+    Project ||--o{ FabricationCategory : "định nghĩa"
+    PrDetail ||--o{ PrDetailFabAllocation : "phân bổ"
+    FabricationCategory ||--o{ PrDetailFabAllocation : "nhận"
+
+    Project {
+        string code UK "25-VPI-I-095"
+    }
+    FabricationCategory {
+        string code "INLET-U1|SCR-U1|BOX1-U1"
+        string name "Vật tư Inlet U1"
+        int sortOrder
+    }
+    PrDetail {
+        string itemCode "I95-VTC01-001"
+        float reqQty "48"
+    }
+    PrDetailFabAllocation {
+        string prDetailId FK
+        string fabricationCategoryId FK
+        float qty "12"
+        float weight "942"
+    }
+        </div>
+      </div>
+
+      <!-- ═══════════ ZOOM 4: INVENTORY ═══════════ -->
+      <h2>🔍 Zoom 4 — Inventory & Hard Pegging</h2>
+      <div class="zoom-section">
+        <h3>Tồn kho và cứng hoá (Gate 3)</h3>
+        <div class="desc">
+          PO → GRN (nhập kho) → Inventory. HardPegging là cơ chế gắn cứng 1 lô tồn kho vào 1
+          PrDetail cụ thể để chống tranh giành giữa các dự án.
+        </div>
+        <div class="mermaid">
+erDiagram
+    PurchaseOrder ||--o{ GoodsReceivedNote : "phát 1 nhiều GRN"
+    GoodsReceivedNote ||--o{ GRNLineItem : "gồm N line items"
+    Inventory ||--o{ HardPegging : "pegged tới N PrDetail"
+    PrDetail ||--o{ HardPegging : "cấp từ N inventory"
+
+    PurchaseOrder {
+        string poCode UK "PO-25-001"
+        string vendorName
+        float totalValue
+        string status
+    }
+    GoodsReceivedNote {
+        string grnCode UK "GRN-2026-001"
+        string warehouseLocation
+        string qcStatus "PENDING|PASSED|FAILED"
+    }
+    GRNLineItem {
+        string itemCode
+        float orderedQty
+        float receivedQty
+        float acceptedQty
+    }
+    Inventory {
+        string itemCode UK
+        float onHandQty
+        float allocatedQty "via HardPegging"
+        float availableQty "= onHand - allocated"
+    }
+    HardPegging {
+        string inventoryId FK
+        string prDetailId FK
+        float peggedQty
+        string status "ACTIVE|RELEASED"
+    }
+        </div>
+      </div>
+
+      <!-- ═══════════ ENTITY FIELDS DETAIL ═══════════ -->
+      <h2>📝 Entity Field Details — 14 Models</h2>
+      <div class="entity-grid">
+        <!-- Project -->
+        <div class="entity-box">
+          <h4>
+            Project
+            <span class="badge master">Master</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="uk">code</span> UK</td><td>25-VPI-I-095</td></tr>
+            <tr><td>name</td><td>BISON VOGT POWER</td></tr>
+            <tr><td>client</td><td>VOGT POWER INTL</td></tr>
+            <tr><td>refNo</td><td>I-095-ENG-001-REV 08</td></tr>
+            <tr><td>status</td><td>active/completed/on-hold</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> PurchaseRequisition, FabricationCategory, ProjectBudget, BidAnalysis,
+            PaymentSchedule
+          </div>
+        </div>
+
+        <!-- User -->
+        <div class="entity-box">
+          <h4>
+            User + AuditLog
+            <span class="badge master">Master</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="uk">username</span> UK</td><td>hungth</td></tr>
+            <tr><td>password</td><td>bcrypt hash</td></tr>
+            <tr><td>role</td><td>ADMIN/MUA_HANG/QC/BOD</td></tr>
+            <tr><td>isActive</td><td>boolean</td></tr>
+            <tr><td colspan="2" class="pk">AuditLog fields:</td></tr>
+            <tr><td><span class="fk">userId</span> FK</td><td>→ User</td></tr>
+            <tr><td>action, entity</td><td>CREATE/UPDATE/DELETE</td></tr>
+            <tr><td>beforeJson, afterJson</td><td>diff tracking</td></tr>
+          </table>
+        </div>
+
+        <!-- PR -->
+        <div class="entity-box">
+          <h4>
+            PurchaseRequisition
+            <span class="badge pr">PR</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">projectId</span> FK</td><td>→ Project</td></tr>
+            <tr><td>prRef</td><td>PR-25-VPI-I-095-001</td></tr>
+            <tr><td>department</td><td>ENGINEERING</td></tr>
+            <tr><td>status</td><td>SOURCING/APPROVED/...</td></tr>
+            <tr><td>createdAt, updatedAt</td><td>timestamps</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> PrDetail, BidAnalysis (optional)
+          </div>
+        </div>
+
+        <!-- PrDetail -->
+        <div class="entity-box">
+          <h4>
+            PrDetail ⭐
+            <span class="badge pr">PR</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">prId</span> FK</td><td>→ PurchaseRequisition</td></tr>
+            <tr><td><span class="fk">materialGroupCode</span></td><td>VTC/VPK/VDK</td></tr>
+            <tr><td><span class="fk">materialSubGroupCode</span></td><td>VTC01/VPK01</td></tr>
+            <tr><td>itemCode</td><td>I95-VTC01-001</td></tr>
+            <tr><td>itemName, profile, grade</td><td>text</td></tr>
+            <tr><td>uom, unitWeight</td><td>m2, 78.5 kg</td></tr>
+            <tr><td>netQty, reqQty, toBuyQty</td><td>float</td></tr>
+            <tr><td>netWeight, reqWeight, toBuyWeight</td><td>float (kg)</td></tr>
+            <tr><td>statusFlag</td><td>Chờ báo giá/Đã ký HĐ/...</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> ContractDetail, PrDetailFabAllocation, BidAnalysis
+          </div>
+        </div>
+
+        <!-- ContractDetail -->
+        <div class="entity-box">
+          <h4>
+            ContractDetail
+            <span class="badge contract">Contract</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">prDetailId</span> FK</td><td>→ PrDetail</td></tr>
+            <tr><td><span class="fk">purchaseOrderId</span> FK</td><td>→ PO (optional)</td></tr>
+            <tr><td>contractType</td><td>DOMESTIC / IMPORT</td></tr>
+            <tr><td>contractNo</td><td>120825/HN-IBS</td></tr>
+            <tr><td>vendorName, vendorCountry</td><td>text</td></tr>
+            <tr><td>actualProfile, actualGrade</td><td>spec thực tế</td></tr>
+            <tr><td>contractQty, contractWeight</td><td>float</td></tr>
+            <tr><td>unitPriceNoVAT, vatRate</td><td>VNĐ, %</td></tr>
+            <tr><td>totalNoVAT, totalWithVAT</td><td>float</td></tr>
+            <tr><td>importLCDate, exportPort</td><td>date, text</td></tr>
+            <tr><td>cifDate, paymentDate, customsDate</td><td>date</td></tr>
+            <tr><td>arrivedDate, qcInvitationDate</td><td>date</td></tr>
+            <tr><td>handoverToProductDate</td><td>date</td></tr>
+            <tr><td>status</td><td>PENDING/ORDERED/COMPLETED</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> InspectionRecord, PaymentSchedule
+          </div>
+        </div>
+
+        <!-- InspectionRecord -->
+        <div class="entity-box">
+          <h4>
+            InspectionRecord
+            <span class="badge contract">Contract</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">contractDetailId</span> FK</td><td>→ ContractDetail</td></tr>
+            <tr><td>inspectionType</td><td>DOMESTIC/IMPORT</td></tr>
+            <tr><td>reportNo</td><td>QC-2025-001</td></tr>
+            <tr><td>inspectionDate</td><td>datetime</td></tr>
+            <tr><td>inspectedQty, inspectedWeight</td><td>float</td></tr>
+            <tr><td>acceptedQty, acceptedWeight</td><td>float</td></tr>
+            <tr><td>result</td><td>Pass/Fail/Partial</td></tr>
+            <tr><td>remarks</td><td>text</td></tr>
+          </table>
+        </div>
+
+        <!-- BidAnalysis -->
+        <div class="entity-box">
+          <h4>
+            BidAnalysis ⭐
+            <span class="badge bid">Bid</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">projectId</span> FK</td><td>→ Project (optional)</td></tr>
+            <tr><td><span class="fk">prId, prDetailId</span> FK</td><td>→ PR (optional)</td></tr>
+            <tr><td>bidCode</td><td>VSAN 26-1</td></tr>
+            <tr><td>subject</td><td>Cung cấp vật tư phụ kiện</td></tr>
+            <tr><td>bidDate</td><td>datetime</td></tr>
+            <tr><td>status</td><td>OPEN/EVAL/SELECTED/...</td></tr>
+            <tr><td>selectedVendorId</td><td>uuid (winner ref)</td></tr>
+            <tr><td>approvedBy, approvedAt</td><td>BOD approval</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> BidQuoteVendor, BidQuoteItem, Quotation, PurchaseOrder
+          </div>
+        </div>
+
+        <!-- BidQuoteVendor -->
+        <div class="entity-box">
+          <h4>
+            BidQuoteVendor
+            <span class="badge bid">Bid</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">bidId</span> FK</td><td>→ BidAnalysis</td></tr>
+            <tr><td>vendorName</td><td>VSAN/HSC/FUJIMOTO</td></tr>
+            <tr><td>vendorType</td><td>DOMESTIC/IMPORT</td></tr>
+            <tr><td>vendorOrder</td><td>0, 1, 2 (col index)</td></tr>
+            <tr><td>currency</td><td>VND/USD/EUR</td></tr>
+            <tr><td>totalQuote</td><td>sum of offers</td></tr>
+            <tr><td>isWinner</td><td>boolean</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> BidQuoteOffer
+          </div>
+        </div>
+
+        <!-- BidQuoteItem -->
+        <div class="entity-box">
+          <h4>
+            BidQuoteItem
+            <span class="badge bid">Bid</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">bidId</span> FK</td><td>→ BidAnalysis</td></tr>
+            <tr><td>itemOrder</td><td>row index</td></tr>
+            <tr><td>itemCode, itemName</td><td>I95-VPK-019</td></tr>
+            <tr><td>profile, grade, gradeBuy, uom</td><td>text</td></tr>
+            <tr><td>qtyPR, qtyToBuy</td><td>float</td></tr>
+            <tr><td>estimateUnitPrice, estimateTotal</td><td>VND</td></tr>
+            <tr><td>alreadyBoughtAmount</td><td>VND</td></tr>
+            <tr><td>selectedVendorName</td><td>text (manual)</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> BidQuoteOffer
+          </div>
+        </div>
+
+        <!-- BidQuoteOffer -->
+        <div class="entity-box">
+          <h4>
+            BidQuoteOffer (M×N)
+            <span class="badge bid">Bid</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">itemId</span> FK</td><td>→ BidQuoteItem</td></tr>
+            <tr><td><span class="fk">vendorId</span> FK</td><td>→ BidQuoteVendor</td></tr>
+            <tr><td>scope</td><td>V / X / phạm vi</td></tr>
+            <tr><td>unitPrice</td><td>giá báo 1 đơn vị</td></tr>
+            <tr><td>totalPrice</td><td>thành tiền</td></tr>
+            <tr><td>deliveryTerm</td><td>45 days, HDG...</td></tr>
+            <tr><td colspan="2" class="pk">@@unique(itemId, vendorId)</td></tr>
+          </table>
+        </div>
+
+        <!-- PaymentSchedule -->
+        <div class="entity-box">
+          <h4>
+            PaymentSchedule ⭐
+            <span class="badge payment">Payment</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">projectId</span> FK</td><td>→ Project</td></tr>
+            <tr><td><span class="fk">contractDetailId</span> FK</td><td>→ Contract (optional)</td></tr>
+            <tr><td>supplier</td><td>GLOBAL/CENTERWAY/GNEE</td></tr>
+            <tr><td>saleContract</td><td>IBS-FY260115</td></tr>
+            <tr><td>projectCode</td><td>DA 095 (text)</td></tr>
+            <tr><td>value, currency</td><td>USD/VND</td></tr>
+            <tr><td>paymentMethod</td><td>T/T/LC 100%/DP</td></tr>
+            <tr><td>signDate, lcDate</td><td>date</td></tr>
+            <tr><td>etd, eta, documentDate</td><td>date</td></tr>
+            <tr><td>paymentMonth</td><td>Tháng 2/Tháng 4</td></tr>
+            <tr><td>lcDeadline, notes</td><td>date, text</td></tr>
+            <tr><td>status, paidDate, paidAmount</td><td>PLANNED/PAID</td></tr>
+          </table>
+        </div>
+
+        <!-- PurchaseOrder -->
+        <div class="entity-box">
+          <h4>
+            PurchaseOrder + GRN
+            <span class="badge contract">Logistics</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="fk">bidId</span> FK</td><td>→ BidAnalysis</td></tr>
+            <tr><td><span class="uk">poCode</span> UK</td><td>PO-25-001</td></tr>
+            <tr><td>vendorName</td><td>text</td></tr>
+            <tr><td>totalValue, currency</td><td>float</td></tr>
+            <tr><td>status</td><td>ISSUED/PARTIAL/FULL</td></tr>
+            <tr><td colspan="2" class="pk">GoodsReceivedNote:</td></tr>
+            <tr><td><span class="uk">grnCode</span> UK</td><td>GRN-2026-001</td></tr>
+            <tr><td>warehouseLocation</td><td>Kho A/Kho B</td></tr>
+            <tr><td>qcStatus</td><td>PENDING/PASSED/FAILED</td></tr>
+          </table>
+          <div class="rel">
+            → <b>1:N</b> ContractDetail, GoodsReceivedNote, GRNLineItem
+          </div>
+        </div>
+
+        <!-- Inventory -->
+        <div class="entity-box">
+          <h4>
+            Inventory + HardPegging
+            <span class="badge contract">Stock</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="uk">itemCode</span> UK</td><td>I95-VTC01-001</td></tr>
+            <tr><td>itemName, uom</td><td>text</td></tr>
+            <tr><td>onHandQty</td><td>SL thực tế trong kho</td></tr>
+            <tr><td>allocatedQty</td><td>Đã cấp phát cứng (Gate 3)</td></tr>
+            <tr><td>availableQty</td><td>= onHand - allocated</td></tr>
+            <tr><td>warehouseLocation</td><td>Kho A</td></tr>
+            <tr><td>lastReceivedAt</td><td>datetime</td></tr>
+            <tr><td colspan="2" class="pk">HardPegging:</td></tr>
+            <tr><td><span class="fk">inventoryId</span> FK</td><td>→ Inventory</td></tr>
+            <tr><td><span class="fk">prDetailId</span> FK</td><td>→ PrDetail</td></tr>
+            <tr><td>peggedQty, status</td><td>ACTIVE/RELEASED</td></tr>
+          </table>
+        </div>
+
+        <!-- MaterialGroup -->
+        <div class="entity-box">
+          <h4>
+            MaterialGroup / SubGroup / FabCat
+            <span class="badge master">Master</span>
+          </h4>
+          <table>
+            <tr><td><span class="pk">id</span> PK</td><td>uuid</td></tr>
+            <tr><td><span class="uk">code</span> UK</td><td>VTC/VPK/VDK/VBP/VTH/VTS/VTP</td></tr>
+            <tr><td>name</td><td>Vật tư chính</td></tr>
+            <tr><td>nameEn, letter</td><td>Main Material, A-G</td></tr>
+            <tr><td colspan="2" class="pk">MaterialSubGroup:</td></tr>
+            <tr><td><span class="fk">groupCode</span> FK</td><td>→ Group</td></tr>
+            <tr><td><span class="uk">code</span> UK</td><td>VTC01/VTC02/VPK01</td></tr>
+            <tr><td colspan="2" class="pk">FabricationCategory:</td></tr>
+            <tr><td><span class="fk">projectId</span> FK</td><td>→ Project</td></tr>
+            <tr><td>code</td><td>INLET-U1/SCR-U1/BOX1-U1</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <p style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b; color: #64748b; font-size: 11px">
+        IBSHI Procurement ERD · Mermaid v10.9 · 14 models · 30+ foreign keys · Generated
+        2026-04-08
+      </p>
+    </div>
+
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+          primaryColor: '#1e3a8a',
+          primaryTextColor: '#e2e8f0',
+          primaryBorderColor: '#3b82f6',
+          lineColor: '#64748b',
+          secondaryColor: '#0f1d36',
+          tertiaryColor: '#0a1525',
+          background: '#0a1525',
+          mainBkg: '#0f1d36',
+          secondBkg: '#1e293b',
+          textColor: '#e2e8f0',
+          labelTextColor: '#cbd5e1',
+          nodeBorder: '#3b82f6',
+        },
+        er: {
+          entityPadding: 15,
+          fontSize: 12,
+          minEntityWidth: 120,
+          minEntityHeight: 75,
+          useMaxWidth: true,
+        },
+      });
+    </script>
+  </body>
+</html>

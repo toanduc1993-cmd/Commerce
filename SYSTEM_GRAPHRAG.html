@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<title>IBSHI Procurement — GraphRAG System Audit</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#0b1729;color:#e2e8f0;overflow-x:hidden}
+.header{padding:24px 32px;border-bottom:1px solid #1e293b}
+.header h1{font-size:24px;background:linear-gradient(90deg,#60a5fa,#818cf8,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+.header .sub{color:#64748b;font-size:11px;margin-top:4px}
+.main{display:grid;grid-template-columns:280px 1fr 320px;height:calc(100vh - 80px)}
+/* Left panel */
+.panel-left{background:#0f172a;border-right:1px solid #1e293b;overflow-y:auto;padding:12px}
+.panel-left h3{font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:1.5px;padding:8px 6px 4px;font-weight:800}
+.node-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:none;background:transparent;color:#94a3b8;font-size:11px;text-align:left;border-radius:6px;cursor:pointer;transition:all .15s}
+.node-btn:hover{background:#1e293b;color:#e2e8f0}
+.node-btn.active{background:#1e3a5f;color:#60a5fa;font-weight:700}
+.node-btn .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* Center: Graph */
+.graph-wrap{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 50%,#0f1d36 0%,#0b1729 100%)}
+#graphCanvas{width:100%;height:100%}
+/* Right panel */
+.panel-right{background:#0f172a;border-left:1px solid #1e293b;overflow-y:auto;padding:16px}
+.detail-title{font-size:14px;font-weight:800;color:#f1f5f9;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.detail-type{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.detail-section{margin-top:14px}
+.detail-section h4{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;font-weight:800}
+.detail-field{display:flex;justify-content:space-between;padding:3px 0;font-size:10px;border-bottom:1px solid #1e293b}
+.detail-field .k{color:#64748b}.detail-field .v{color:#cbd5e1;font-weight:600;text-align:right;max-width:60%}
+.detail-rel{padding:4px 0;font-size:10px;display:flex;align-items:center;gap:6px}
+.detail-rel .arrow{color:#3b82f6;font-weight:800;font-size:12px}
+.detail-rel .target{color:#60a5fa;cursor:pointer;text-decoration:underline}
+.detail-rel .label{color:#475569;font-style:italic;font-size:9px}
+.issues-box{margin-top:12px;background:#1c1917;border:1px solid #78350f;border-radius:6px;padding:8px}
+.issues-box h5{font-size:9px;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.issues-box li{font-size:10px;color:#fbbf24;margin-left:12px;line-height:1.6}
+.edge-legend{position:absolute;bottom:12px;left:12px;background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:10px 14px;font-size:9px;display:flex;gap:12px;z-index:10}
+.edge-legend div{display:flex;align-items:center;gap:4px}
+.edge-legend .line{width:20px;height:2px;border-radius:1px}
+/* Stats bar */
+.stats-bar{display:flex;gap:1px;background:#1e293b;padding:0}
+.stats-bar .stat{flex:1;padding:10px;text-align:center;background:#0f172a}
+.stats-bar .stat .v{font-size:18px;font-weight:800;background:linear-gradient(90deg,#60a5fa,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stats-bar .stat .l{font-size:8px;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+/* Tabs */
+.tab-row{display:flex;gap:2px;padding:8px 12px;background:#0a1525}
+.tab-btn{padding:5px 12px;border:none;background:transparent;color:#64748b;font-size:10px;font-weight:700;border-radius:4px;cursor:pointer}
+.tab-btn.active{background:#1e293b;color:#60a5fa}
+.empty-detail{text-align:center;padding:60px 20px;color:#334155;font-size:12px}
+.filter-input{width:100%;padding:6px 8px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:10px;margin-bottom:8px;outline:none}
+.filter-input:focus{border-color:#3b82f6}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>IBSHI Procurement — GraphRAG System Audit</h1>
+  <div class="sub">Knowledge Graph: 15 DB Models · 10 Modules · 40+ Endpoints · 11-step Workflow · Toàn bộ data flow + logic + issues</div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat"><div class="v">15</div><div class="l">DB Models</div></div>
+  <div class="stat"><div class="v">10</div><div class="l">Modules</div></div>
+  <div class="stat"><div class="v">40+</div><div class="l">Endpoints</div></div>
+  <div class="stat"><div class="v">11</div><div class="l">Controllers</div></div>
+  <div class="stat"><div class="v">5</div><div class="l">Parsers</div></div>
+  <div class="stat"><div class="v">4</div><div class="l">Gates</div></div>
+  <div class="stat"><div class="v">6</div><div class="l">Roles</div></div>
+  <div class="stat"><div class="v">3</div><div class="l">Rate Limiters</div></div>
+  <div class="stat"><div class="v">76.9 tỷ</div><div class="l">VND Data</div></div>
+</div>
+
+<div class="main">
+<!-- LEFT: Node list -->
+<div class="panel-left">
+  <input class="filter-input" id="nodeFilter" placeholder="Tìm node..." oninput="filterNodes()" />
+  <div id="nodeList"></div>
+</div>
+
+<!-- CENTER: Graph canvas -->
+<div class="graph-wrap">
+  <canvas id="graphCanvas"></canvas>
+  <div class="edge-legend">
+    <div><div class="line" style="background:#3b82f6"></div> has_many</div>
+    <div><div class="line" style="background:#10b981"></div> belongs_to</div>
+    <div><div class="line" style="background:#f59e0b"></div> reads/writes</div>
+    <div><div class="line" style="background:#a855f7"></div> calls API</div>
+    <div><div class="line" style="background:#ef4444"></div> issue</div>
+    <div><div class="line" style="background:#64748b"></div> depends</div>
+  </div>
+</div>
+
+<!-- RIGHT: Detail -->
+<div class="panel-right" id="detailPanel">
+  <div class="empty-detail">
+    <div style="font-size:40px;opacity:.3">🔍</div>
+    <div style="margin-top:8px">Click node trên graph hoặc sidebar để xem chi tiết</div>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// GRAPH DATA — Complete system knowledge graph
+// ═══════════════════════════════════════════════════════════════════
+
+const NODES = [
+  // ─── DB Models ───
+  {id:'m_user',label:'User',type:'model',color:'#3b82f6',group:'Auth & Audit',
+   fields:['id uuid PK','username unique','password bcrypt12','name','role: ADMIN|MUA_HANG|KY_THUAT|QC|WAREHOUSE|BOD','dept','isActive bool'],
+   issues:['Password mặc định 123456 chưa đổi production','Không có password policy (min complexity)']},
+  {id:'m_audit',label:'AuditLog',type:'model',color:'#3b82f6',group:'Auth & Audit',
+   fields:['id uuid PK','action: LOGIN|CHANGE_PASSWORD|CREATE_USER|...','userId FK','entityType','entityId','details JSON (ip, agent)'],
+   issues:[]},
+  {id:'m_project',label:'Project',type:'model',color:'#60a5fa',group:'Master Data',
+   fields:['id uuid PK','code unique (25-VPI-I-095)','name','client','refNo','status: active|completed|on-hold'],
+   issues:['Không có CRUD UI cho projects — hardcode trong ProjectContext']},
+  {id:'m_matgroup',label:'MaterialGroup',type:'model',color:'#60a5fa',group:'Master Data',
+   fields:['code unique: VTC|VPK|VDK|VBP|VTH|VTS|VTP','name','nameEn','letter A-G','sortOrder'],
+   issues:['Detection logic hardcode trong materialDetector.js — không đọc từ DB']},
+  {id:'m_matsubgroup',label:'MaterialSubGroup',type:'model',color:'#60a5fa',group:'Master Data',
+   fields:['code unique: VTC01|VTC02|...','groupId FK','name','sortOrder'],issues:[]},
+  {id:'m_fabcat',label:'FabricationCategory',type:'model',color:'#60a5fa',group:'Master Data',
+   fields:['id uuid PK','projectId FK','code','name','sortOrder','unique:[projectId,code]'],issues:[]},
+  {id:'m_budget',label:'ProjectBudget',type:'model',color:'#60a5fa',group:'Master Data',
+   fields:['projectId FK','materialGroupCode','itemCode','limitQty','unitPriceEst','totalEst','unique:[projectId,itemCode]'],
+   issues:['Chưa có UI import/manage budget — Gate 2 check dựa vào data này']},
+  {id:'m_pr',label:'PurchaseRequisition',type:'model',color:'#10b981',group:'PR Data',
+   fields:['id uuid PK','projectId FK','prRef unique','department','status: DRAFT|SOURCING|APPROVED|PO_ISSUED|CLOSED'],issues:[]},
+  {id:'m_prdetail',label:'PrDetail',type:'model',color:'#10b981',group:'PR Data',
+   fields:['id uuid PK','prId FK','itemCode indexed','itemName','profile','grade','uom','unitWeight','netQty','netWeight','reqQty','reqWeight','remainQty','toBuyQty','statusFlag: 9 states','remarks','materialGroupCode FK','materialSubGroupCode FK'],
+   issues:['1.351 items — list endpoint trả full (2.9MB) không paginate','statusFlag quản lý bằng application logic, không có state machine formal']},
+  {id:'m_faballoc',label:'PrDetailFabAllocation',type:'model',color:'#10b981',group:'PR Data',
+   fields:['prDetailId FK','fabricationCategoryId FK','qty','weight','unique:[prDetailId,fabricationCategoryId]','constraint: SUM(qty) <= reqQty'],issues:[]},
+  {id:'m_contract',label:'ContractDetail',type:'model',color:'#6366f1',group:'Contract & Logistics',
+   fields:['id uuid PK','prDetailId FK indexed','contractType: DOMESTIC|IMPORT','contractNo','vendorName indexed','vendorCountry','actualProfile','actualGrade','contractQty','contractWeight','contractDate','unitPriceNoVAT','currency','vatRate 10%','totalNoVAT','totalWithVAT','deliveredQty','deliveredWeight','importLCDate','exportPort','cifDate','paymentDate','customsDate','arrivedDate','qcInvitationDate','handoverDate','handoverToProductDate','status: PENDING|ORDERED|PARTIAL_DELIVERY|COMPLETED|CANCELLED','notes'],
+   issues:['1.578 records — vendorName text tự do gây duplicate (Gnee vs GNEE)','Không FK tới Vendor model — chỉ match by name string','totalNoVAT + totalWithVAT inconsistency: tổng 76.9 tỷ vs 70.8 tỷ — VAT calc cần kiểm']},
+  {id:'m_inspection',label:'InspectionRecord',type:'model',color:'#6366f1',group:'Contract & Logistics',
+   fields:['contractDetailId FK indexed','inspectionType','reportNo','inspectionDate','inspectedQty','inspectedWeight','acceptedQty','acceptedWeight','result: Pass|Fail|Partial|Đạt|Không đạt','remarks'],
+   issues:['result field không normalize — mix EN/VN (Pass vs Đạt)','Không có status enum — text matching trong computeQCStatus()']},
+  {id:'m_vendor',label:'Vendor',type:'model',color:'#a855f7',group:'Vendor Master',
+   fields:['id uuid PK','code unique nullable','name unique','shortName','taxCode indexed','address','city','country','phone','email','website','contactName','contactTitle','contactPhone','contactEmail','categories comma-sep','vendorType: DOMESTIC|IMPORT|MIXED','rating 1-5','status: ACTIVE|INACTIVE|BLACKLIST','notes'],
+   issues:['124 vendors nhưng 84 distinct trong contracts — 40 vendor chưa có HĐ nào','Seed tạo duplicate case: Hoàng Hà vs HOÀNG HÀ → cần normalize pass','Vendor model standalone — không FK từ ContractDetail']},
+  {id:'m_bid',label:'BidAnalysis',type:'model',color:'#f59e0b',group:'Bidding',
+   fields:['id uuid PK','projectId FK indexed','prId FK','prDetailId FK','bidCode indexed','subject','bidDate','status: OPEN|EVALUATING|SELECTED|CONTRACTED|CANCELLED','selectedVendorId','approvedBy','approvedAt','notes'],
+   issues:['0/81 bids đã chọn winner — selectedVendorId luôn null','bidCode = sheetName — không unique formal cross-project']},
+  {id:'m_bidvendor',label:'BidQuoteVendor',type:'model',color:'#f59e0b',group:'Bidding',
+   fields:['bidId FK indexed','vendorName','vendorCode','vendorType','vendorOrder','currency','totalQuote','isWinner bool','notes'],issues:[]},
+  {id:'m_biditem',label:'BidQuoteItem',type:'model',color:'#f59e0b',group:'Bidding',
+   fields:['bidId FK indexed','itemOrder','itemCode','itemName','profile','grade','gradeBuy','uom','qtyPR','qtyToBuy','estimateUnitPrice','estimateTotal','alreadyBoughtAmount','selectedVendorName','notes'],issues:[]},
+  {id:'m_bidoffer',label:'BidQuoteOffer',type:'model',color:'#f59e0b',group:'Bidding',
+   fields:['itemId FK indexed','vendorId FK indexed','scope: V|X','unitPrice','totalPrice','deliveryTerm','remarks','unique:[itemId,vendorId]'],issues:[]},
+  {id:'m_payment',label:'PaymentSchedule',type:'model',color:'#f43f5e',group:'Payment',
+   fields:['projectId FK indexed','contractDetailId FK','rowOrder','supplier indexed','saleContract','projectCode','value','currency','paymentMethod','signDate','lcDate','etd','eta','documentDate','paymentMonth indexed','lcDeadline','notes','status: PLANNED|DUE|PAID|OVERDUE','paidDate','paidAmount'],
+   issues:['31 records — chỉ có 2 tháng data (T2: 30, T4: 1)','Supplier field text tự do — không FK tới Vendor']},
+  {id:'m_po',label:'PurchaseOrder',type:'model',color:'#64748b',group:'Legacy',
+   fields:['poCode unique','bidId FK','vendorName','totalValue','currency','status: ISSUED|PARTIAL_RECEIVED|FULLY_RECEIVED|CLOSED|CANCELLED'],
+   issues:['LEGACY: PO merged vào /hop-dong — route /po đã xoá khỏi sidebar','Schema giữ lại nhưng không có UI active']},
+  {id:'m_grn',label:'GoodsReceivedNote',type:'model',color:'#64748b',group:'Legacy',
+   fields:['grnCode unique','purchaseOrderId FK','warehouseLocation','qcStatus: PENDING|PASSED|FAILED|PARTIAL','receivedAt','notes'],
+   issues:['LEGACY: warehouse page rebuild dùng ContractDetail.arrivedDate thay vì GRN','0 GRN records trong DB']},
+  {id:'m_inventory',label:'Inventory',type:'model',color:'#64748b',group:'Legacy',
+   fields:['itemCode unique','onHandQty','allocatedQty','availableQty (computed)','warehouseLocation'],
+   issues:['LEGACY: inventory page đã simplified thành catalog read-only','User dùng ERP khác cho tồn kho real-time','0 inventory records']},
+
+  // ─── Frontend Modules ───
+  {id:'p_dashboard',label:'/dashboard',type:'page',color:'#60a5fa',group:'Frontend Pages',
+   fields:['4 KPI cards','Top 5 vendors chart','Group breakdown table','Real-time stats'],issues:[]},
+  {id:'p_projects',label:'/projects',type:'page',color:'#60a5fa',group:'Frontend Pages',
+   fields:['5 projects','Status filter','Search','Stats: PR count, items, weight'],
+   issues:['Không có CRUD — chỉ list từ DB']},
+  {id:'p_muahang',label:'/mua-hang',type:'page',color:'#93c5fd',group:'Frontend Pages',
+   fields:['119 columns Excel-style','Tab: Workflow vs Detail','6-step workflow chips','Upload PR + Update Procurement','Project multi-select','1.351 items render'],
+   issues:['Render 1.351 items DOM cùng lúc — có thể lag trên máy yếu','16 cột REVs hiển thị "—" — chưa có schema REV history']},
+  {id:'p_baogia',label:'/bao-gia',type:'page',color:'#6ee7b7',group:'Frontend Pages',
+   fields:['81 bids list','Upload Excel','Status filter','4 KPI cards'],issues:[]},
+  {id:'p_sosanhbg',label:'/so-sanh-bao-gia',type:'page',color:'#fbbf24',group:'Frontend Pages',
+   fields:['Sidebar bid list','Vendor cards with totals','Comparison matrix items×vendors','Min price highlight','Select winner button'],issues:[]},
+  {id:'p_hopdong',label:'/hop-dong',type:'page',color:'#c7d2fe',group:'Frontend Pages',
+   fields:['245 contract groups','Filter DOM/IMP','Expand line items','Import timeline (LC→CIF→Arrived→QC→Handover)','Project filter'],
+   issues:['PO merged vào đây nhưng UI không explicitly show PO link']},
+  {id:'p_thanhtoan',label:'/thanh-toan',type:'page',color:'#fda4af',group:'Frontend Pages',
+   fields:['31 payment schedules','Month buckets summary','Upload Excel','Mark paid button','Status filter'],issues:[]},
+  {id:'p_vendors',label:'/vendors',type:'page',color:'#d8b4fe',group:'Frontend Pages',
+   fields:['124 vendors list','Full CRUD modal','Detail drawer + contract history (50)','Search name/MST/shortName','Filter type/status','Seed button','Soft + Hard delete'],issues:[]},
+  {id:'p_warehouse',label:'/warehouse',type:'page',color:'#f9a8d4',group:'Frontend Pages',
+   fields:['97 arrivals list','5 KPI cards','Filter QC status + type','Inline inspection form (8 fields)','Set arrived date','Toggle handover SX','Expand → inspections table'],issues:[]},
+  {id:'p_inventory',label:'/inventory',type:'page',color:'#5eead4',group:'Frontend Pages',
+   fields:['Material catalog read-only','Group filter VTC/VPK/VDK','Search code/name/profile/grade','~1.351 items'],issues:[]},
+  {id:'p_settings',label:'/settings',type:'page',color:'#6ee7b7',group:'Frontend Pages',
+   fields:['User info card','Change password form','Strength meter 5 levels','Auto logout after change'],issues:[]},
+
+  // ─── Backend Controllers ───
+  {id:'c_auth',label:'authController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['login() — POST','me() — GET','changePassword() — POST','createUser() — POST ADMIN'],issues:[]},
+  {id:'c_primport',label:'prImportController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['importPR() — POST + file','getListPRs() — GET'],
+   issues:['getListPRs trả 2.9MB (1.351 items) — no pagination']},
+  {id:'c_procupdate',label:'procurementUpdateController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['updateProcurementStatus() — POST + file'],issues:[]},
+  {id:'c_bid',label:'bidAnalysisController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['uploadBidAnalyses() — POST + file','listBidAnalyses() — GET','getBidAnalysisDetail() — GET','selectVendor() — POST'],issues:[]},
+  {id:'c_contract',label:'contractController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['listContracts() — GET aggregate','getContractDetail() — GET by contractNo'],issues:[]},
+  {id:'c_payment',label:'paymentScheduleController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['uploadPaymentSchedules() — POST + file','listPaymentSchedules() — GET + summary','updatePaymentStatus() — PATCH'],issues:[]},
+  {id:'c_vendor',label:'vendorController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['listVendorsMaster() — GET + stats','getVendorMaster() — GET + history','createVendor() — POST','updateVendor() — PATCH','deleteVendor() — DELETE soft/hard','seedVendorsFromHistory() — POST'],issues:[]},
+  {id:'c_arrivals',label:'arrivalsController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['listArrivals() — GET + qcStatus compute','getArrivalStats() — GET','updateArrival() — PATCH dates','addInspection() — POST','updateInspection() — PATCH','deleteInspection() — DELETE'],issues:[]},
+  {id:'c_list',label:'listController',type:'controller',color:'#fbbf24',group:'Controllers',
+   fields:['listProjects()','listVendors()','listPOs()','listGRNs()','listInventory()','listMaterialCatalog()','dashboardStats()'],issues:[]},
+
+  // ─── Parsers/Services ───
+  {id:'s_fileparser',label:'fileParser.js',type:'service',color:'#fdba74',group:'Parsers',
+   fields:['parseFileBuffer() — auto-detect header','detectHeaderAndCols()','findBestSheet()','parseCSVFlex() — delimiter auto'],issues:[]},
+  {id:'s_validator',label:'prValidator.js',type:'service',color:'#fdba74',group:'Parsers',
+   fields:['validateRow() — Gate 1 trash detection','skip noise/headers/footers','itemCode length check (<60)','toNum() — parse VN number format'],issues:[]},
+  {id:'s_procupdater',label:'procurementUpdater.js',type:'service',color:'#fdba74',group:'Parsers',
+   fields:['Dynamic header detection','DOM 13 + IMP 18 column mapping','auto-create missing PrDetail','inferStatusFlag() — 6 states','upsert ContractDetail by prDetailId+contractNo'],
+   issues:['Header detection scan mỗi project file khác nhau — brittle nếu Excel format thay đổi']},
+  {id:'s_bidparser',label:'bidAnalysisParser.js',type:'service',color:'#fdba74',group:'Parsers',
+   fields:['isBidAnalysisSheet() — detect BID ANALYSIS sheets','parseBidSheet() — vendors + items + offers','3 cols per vendor: scope/price/total','Winner detection from Lựa chọn column'],
+   issues:['Winner auto-detect nhưng 0/81 bids thực tế có winner trong parsed data']},
+  {id:'s_payparser',label:'paymentScheduleParser.js',type:'service',color:'#fdba74',group:'Parsers',
+   fields:['14 column mapping','Excel date → JS Date conversion','Auto-link contractDetail by saleContract'],issues:[]},
+  {id:'s_matdetect',label:'materialDetector.js',type:'service',color:'#fdba74',group:'Parsers',
+   fields:['itemCode pattern → MaterialGroup','Letter A-G mapping','Fallback first subgroup'],
+   issues:['Hardcode mapping — thêm nhóm mới phải sửa code']},
+
+  // ─── Security ───
+  {id:'sec_ratelimit',label:'Rate Limiters',type:'security',color:'#ef4444',group:'Security',
+   fields:['loginLimiter: 5/15min (skip success)','apiLimiter: 200/min','uploadLimiter: 20/10min','In-memory store — clear on restart'],
+   issues:['Rate limit store in-memory — mất khi restart','Không có distributed rate limit (Redis) cho multi-instance']},
+  {id:'sec_helmet',label:'Helmet CSP',type:'security',color:'#ef4444',group:'Security',
+   fields:["default-src 'self'","script-src 'self'","style-src 'self' 'unsafe-inline'","frame-ancestors 'none'","object-src 'none'","HSTS 1 year (production only)"],issues:[]},
+  {id:'sec_jwt',label:'JWT Auth',type:'security',color:'#ef4444',group:'Security',
+   fields:['Algorithm: HS256','Expiry: 8h','Payload: {id, username, role, name}','64-byte hex secret'],
+   issues:['Không có refresh token — user phải re-login sau 8h','Token invalidation khi change password — user cũ vẫn valid tới hết 8h']},
+
+  // ─── Infrastructure ───
+  {id:'infra_docker',label:'Docker Compose',type:'infra',color:'#14b8a6',group:'Infrastructure',
+   fields:['4 services: postgres, backend, frontend, nginx','ibshi_net bridge network','Volumes: pg_data, uploads, nginx_logs','postgres NOT exposed to host'],issues:[]},
+  {id:'infra_nginx',label:'Nginx Reverse Proxy',type:'infra',color:'#14b8a6',group:'Infrastructure',
+   fields:['SSL terminate TLS 1.2/1.3','/ → frontend:3000','/api → backend:5005','/_next/static cache 1yr','login rate limit 1r/s burst 5','gzip compression'],issues:[]},
+
+  // ─── Workflow Steps ───
+  {id:'w_1',label:'B1: Tiếp nhận PR',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['Upload CSV/XLSX → PrDetail','fileParser + prValidator','materialDetector auto-group'],issues:[]},
+  {id:'w_2',label:'B2: Gửi RFQ',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['generateRFQ → BidAnalysis create'],issues:[]},
+  {id:'w_3',label:'B3: Nhận báo giá',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['Upload BID ANALYSIS Excel','bidAnalysisParser → BidQuoteVendor + BidQuoteItem + BidQuoteOffer'],issues:[]},
+  {id:'w_4',label:'B4: So sánh BG',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['Compare offers','Min price highlight','Gate 1.5: cert origin + delivery check'],issues:[]},
+  {id:'w_5',label:'B5: Làm rõ KT',type:'workflow',color:'#f59e0b',group:'Workflow 11 Steps',fields:['actualProfile ≠ profile → warning','clarification flag'],issues:[]},
+  {id:'w_6',label:'B6: Chuyển đổi VT',type:'workflow',color:'#f59e0b',group:'Workflow 11 Steps',fields:['PrDetail.remarks','spec swap tracking'],issues:[]},
+  {id:'w_7',label:'B7: Ký HĐ',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['ContractDetail create','contractNo + vendor + pricing','DOM: 13 fields, IMP: 18 fields extra'],issues:[]},
+  {id:'w_8',label:'B8: Giao hàng',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['IMP milestones: LC → CIF → customs → arrived','deliveredQty/Weight tracking'],issues:[]},
+  {id:'w_9',label:'B9: Nghiệm thu QC',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['InspectionRecord CRUD','Pass/Fail/Partial','reportNo + inspectedQty + acceptedQty'],issues:[]},
+  {id:'w_10',label:'B10: Bàn giao SX',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['handoverToProductDate','62/97 đã bàn giao'],issues:[]},
+  {id:'w_11',label:'B11: Thanh toán',type:'workflow',color:'#10b981',group:'Workflow 11 Steps',fields:['PaymentSchedule','PLANNED → DUE → PAID','paidDate + paidAmount'],issues:[]},
+];
+
+const EDGES = [
+  // Model relationships
+  {from:'m_user',to:'m_audit',label:'has_many',color:'#3b82f6'},
+  {from:'m_project',to:'m_pr',label:'has_many',color:'#3b82f6'},
+  {from:'m_project',to:'m_fabcat',label:'has_many',color:'#3b82f6'},
+  {from:'m_project',to:'m_budget',label:'has_many',color:'#3b82f6'},
+  {from:'m_project',to:'m_bid',label:'has_many',color:'#3b82f6'},
+  {from:'m_project',to:'m_payment',label:'has_many',color:'#3b82f6'},
+  {from:'m_pr',to:'m_prdetail',label:'has_many',color:'#3b82f6'},
+  {from:'m_prdetail',to:'m_contract',label:'has_many',color:'#3b82f6'},
+  {from:'m_prdetail',to:'m_faballoc',label:'has_many',color:'#3b82f6'},
+  {from:'m_contract',to:'m_inspection',label:'has_many',color:'#3b82f6'},
+  {from:'m_contract',to:'m_payment',label:'has_many',color:'#3b82f6'},
+  {from:'m_bid',to:'m_bidvendor',label:'has_many',color:'#3b82f6'},
+  {from:'m_bid',to:'m_biditem',label:'has_many',color:'#3b82f6'},
+  {from:'m_biditem',to:'m_bidoffer',label:'has_many',color:'#3b82f6'},
+  {from:'m_bidvendor',to:'m_bidoffer',label:'has_many',color:'#3b82f6'},
+  {from:'m_matgroup',to:'m_matsubgroup',label:'has_many',color:'#3b82f6'},
+  {from:'m_matgroup',to:'m_prdetail',label:'classifies',color:'#64748b'},
+  {from:'m_faballoc',to:'m_fabcat',label:'belongs_to',color:'#10b981'},
+  {from:'m_po',to:'m_contract',label:'has_many',color:'#64748b'},
+  {from:'m_po',to:'m_grn',label:'has_many',color:'#64748b'},
+
+  // Controller → Model (reads/writes)
+  {from:'c_auth',to:'m_user',label:'reads/writes',color:'#f59e0b'},
+  {from:'c_auth',to:'m_audit',label:'writes',color:'#f59e0b'},
+  {from:'c_primport',to:'m_prdetail',label:'writes',color:'#f59e0b'},
+  {from:'c_primport',to:'m_pr',label:'writes',color:'#f59e0b'},
+  {from:'c_procupdate',to:'m_prdetail',label:'reads/writes',color:'#f59e0b'},
+  {from:'c_procupdate',to:'m_contract',label:'writes',color:'#f59e0b'},
+  {from:'c_procupdate',to:'m_inspection',label:'writes',color:'#f59e0b'},
+  {from:'c_bid',to:'m_bid',label:'reads/writes',color:'#f59e0b'},
+  {from:'c_bid',to:'m_bidvendor',label:'writes',color:'#f59e0b'},
+  {from:'c_bid',to:'m_biditem',label:'writes',color:'#f59e0b'},
+  {from:'c_bid',to:'m_bidoffer',label:'writes',color:'#f59e0b'},
+  {from:'c_contract',to:'m_contract',label:'reads',color:'#f59e0b'},
+  {from:'c_payment',to:'m_payment',label:'reads/writes',color:'#f59e0b'},
+  {from:'c_vendor',to:'m_vendor',label:'reads/writes',color:'#f59e0b'},
+  {from:'c_vendor',to:'m_contract',label:'reads stats',color:'#f59e0b'},
+  {from:'c_arrivals',to:'m_contract',label:'reads/writes',color:'#f59e0b'},
+  {from:'c_arrivals',to:'m_inspection',label:'CRUD',color:'#f59e0b'},
+  {from:'c_list',to:'m_project',label:'reads',color:'#f59e0b'},
+  {from:'c_list',to:'m_contract',label:'reads',color:'#f59e0b'},
+
+  // Page → Controller (API calls)
+  {from:'p_dashboard',to:'c_list',label:'fetchDashboardStats',color:'#a855f7'},
+  {from:'p_projects',to:'c_list',label:'fetchProjects',color:'#a855f7'},
+  {from:'p_muahang',to:'c_primport',label:'fetchPRList + importPR',color:'#a855f7'},
+  {from:'p_muahang',to:'c_procupdate',label:'updateProcurement',color:'#a855f7'},
+  {from:'p_baogia',to:'c_bid',label:'fetchBidAnalyses + upload',color:'#a855f7'},
+  {from:'p_sosanhbg',to:'c_bid',label:'fetchDetail + selectVendor',color:'#a855f7'},
+  {from:'p_hopdong',to:'c_contract',label:'fetchContracts',color:'#a855f7'},
+  {from:'p_thanhtoan',to:'c_payment',label:'fetch + upload + markPaid',color:'#a855f7'},
+  {from:'p_vendors',to:'c_vendor',label:'CRUD + seed',color:'#a855f7'},
+  {from:'p_warehouse',to:'c_arrivals',label:'arrivals + inspections',color:'#a855f7'},
+  {from:'p_inventory',to:'c_list',label:'fetchMaterialCatalog',color:'#a855f7'},
+  {from:'p_settings',to:'c_auth',label:'changePassword',color:'#a855f7'},
+
+  // Parser → Controller
+  {from:'s_fileparser',to:'c_primport',label:'used by',color:'#64748b'},
+  {from:'s_validator',to:'c_primport',label:'used by',color:'#64748b'},
+  {from:'s_procupdater',to:'c_procupdate',label:'used by',color:'#64748b'},
+  {from:'s_bidparser',to:'c_bid',label:'used by',color:'#64748b'},
+  {from:'s_payparser',to:'c_payment',label:'used by',color:'#64748b'},
+  {from:'s_matdetect',to:'c_primport',label:'used by',color:'#64748b'},
+
+  // Security → Infrastructure
+  {from:'sec_ratelimit',to:'c_auth',label:'protects login',color:'#ef4444'},
+  {from:'sec_ratelimit',to:'c_primport',label:'protects upload',color:'#ef4444'},
+  {from:'sec_ratelimit',to:'c_bid',label:'protects upload',color:'#ef4444'},
+  {from:'sec_jwt',to:'c_auth',label:'issues token',color:'#ef4444'},
+  {from:'infra_nginx',to:'infra_docker',label:'front of',color:'#14b8a6'},
+
+  // Workflow → Model
+  {from:'w_1',to:'m_prdetail',label:'creates',color:'#f59e0b'},
+  {from:'w_3',to:'m_bid',label:'creates',color:'#f59e0b'},
+  {from:'w_7',to:'m_contract',label:'creates',color:'#f59e0b'},
+  {from:'w_9',to:'m_inspection',label:'creates',color:'#f59e0b'},
+  {from:'w_11',to:'m_payment',label:'updates',color:'#f59e0b'},
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// GRAPH RENDERING (Force-directed layout on canvas)
+// ═══════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('graphCanvas');
+const ctx = canvas.getContext('2d');
+let W, H, dpr;
+let selectedNodeId = null;
+let hoveredNodeId = null;
+let dragNode = null;
+let offsetX = 0, offsetY = 0;
+
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  dpr = window.devicePixelRatio || 1;
+  W = rect.width; H = rect.height;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Init positions — cluster by group
+const groupCenters = {};
+const groups = [...new Set(NODES.map(n => n.group))];
+groups.forEach((g, i) => {
+  const angle = (i / groups.length) * Math.PI * 2 - Math.PI/2;
+  const r = Math.min(W, H) * 0.32;
+  groupCenters[g] = { x: W/2 + Math.cos(angle)*r, y: H/2 + Math.sin(angle)*r };
+});
+
+NODES.forEach(n => {
+  const c = groupCenters[n.group] || {x: W/2, y: H/2};
+  n.x = c.x + (Math.random()-0.5)*120;
+  n.y = c.y + (Math.random()-0.5)*120;
+  n.vx = 0; n.vy = 0;
+  n.r = n.type === 'model' ? 14 : n.type === 'page' ? 12 : n.type === 'workflow' ? 10 : 11;
+});
+
+// Build adjacency
+const nodeMap = new Map(NODES.map(n => [n.id, n]));
+const adj = new Map();
+NODES.forEach(n => adj.set(n.id, []));
+EDGES.forEach(e => {
+  if (adj.has(e.from)) adj.get(e.from).push(e.to);
+  if (adj.has(e.to)) adj.get(e.to).push(e.from);
+});
+
+// Physics
+function simulate() {
+  const K = 0.0002, REP = 8000, DAMP = 0.85, DT = 1;
+  NODES.forEach(a => {
+    NODES.forEach(b => {
+      if (a === b) return;
+      let dx = a.x - b.x, dy = a.y - b.y;
+      let d = Math.sqrt(dx*dx + dy*dy) || 1;
+      let f = REP / (d * d);
+      a.vx += (dx/d)*f*DT; a.vy += (dy/d)*f*DT;
+    });
+  });
+  EDGES.forEach(e => {
+    const a = nodeMap.get(e.from), b = nodeMap.get(e.to);
+    if (!a || !b) return;
+    let dx = b.x - a.x, dy = b.y - a.y;
+    let d = Math.sqrt(dx*dx + dy*dy) || 1;
+    let f = (d - 100) * K;
+    a.vx += (dx/d)*f*DT; a.vy += (dy/d)*f*DT;
+    b.vx -= (dx/d)*f*DT; b.vy -= (dy/d)*f*DT;
+  });
+  // Center gravity
+  NODES.forEach(n => {
+    const c = groupCenters[n.group] || {x:W/2,y:H/2};
+    n.vx += (c.x - n.x) * 0.0003;
+    n.vy += (c.y - n.y) * 0.0003;
+  });
+  NODES.forEach(n => {
+    if (n === dragNode) return;
+    n.vx *= DAMP; n.vy *= DAMP;
+    n.x += n.vx; n.y += n.vy;
+    n.x = Math.max(20, Math.min(W-20, n.x));
+    n.y = Math.max(20, Math.min(H-20, n.y));
+  });
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  // Edges
+  EDGES.forEach(e => {
+    const a = nodeMap.get(e.from), b = nodeMap.get(e.to);
+    if (!a || !b) return;
+    const isHighlight = selectedNodeId && (e.from === selectedNodeId || e.to === selectedNodeId);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = isHighlight ? e.color : (selectedNodeId ? 'rgba(30,41,59,.2)' : 'rgba(71,85,105,.25)');
+    ctx.lineWidth = isHighlight ? 2 : 0.5;
+    ctx.stroke();
+    // Arrow
+    if (isHighlight) {
+      const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+      ctx.fillStyle = e.color;
+      ctx.font = '7px Inter';
+      ctx.fillText(e.label, mx+4, my-4);
+    }
+  });
+  // Nodes
+  NODES.forEach(n => {
+    const isSelected = n.id === selectedNodeId;
+    const isNeighbor = selectedNodeId && adj.get(selectedNodeId)?.includes(n.id);
+    const isHovered = n.id === hoveredNodeId;
+    const dimmed = selectedNodeId && !isSelected && !isNeighbor;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r + (isSelected?3:isHovered?2:0), 0, Math.PI*2);
+    ctx.fillStyle = dimmed ? 'rgba(15,23,42,.6)' : n.color;
+    ctx.globalAlpha = dimmed ? 0.3 : 1;
+    ctx.fill();
+    if (isSelected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+    // Label
+    ctx.fillStyle = dimmed ? '#334155' : '#e2e8f0';
+    ctx.font = (isSelected ? 'bold ' : '') + '8px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText(n.label, n.x, n.y + n.r + 11);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function loop() {
+  simulate();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERACTION
+// ═══════════════════════════════════════════════════════════════════
+
+function hitTest(mx, my) {
+  for (let i = NODES.length-1; i >= 0; i--) {
+    const n = NODES[i];
+    const dx = mx - n.x, dy = my - n.y;
+    if (dx*dx + dy*dy <= (n.r+4)*(n.r+4)) return n;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+  if (n) { dragNode = n; offsetX = e.clientX - n.x; offsetY = e.clientY - n.y; }
+});
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  if (dragNode) { dragNode.x = e.clientX - offsetX; dragNode.y = e.clientY - offsetY; return; }
+  const h = hitTest(mx, my);
+  hoveredNodeId = h ? h.id : null;
+  canvas.style.cursor = h ? 'pointer' : 'default';
+});
+canvas.addEventListener('mouseup', e => {
+  if (dragNode) {
+    const rect = canvas.getBoundingClientRect();
+    const n = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+    if (n && n === dragNode) selectNode(n.id);
+    dragNode = null;
+  }
+});
+canvas.addEventListener('dblclick', e => {
+  selectedNodeId = null;
+  renderDetail();
+  renderNodeList();
+});
+
+function selectNode(id) {
+  selectedNodeId = id;
+  renderDetail();
+  renderNodeList();
+  // Scroll in sidebar
+  const btn = document.querySelector(`.node-btn[data-id="${id}"]`);
+  if (btn) btn.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LEFT PANEL: Node list
+// ═══════════════════════════════════════════════════════════════════
+
+function renderNodeList(filter='') {
+  const container = document.getElementById('nodeList');
+  const q = filter.toLowerCase();
+  let html = '';
+  const grouped = {};
+  NODES.forEach(n => {
+    if (q && !n.label.toLowerCase().includes(q) && !n.group.toLowerCase().includes(q)) return;
+    if (!grouped[n.group]) grouped[n.group] = [];
+    grouped[n.group].push(n);
+  });
+  for (const [group, nodes] of Object.entries(grouped)) {
+    html += `<h3>${group}</h3>`;
+    nodes.forEach(n => {
+      html += `<button class="node-btn ${n.id===selectedNodeId?'active':''}" data-id="${n.id}" onclick="selectNode('${n.id}')">
+        <div class="dot" style="background:${n.color}"></div>${n.label}
+        ${n.issues?.length ? '<span style="color:#f59e0b;margin-left:auto;font-size:9px">⚠'+n.issues.length+'</span>' : ''}
+      </button>`;
+    });
+  }
+  container.innerHTML = html;
+}
+renderNodeList();
+
+function filterNodes() {
+  renderNodeList(document.getElementById('nodeFilter').value);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RIGHT PANEL: Detail
+// ═══════════════════════════════════════════════════════════════════
+
+function renderDetail() {
+  const panel = document.getElementById('detailPanel');
+  if (!selectedNodeId) {
+    panel.innerHTML = '<div class="empty-detail"><div style="font-size:40px;opacity:.3">🔍</div><div style="margin-top:8px">Click node trên graph hoặc sidebar để xem chi tiết</div></div>';
+    return;
+  }
+  const n = nodeMap.get(selectedNodeId);
+  const typeColors = {model:'#3b82f6',page:'#10b981',controller:'#f59e0b',service:'#fdba74',security:'#ef4444',infra:'#14b8a6',workflow:'#818cf8'};
+  const typeLabels = {model:'DB Model',page:'Frontend Page',controller:'Controller',service:'Parser/Service',security:'Security',infra:'Infrastructure',workflow:'Workflow Step'};
+
+  let html = `<div class="detail-title">
+    <div class="dot" style="width:12px;height:12px;border-radius:50%;background:${n.color}"></div>
+    ${n.label}
+    <span class="detail-type" style="background:${typeColors[n.type]||'#475569'};color:#fff">${typeLabels[n.type]||n.type}</span>
+  </div>
+  <div style="font-size:10px;color:#64748b;margin-top:2px">${n.group}</div>`;
+
+  // Fields
+  if (n.fields?.length) {
+    html += '<div class="detail-section"><h4>Fields / Features</h4>';
+    n.fields.forEach(f => {
+      const parts = f.split(' — ');
+      if (parts.length === 2) {
+        html += `<div class="detail-field"><span class="k">${parts[0]}</span><span class="v">${parts[1]}</span></div>`;
+      } else {
+        html += `<div class="detail-field"><span class="v" style="max-width:100%">${f}</span></div>`;
+      }
+    });
+    html += '</div>';
+  }
+
+  // Relationships
+  const outEdges = EDGES.filter(e => e.from === n.id);
+  const inEdges = EDGES.filter(e => e.to === n.id);
+  if (outEdges.length || inEdges.length) {
+    html += '<div class="detail-section"><h4>Relationships</h4>';
+    outEdges.forEach(e => {
+      const target = nodeMap.get(e.to);
+      if (target) html += `<div class="detail-rel"><span class="arrow">→</span><span class="target" onclick="selectNode('${e.to}')">${target.label}</span><span class="label">${e.label}</span></div>`;
+    });
+    inEdges.forEach(e => {
+      const source = nodeMap.get(e.from);
+      if (source) html += `<div class="detail-rel"><span class="arrow">←</span><span class="target" onclick="selectNode('${e.from}')">${source.label}</span><span class="label">${e.label}</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Issues
+  if (n.issues?.length) {
+    html += '<div class="issues-box"><h5>⚠ Audit Issues</h5><ul>';
+    n.issues.forEach(i => html += `<li>${i}</li>`);
+    html += '</ul></div>';
+  }
+
+  panel.innerHTML = html;
+}
+</script>
+</body>
+</html>

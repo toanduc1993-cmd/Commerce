@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  S3-2 Daily pg_dump backup at 02:00 local time
+  Install:
+    cp deploy/launchd/com.ibshi.vattu.backuppg.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.ibshi.vattu.backuppg.plist
+  Manual run:
+    launchctl start com.ibshi.vattu.backuppg
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ibshi.vattu.backuppg</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/trinhhuuhung/Desktop/HUNGAI/HUNGTH OBSIDIAN V/HUNGTH OBSIDIAN/VẬT TƯ/scripts/backup_pg.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>2</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/vattu-backup-pg.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/vattu-backup-pg.err</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

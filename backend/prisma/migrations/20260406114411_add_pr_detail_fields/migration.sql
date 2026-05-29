@@ -1,0 +1,2 @@
+-- SUPERSEDED by 20260407000000_init_v3 (SQLite → PostgreSQL migration)
+-- Do not apply this migration.
