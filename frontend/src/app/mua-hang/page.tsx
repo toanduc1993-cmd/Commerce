@@ -10,7 +10,7 @@
  * Dùng tab switcher để chuyển giữa 2 view, chia sẻ cùng data source.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopNav } from '@/components/layout/TopNav';
@@ -18,7 +18,7 @@ import { MasterTrackingTable } from '@/components/mua-hang/MasterTrackingTable';
 import { PR090DetailView } from '@/components/mua-hang/PR090DetailView';
 import { UpdateProcurementModal } from '@/components/mua-hang/UpdateProcurementModal';
 import { CreateRfqModal } from '@/components/CreateRfqModal';
-import { TableSearch, ColumnFilter, ActiveFilterChips } from '@/components/data-table';
+import { ActiveFilterChips } from '@/components/data-table';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { toast, Toaster } from 'react-hot-toast';
 import type { PRDetail, PRStatus, FabricationCategory } from '@/types/procurement';
@@ -278,17 +278,60 @@ export default function MuaHangPage() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showCreateRfqModal, setShowCreateRfqModal] = useState(false);
   const [isUsingMock, setIsUsingMock] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewProjectIds, setViewProjectIds] = useState<string[]>(['p002']);
 
-  const activeFabCats = getActiveFabCategories(viewProjectIds);
+  // Điều khiển REV columns — lift lên page để dùng ở toolbar bar chính
+  const [showAllRevs, setShowAllRevs] = useState(false);
+
+  // REV selection per project: 'all' | 'latest' | number (0-based rev index)
+  const [selectedRevByProject, setSelectedRevByProject] = useState<Record<string, 'all' | 'latest' | number>>({});
+  const [revDropOpen, setRevDropOpen] = useState(false);
+  const revDropRef = useRef<HTMLDivElement>(null);
+
+  // Dropdown "Hành động"
+  const [actionDropOpen, setActionDropOpen] = useState(false);
+  const actionDropRef = useRef<HTMLDivElement>(null);
+  const closeActionDrop = useCallback(() => setActionDropOpen(false), []);
+
+  // Dropdown "Tình trạng hàng hóa"
+  const [statusDropOpen, setStatusDropOpen] = useState(false);
+  const statusDropRef = useRef<HTMLDivElement>(null);
+
+  // Dropdown "Theo dự án" (view mode + project filter)
+  const [viewDropOpen, setViewDropOpen] = useState(false);
+  const viewDropRef = useRef<HTMLDivElement>(null);
+
+  // Đóng dropdown khi click ngoài
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (actionDropOpen && actionDropRef.current && !actionDropRef.current.contains(e.target as Node)) {
+        setActionDropOpen(false);
+      }
+      if (statusDropOpen && statusDropRef.current && !statusDropRef.current.contains(e.target as Node)) {
+        setStatusDropOpen(false);
+      }
+      if (viewDropOpen && viewDropRef.current && !viewDropRef.current.contains(e.target as Node)) {
+        setViewDropOpen(false);
+      }
+      if (revDropOpen && revDropRef.current && !revDropRef.current.contains(e.target as Node)) {
+        setRevDropOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [actionDropOpen, statusDropOpen, viewDropOpen, revDropOpen]);
+
+  // Tất cả projects — fab categories dùng cho PR-090 detail
+  const allProjectIds = PROJECTS.map((p) => p.id);
+  const activeFabCats = getActiveFabCategories(allProjectIds);
 
   // ─── Reload PR data từ backend (dùng cho cả mount và sau update) ────────
   const reloadPrs = async () => {
     if (typeof window === 'undefined' || !localStorage.getItem('ibshi_authed')) return;
     try {
+      const token = localStorage.getItem('ibshi_token');
       const res = await fetch(`${API_URL}/api/v1/prs`, {
         credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         signal: AbortSignal.timeout(8000),
       });
       const d = await res.json();
@@ -333,12 +376,13 @@ export default function MuaHangPage() {
     const toastId = toast.loading(`Đang xử lý ${file.name}…`);
 
     try {
-      const { ensureCsrfToken } = await import('@/lib/api');
-      const csrfToken = await ensureCsrfToken();
+      const token = localStorage.getItem('ibshi_token');
+      const uploadHeaders: Record<string, string> = {};
+      if (token) uploadHeaders['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`${API_URL}/api/v1/prs/import`, {
         method: 'POST',
         credentials: 'include',
-        headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+        headers: uploadHeaders,
         body: formData,
         signal: AbortSignal.timeout(60000),
       });
@@ -352,7 +396,8 @@ export default function MuaHangPage() {
         toast.success(
           `✅ Đã nhập ${count} mã vật tư vào ${project.code}` + (warnings ? ` (${warnings})` : '')
         );
-        if (!viewProjectIds.includes(project.id)) setViewProjectIds([project.id]);
+        // Sau upload, tự set filter dự án vừa upload
+        tableFilters.setColumnFilter('projectCode', { type: 'multiSelect', values: [project.code] });
 
         // Reload danh sách PR sau import
         try {
@@ -403,39 +448,23 @@ export default function MuaHangPage() {
     toast.success(`Đã chuyển bước ${prIds.length} mục`);
   };
 
-  const handleToggleProject = (pid: string) => {
-    setViewProjectIds((prev) => {
-      if (prev.includes(pid)) {
-        const next = prev.filter((x) => x !== pid);
-        return next.length ? next : prev;
-      }
-      return [...prev, pid];
-    });
-  };
-
-  // ─── Filter PR data theo project đang chọn ─────────────────────────────
-  // Dùng cho CẢ Workflow tab và PR-090 tab (đồng bộ)
-  const selectedProjectCodes = PROJECTS.filter((p) => viewProjectIds.includes(p.id)).map(
-    (p) => p.code
-  );
-  const prsByProject = prs.filter((p) => {
-    // Nếu item có pr.project.code → match theo code
-    if (p.pr?.project?.code) return selectedProjectCodes.includes(p.pr.project.code);
-    // Fallback: match theo prefix itemCode (I95 → 25-VPI-I-095, I90 → 25-BRA-I-090)
-    const prefix = p.itemCode.match(/^I(\d{2})/)?.[1];
-    if (!prefix) return true; // không xác định được → hiển thị
-    return selectedProjectCodes.some((code) => code.includes(`-I-0${prefix}`));
-  });
+  // Hiển thị toàn bộ PR — filter dự án được xử lý trực tiếp trong bảng qua ColumnFilter
+  const prsByProject = prs;
 
   // Filter thêm theo workflow step (chỉ áp dụng tab Workflow)
   const stepFiltered =
     activeStep === 'all' ? prsByProject : prsByProject.filter((p) => p.statusFlag === activeStep);
 
-  // ─── Search + per-column filter (1+2 user request) ────────────────────────
-  // Đặt SAU step filter để search/filter chạy trên dữ liệu của step hiện tại
+  // ─── Search + per-column filter ───────────────────────────────────────────
   const tableFilters = useTableFilters<PRDetail>({
     searchFields: ['itemCode', 'itemName', 'profile', 'grade', 'remarks'],
     columns: {
+      projectCode: {
+        type: 'multiSelect',
+        label: 'Dự án',
+        options: PROJECTS.map((p) => ({ value: p.code, label: p.code })),
+        accessor: (row) => row.pr?.project?.code ?? '',
+      },
       itemCode: { type: 'text', label: 'Mã VT' },
       itemName: { type: 'text', label: 'Tên VT' },
       profile: { type: 'text', label: 'Quy cách' },
@@ -446,30 +475,16 @@ export default function MuaHangPage() {
         label: 'Nhóm VT',
         options: ['VTC', 'VPK', 'VDK', 'VBP', 'VTH', 'VTS', 'VTP'],
       },
-      statusFlag: {
-        type: 'multiSelect',
-        label: 'Trạng thái',
-        options: [
-          'Chờ báo giá',
-          'Đang đàm phán',
-          'Đã ký HĐ',
-          'Hàng đang về',
-          'Đã nghiệm thu',
-          'Đã nhập kho',
-        ],
-      },
       urgency: { type: 'select', label: 'Độ ưu tiên', options: ['Normal', 'High', 'Critical'] },
       reqQty: { type: 'numberRange', label: 'SL yêu cầu' },
       toBuyQty: { type: 'numberRange', label: 'SL cần mua' },
       requiredDate: { type: 'dateRange', label: 'Ngày cần' },
+      contractNo: { type: 'text', label: 'Số HĐ' },
+      vendorName: { type: 'text', label: 'Nhà CC' },
+      unitWeight: { type: 'numberRange', label: 'U.Weight' },
+      netQtyFilter: { type: 'numberRange', label: 'Net Q.Ty' },
     },
   });
-
-  // Sync global search query (từ TopNav) into table filters
-  useEffect(() => {
-    tableFilters.setSearch(searchQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
 
   const filteredPrs = tableFilters.apply(stepFiltered);
 
@@ -494,7 +509,7 @@ export default function MuaHangPage() {
             reloadPrs();
           }}
           projects={PROJECTS}
-          defaultProjectId={viewProjectIds[0]}
+          defaultProjectId={PROJECTS[0].id}
         />
       )}
       {showCreateRfqModal && (
@@ -510,180 +525,368 @@ export default function MuaHangPage() {
       <Sidebar />
 
       <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
-        {/* ── Top nav — KHÔNG hiện workflow dropdown (tránh trùng với tab) ─── */}
+        {/* ── Top nav — search only, upload đã chuyển vào dropdown Hành động ─── */}
         <TopNav
           onFileChange={() => {}}
           onGeneratePO={() => toast('Tính năng sẽ hoạt động khi backend kết nối.', { icon: 'ℹ️' })}
           isLoading={isLoading}
-          onOpenUpload={() => setShowUploadModal(true)}
-          onSearch={(q) => setSearchQuery(q)}
+          onSearch={(q) => tableFilters.setSearch(q)}
           searchPlaceholder="Tìm mã, tên, profile, nhà CC, số HĐ..."
         />
 
-        {/* ── Bar duy nhất: Tab switcher + Workflow step chips + Project pills ── */}
-        <div className="mt-16 border-b border-slate-200 bg-white px-4 py-2 flex items-center gap-3 shrink-0 shadow-sm">
-          {/* Tab switcher — điểm điều hướng chính */}
-          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 shrink-0">
+        {/* ── Bar chính: Dropdown view + Dropdown tình trạng + REV toggle + Hành động ── */}
+        <div className="mt-16 border-b border-slate-200 bg-white px-4 py-2 flex items-center gap-2 shrink-0 shadow-sm">
+
+          {/* ── Dropdown 1: "Theo dự án" — chọn dự án + view mode ── */}
+          <div className="relative shrink-0" ref={viewDropRef}>
             <button
-              onClick={() => setViewMode('workflow')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10.5px] font-bold transition-all ${
-                viewMode === 'workflow'
-                  ? 'bg-white text-[#1B365D] shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+              onClick={() => setViewDropOpen((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10.5px] font-bold border transition-all ${
+                viewDropOpen
+                  ? 'bg-[#1B365D] text-white border-[#1B365D] shadow'
+                  : 'bg-white border-slate-300 text-slate-700 hover:border-[#1B365D]'
               }`}
             >
-              <span className="material-symbols-outlined text-[14px]">timeline</span>
-              Workflow Mua Sắm
+              <span className="material-symbols-outlined text-[14px]">folder_open</span>
+              <span>
+                {viewMode === 'detail' ? 'PR-090' : (
+                  tableFilters.columnFilters['projectCode']?.type === 'multiSelect' && (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values.length > 0
+                    ? (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values.join(', ')
+                    : 'Tất cả dự án'
+                )}
+              </span>
+              <span className={`material-symbols-outlined text-[12px] transition-transform ${viewDropOpen ? 'rotate-180' : ''}`}>
+                expand_more
+              </span>
             </button>
-            <button
-              onClick={() => setViewMode('detail')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded text-[10.5px] font-bold transition-all ${
-                viewMode === 'detail'
-                  ? 'bg-white text-[#1B365D] shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[14px]">table_view</span>
-              Bảng Chi Tiết (PR-090)
-            </button>
+
+            {viewDropOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
+                {/* Section: View mode */}
+                <div className="px-3 py-1 border-b border-slate-50 mb-1">
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Chế độ xem</p>
+                </div>
+                <button
+                  onClick={() => { setViewMode('workflow'); setViewDropOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
+                    viewMode === 'workflow' ? 'bg-[#1B365D]/8 text-[#1B365D] font-bold' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[15px]">timeline</span>
+                  <span>Workflow Mua Sắm</span>
+                  {viewMode === 'workflow' && <span className="ml-auto material-symbols-outlined text-[13px] text-[#1B365D]">check</span>}
+                </button>
+                <button
+                  onClick={() => { setViewMode('detail'); setViewDropOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
+                    viewMode === 'detail' ? 'bg-[#1B365D]/8 text-[#1B365D] font-bold' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[15px]">table_view</span>
+                  <span>Bảng Chi Tiết (PR-090)</span>
+                  {viewMode === 'detail' && <span className="ml-auto material-symbols-outlined text-[13px] text-[#1B365D]">check</span>}
+                </button>
+
+                {/* Section: Lọc theo dự án (chỉ khi workflow) */}
+                {viewMode === 'workflow' && (
+                  <>
+                    <div className="px-3 py-1 border-t border-b border-slate-50 mt-1 mb-1">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Lọc theo dự án</p>
+                    </div>
+                    {/* Tất cả */}
+                    {(() => {
+                      const activeVals = tableFilters.columnFilters['projectCode']?.type === 'multiSelect'
+                        ? (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values
+                        : [];
+                      const isAll = activeVals.length === 0;
+                      return (
+                        <button
+                          onClick={() => { tableFilters.setColumnFilter('projectCode', null); setViewDropOpen(false); }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
+                            isAll ? 'bg-[#1B365D]/8 text-[#1B365D] font-bold' : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">select_all</span>
+                          <span>Tất cả dự án</span>
+                          <span className="ml-auto text-[9px] font-mono text-slate-400">{prsByProject.length}</span>
+                          {isAll && <span className="material-symbols-outlined text-[13px] text-[#1B365D]">check</span>}
+                        </button>
+                      );
+                    })()}
+                    {PROJECTS.map((p) => {
+                      const activeVals = tableFilters.columnFilters['projectCode']?.type === 'multiSelect'
+                        ? (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values
+                        : [];
+                      const isActive = activeVals.includes(p.code);
+                      const count = prsByProject.filter((pr) => pr.pr?.project?.code === p.code).length;
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            tableFilters.setColumnFilter('projectCode', { type: 'multiSelect', values: [p.code] });
+                            setViewDropOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
+                            isActive ? 'bg-[#1B365D]/8 text-[#1B365D] font-bold' : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">folder</span>
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="font-bold text-[10px]">{p.code}</div>
+                            <div className="text-[9px] text-slate-400 truncate">{p.name}</div>
+                          </div>
+                          <span className="text-[9px] font-mono text-slate-400">{count}</span>
+                          {isActive && <span className="material-symbols-outlined text-[13px] text-[#1B365D]">check</span>}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Workflow step chips — chỉ hiện khi workflow mode */}
+          <div className="w-px h-5 bg-slate-200 shrink-0" />
+
+          {/* ── Dropdown 2: "Tình trạng hàng hóa" — workflow steps ── */}
+          {viewMode === 'workflow' && (
+            <div className="relative shrink-0" ref={statusDropRef}>
+              {(() => {
+                const activeStepObj = navWorkflowSteps.find((s) => s.key === activeStep);
+                return (
+                  <button
+                    onClick={() => setStatusDropOpen((v) => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10.5px] font-bold border transition-all ${
+                      statusDropOpen
+                        ? 'bg-[#1B365D] text-white border-[#1B365D] shadow'
+                        : activeStep !== 'all'
+                          ? 'bg-[#1B365D]/8 text-[#1B365D] border-[#1B365D]/30'
+                          : 'bg-white border-slate-300 text-slate-700 hover:border-[#1B365D]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">{activeStepObj?.icon ?? 'local_shipping'}</span>
+                    <span>{activeStep === 'all' ? 'Tình trạng hàng' : activeStepObj?.label}</span>
+                    {activeStep !== 'all' && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${statusDropOpen ? 'bg-white/20 text-white' : 'bg-[#1B365D]/10 text-[#1B365D]'}`}>
+                        {activeStepObj?.count ?? 0}
+                      </span>
+                    )}
+                    <span className={`material-symbols-outlined text-[12px] transition-transform ${statusDropOpen ? 'rotate-180' : ''}`}>
+                      expand_more
+                    </span>
+                  </button>
+                );
+              })()}
+
+              {statusDropOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
+                  <div className="px-3 py-1 border-b border-slate-50 mb-1">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Tình trạng hàng hóa</p>
+                  </div>
+                  {navWorkflowSteps.map((step, idx) => {
+                    const isActive = activeStep === step.key;
+                    return (
+                      <React.Fragment key={step.key}>
+                        {idx === 1 && <div className="my-1 mx-3 border-t border-slate-100" />}
+                        <button
+                          onClick={() => { setActiveStep(step.key); setStatusDropOpen(false); }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
+                            isActive ? 'bg-[#1B365D]/8 text-[#1B365D] font-bold' : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">{step.icon}</span>
+                          <span className="flex-1 text-left">{step.label}</span>
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${isActive ? 'bg-[#1B365D]/15 text-[#1B365D]' : 'bg-slate-100 text-slate-500'}`}>
+                            {step.count}
+                          </span>
+                          {isActive && <span className="material-symbols-outlined text-[13px] text-[#1B365D]">check</span>}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex-1" />
+
+          {/* Info: số VT hiển thị + demo dot */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[9px] text-slate-400 font-mono">{filteredPrs.length} VT</span>
+            {isUsingMock && (
+              <span title="Đang dùng dữ liệu demo" className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+            )}
+          </div>
+
+          <div className="w-px h-5 bg-slate-200 shrink-0" />
+
+          {/* REV controls — chỉ có nghĩa khi workflow */}
           {viewMode === 'workflow' && (
             <>
-              <div className="w-px h-7 bg-slate-200 shrink-0" />
-              <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">
-                {navWorkflowSteps.map((step) => {
-                  const isStepActive = activeStep === step.key;
+              {/* Dropdown chọn REV theo dự án */}
+              <div className="relative shrink-0" ref={revDropRef}>
+                {(() => {
+                  const hasCustomRev = Object.keys(selectedRevByProject).length > 0;
                   return (
                     <button
-                      key={step.key}
-                      onClick={() => setActiveStep(step.key)}
-                      title={step.label}
-                      className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold whitespace-nowrap transition-all ${
-                        isStepActive
-                          ? 'bg-[#1B365D] text-white shadow-sm'
-                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'
+                      onClick={() => setRevDropOpen((v) => !v)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold border transition-all ${
+                        revDropOpen
+                          ? 'bg-[#1B365D] text-white border-[#1B365D] shadow'
+                          : hasCustomRev
+                            ? 'bg-[#1B365D]/8 text-[#1B365D] border-[#1B365D]/30'
+                            : 'bg-white border-slate-300 text-slate-600 hover:border-[#1B365D]'
                       }`}
+                      title="Chọn REV theo dự án"
                     >
-                      <span className="material-symbols-outlined text-[12px]">{step.icon}</span>
-                      <span>{step.label}</span>
-                      <span
-                        className={`px-1 rounded text-[8px] font-black ${
-                          isStepActive ? 'bg-white/20 text-white' : 'bg-white text-slate-400'
-                        }`}
-                      >
-                        {step.count}
+                      <span className="material-symbols-outlined text-[12px]">history</span>
+                      <span>REV</span>
+                      {hasCustomRev && (
+                        <span className={`px-1 rounded-full text-[7px] font-black ${revDropOpen ? 'bg-white/20 text-white' : 'bg-[#1B365D]/15 text-[#1B365D]'}`}>
+                          {Object.keys(selectedRevByProject).length}
+                        </span>
+                      )}
+                      <span className={`material-symbols-outlined text-[10px] transition-transform ${revDropOpen ? 'rotate-180' : ''}`}>
+                        expand_more
                       </span>
                     </button>
                   );
-                })}
+                })()}
+
+                {revDropOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
+                    <div className="px-3 py-1 border-b border-slate-50 mb-1">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Chọn REV hiển thị</p>
+                    </div>
+                    {/* Toggle số cột REV: 5 hay 16 */}
+                    <button
+                      onClick={() => setShowAllRevs((v) => !v)}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-[10px] text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[13px]">layers</span>
+                        <span>Hiển thị {showAllRevs ? '16' : '5'} cột REV</span>
+                      </div>
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${showAllRevs ? 'bg-[#1B365D] text-white border-[#1B365D]' : 'bg-slate-100 text-slate-500 border-slate-300'}`}>
+                        {showAllRevs ? '16 ▸5' : '5 ▸16'}
+                      </span>
+                    </button>
+                    {/* Reset tất cả về "all" */}
+                    <button
+                      onClick={() => { setSelectedRevByProject({}); setRevDropOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">refresh</span>
+                      <span>Reset — hiện tất cả REV</span>
+                    </button>
+                    <div className="my-1 mx-3 border-t border-slate-100" />
+                    {/* Per-project REV selector */}
+                    {PROJECTS.map((p) => {
+                      const cur = selectedRevByProject[p.code] ?? 'all';
+                      const maxRev = showAllRevs ? 16 : 5;
+                      return (
+                        <div key={p.id} className="px-3 py-1.5">
+                          <div className="text-[8px] font-black text-[#1B365D] mb-1">{p.code}</div>
+                          <div className="flex flex-wrap gap-1">
+                            {/* all */}
+                            <button
+                              onClick={() => {
+                                const next = { ...selectedRevByProject };
+                                delete next[p.code];
+                                setSelectedRevByProject(next);
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[8px] font-bold border transition-all ${cur === 'all' ? 'bg-[#1B365D] text-white border-[#1B365D]' : 'bg-white border-slate-300 text-slate-600 hover:border-[#1B365D]'}`}
+                            >
+                              All
+                            </button>
+                            {/* latest */}
+                            <button
+                              onClick={() => setSelectedRevByProject((v) => ({ ...v, [p.code]: 'latest' }))}
+                              className={`px-1.5 py-0.5 rounded text-[8px] font-bold border transition-all ${cur === 'latest' ? 'bg-[#1B365D] text-white border-[#1B365D]' : 'bg-white border-slate-300 text-slate-600 hover:border-[#1B365D]'}`}
+                            >
+                              Latest
+                            </button>
+                            {/* individual revs 0..maxRev-1 */}
+                            {Array.from({ length: maxRev }, (_, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setSelectedRevByProject((v) => ({ ...v, [p.code]: i }))}
+                                className={`px-1.5 py-0.5 rounded text-[8px] font-bold border transition-all ${cur === i ? 'bg-[#1B365D] text-white border-[#1B365D]' : 'bg-white border-slate-300 text-slate-600 hover:border-[#1B365D]'}`}
+                              >
+                                R{i}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+
             </>
           )}
 
-          {/* Create RFQ button */}
-          <button
-            onClick={() => setShowCreateRfqModal(true)}
-            title="Tạo yêu cầu báo giá mới từ các PR item đang chờ"
-            className="ml-auto flex items-center gap-1 px-3 py-1.5 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-lg text-[10px] font-bold shadow-sm transition-all shrink-0"
-          >
-            <span className="material-symbols-outlined text-[14px]">add</span>
-            Tạo RFQ mới
-          </button>
-
-          {/* Update procurement button */}
-          <button
-            onClick={() => setShowUpdateModal(true)}
-            title="Cập nhật tình trạng mua sắm từ file Excel master tracking"
-            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold shadow-sm transition-all shrink-0"
-          >
-            <span className="material-symbols-outlined text-[14px]">sync_alt</span>
-            Cập nhật mua sắm
-          </button>
-
-          {/* Project selector pills — luôn hiện, bên phải */}
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[8px] font-black text-slate-400 uppercase mr-1">
-              Dự án ({activeFabCats.length} hạng mục):
-            </span>
-            {PROJECTS.map((p) => {
-              const isActive = viewProjectIds.includes(p.id);
-              const fabCount = (FAB_CAT_MAP[p.id] ?? []).length;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => handleToggleProject(p.id)}
-                  title={`${p.name} — ${fabCount} hạng mục gia công`}
-                  className={`px-2 py-0.5 rounded-full text-[8.5px] font-bold border transition-all ${
-                    isActive
-                      ? 'bg-[#1B365D] text-white border-[#1B365D]'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-[#1B365D]'
-                  }`}
-                >
-                  {p.code.split('-').slice(0, 3).join('-')}
-                  {isActive && <span className="ml-1 opacity-70 text-[7px]">({fabCount}✦)</span>}
-                </button>
-              );
-            })}
-            {isUsingMock && (
-              <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded-full uppercase">
-                Demo
+          {/* Dropdown "Hành động" — gộp Upload + Tạo RFQ + Cập nhật mua sắm */}
+          <div className="relative shrink-0" ref={actionDropRef}>
+            <button
+              onClick={() => setActionDropOpen((v) => !v)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                actionDropOpen
+                  ? 'bg-[#1B365D] text-white border-[#1B365D] shadow'
+                  : 'bg-white border-slate-300 text-slate-700 hover:border-[#1B365D]'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[14px]">bolt</span>
+              Hành động
+              <span className={`material-symbols-outlined text-[12px] transition-transform ${actionDropOpen ? 'rotate-180' : ''}`}>
+                expand_more
               </span>
+            </button>
+
+            {actionDropOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
+                <div className="px-3 py-1 border-b border-slate-50 mb-1">
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Hành động</p>
+                </div>
+                <button
+                  onClick={() => { setShowUploadModal(true); closeActionDrop(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-[#1B365D]">upload_file</span>
+                  <span className="font-medium">Upload PR mới</span>
+                </button>
+                <button
+                  onClick={() => { setShowCreateRfqModal(true); closeActionDrop(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-[var(--color-brand)]">add_circle</span>
+                  <span className="font-medium">Tạo RFQ mới</span>
+                </button>
+                <button
+                  onClick={() => { setShowUpdateModal(true); closeActionDrop(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-emerald-600">sync_alt</span>
+                  <span className="font-medium">Cập nhật mua sắm</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
 
-        {/* ── Filter toolbar (search + column filters + active chips) ───── */}
-        <div className="border-b border-slate-200 bg-white px-4 py-2 flex flex-col gap-2 shrink-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex-1 min-w-[280px] max-w-md">
-              <TableSearch
-                value={tableFilters.search}
-                onChange={tableFilters.setSearch}
-                placeholder="Tìm mã, tên, profile, mác, ghi chú..."
-                resultCount={filteredPrs.length}
-                totalCount={stepFiltered.length}
-              />
-            </div>
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="label mr-1">Lọc cột:</span>
-              {(
-                [
-                  'itemCode',
-                  'itemName',
-                  'profile',
-                  'grade',
-                  'uom',
-                  'materialGroupCode',
-                  'statusFlag',
-                  'urgency',
-                  'reqQty',
-                  'toBuyQty',
-                  'requiredDate',
-                ] as const
-              ).map((col) => (
-                <div key={col} className="flex items-center">
-                  <span className="text-caption text-slate-500 mr-1">
-                    {tableFilters.config[col]?.label ?? col}
-                  </span>
-                  <ColumnFilter
-                    column={col}
-                    config={tableFilters.config[col]}
-                    value={tableFilters.columnFilters[col] ?? null}
-                    onChange={(v) => tableFilters.setColumnFilter(col, v)}
-                  />
-                </div>
-              ))}
-            </div>
+        {/* ── Active filter chips — chỉ hiện khi có filter active ────── */}
+        {tableFilters.activeCount > 0 && (
+          <div className="border-b border-slate-200 bg-white px-4 py-1.5 shrink-0">
+            <ActiveFilterChips filters={tableFilters} />
           </div>
-          {tableFilters.activeCount > 0 && <ActiveFilterChips filters={tableFilters} />}
-        </div>
+        )}
 
         {/* ── View content ───────────────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden">
           {viewMode === 'workflow' ? (
-            <MasterTrackingTable prs={filteredPrs} isLoading={isLoading} />
+            <MasterTrackingTable prs={filteredPrs} isLoading={isLoading} tableFilters={tableFilters} showAllRevs={showAllRevs} selectedRevByProject={selectedRevByProject} />
           ) : (
             <PR090DetailView prs={tableFilters.apply(prsByProject)} isLoading={isLoading} />
           )}

@@ -86,6 +86,9 @@ const {
 } = require('../controllers/vendorController');
 const { verifyToken, restrictTo } = require('../middleware/authMiddleware');
 const { uploadLimiter } = require('../middleware/rateLimiter');
+const { getPurchaseHistory, getPurchaseHistorySummary } = require('../controllers/purchaseHistoryController');
+const { checkInventoryForPR, importStock, bulkUpdateRemainQty } = require('../controllers/inventoryCheckController');
+const { listThreadsByPR, getThread, addComment, updateThreadStatus } = require('../controllers/techCommentController');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
@@ -225,6 +228,21 @@ router.get('/vendor-master/:id', verifyToken, getVendorMaster);
 router.post('/vendor-master', verifyToken, createVendor);
 router.patch('/vendor-master/:id', verifyToken, updateVendor);
 router.delete('/vendor-master/:id', verifyToken, deleteVendor);
+
+// ─── F3: Lịch sử mua hàng per SKU ────────────────────────────────────────────
+router.get('/purchase-history', verifyToken, getPurchaseHistory);
+router.get('/purchase-history/summary', verifyToken, getPurchaseHistorySummary);
+
+// ─── F1: Kiểm tra tồn kho trước RFQ ─────────────────────────────────────────
+router.get('/inventory/check', verifyToken, checkInventoryForPR);
+router.post('/inventory/import-stock', verifyToken, importStock);
+router.patch('/inventory/pr-details/remain', verifyToken, bulkUpdateRemainQty);
+
+// ─── F2: Tech Comments (Làm rõ kỹ thuật per PrDetail) ───────────────────────
+router.get('/tech-comments', verifyToken, listThreadsByPR);
+router.get('/tech-comments/:prDetailId', verifyToken, getThread);
+router.post('/tech-comments/:prDetailId', verifyToken, addComment);
+router.patch('/tech-comments/:prDetailId/status', verifyToken, updateThreadStatus);
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 const authCtrl = require('../controllers/authController');

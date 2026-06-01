@@ -210,10 +210,11 @@ app.use('/api/', apiLimiter);
 // ─── CSRF protection (S2-1) ──────────────────────────────────────────────────
 // Skip cho: token-issue endpoint, login (pre-auth), client-errors reporter.
 // csrf-csrf đã ignore GET/HEAD/OPTIONS mặc định, FE chỉ cần header trên mutating.
+// req.path khi mount tại '/api/v1' → chỉ còn phần sau prefix, vd '/auth/login'
 const CSRF_SKIP_PATHS = new Set([
-  '/api/v1/auth/login',
-  '/api/v1/auth/csrf-token',
-  '/api/v1/client-errors',
+  '/auth/login',
+  '/auth/csrf-token',
+  '/client-errors',
 ]);
 app.use('/api/v1', (req, res, next) => {
   if (CSRF_SKIP_PATHS.has(req.path)) return next();

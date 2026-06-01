@@ -25,8 +25,10 @@ const csrf = doubleCsrf({
   cookieName: isProd ? '__Host-ibshi_csrf' : 'ibshi_csrf',
   cookieOptions: {
     httpOnly: true,
-    sameSite: isProd ? 'strict' : 'lax',
-    secure: isProd,
+    // Dev: SameSite=None để cross-port (3001→5005) hoạt động trên localhost
+    // Prod: strict cho bảo mật tối đa
+    sameSite: isProd ? 'strict' : 'none',
+    secure: isProd ? true : false,
     path: '/',
   },
   size: 64,

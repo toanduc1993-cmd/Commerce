@@ -44,7 +44,12 @@ export default function AlertsPage() {
     if (!showResolved) params.set('resolved', 'false');
     const url = `${API_URL}/api/v1/alerts${params.toString() ? `?${params}` : ''}`;
     try {
-      const res = await fetch(url, { credentials: 'include', signal: ctrl.signal });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('ibshi_token') : null;
+      const res = await fetch(url, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        signal: ctrl.signal,
+      });
       if (res.status === 401) {
         router.push('/login');
         return;

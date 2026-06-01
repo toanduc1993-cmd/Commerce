@@ -40,10 +40,22 @@ export function resetCsrfToken() {
   csrfTokenCache = null;
 }
 
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  // Ưu tiên ibshi_token (JWT body), fallback ibshi_authed legacy
+  try {
+    const raw = localStorage.getItem('ibshi_token');
+    if (raw) return raw;
+  } catch { /* ignore */ }
+  return null;
+}
+
 function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
-  // S2-1: Authorization header KHÔNG còn cần thiết — backend đọc HttpOnly cookie.
-  // Giữ hàm signature để các call site không break; bỏ token logic.
-  return { ...customHeaders };
+  const headers: Record<string, string> = { ...customHeaders };
+  // Gửi JWT qua Authorization header (cookie không hoạt động cross-port trên HTTP local)
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -358,8 +370,10 @@ export async function loginAPI(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  // Refresh CSRF token sau login (session identifier vừa đổi)
-  if (result.success) await ensureCsrfToken(true);
+  // Lưu JWT vào localStorage để gửi qua Authorization header (cross-port dev)
+  if (result.success && result.token) {
+    try { localStorage.setItem('ibshi_token', result.token); } catch { /* ignore */ }
+  }
   return result;
 }
 
@@ -369,10 +383,11 @@ export async function logoutAPI(): Promise<{ success: boolean; message?: string 
       method: 'POST',
     });
     resetCsrfToken();
+    try { localStorage.removeItem('ibshi_token'); } catch { /* ignore */ }
     return r;
   } catch {
-    // Logout luôn coi như thành công ở client side (clear local state)
     resetCsrfToken();
+    try { localStorage.removeItem('ibshi_token'); } catch { /* ignore */ }
     return { success: true };
   }
 }
@@ -1123,6 +1138,239 @@ export async function updatePaymentScheduleStatus(
   data: { status?: string; paidDate?: string; paidAmount?: number; notes?: string }
 ): Promise<{ success: boolean; data?: PaymentScheduleRow }> {
   return apiRequest(`/api/v1/payment-schedules/${id}`, {
+    method: 'PATCH',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(data),
+  });
+}
+
+// ─── F3: Purchase History ─────────────────────────────────────────────────────
+
+export interface PurchaseHistoryTransaction {
+  id: string;
+  contractNo: string | null;
+  vendorName: string | null;
+  vendorCountry: string | null;
+  contractDate: string | null;
+  contractQty: number;
+  contractWeight: number;
+  unitPriceNoVAT: number;
+  currency: string;
+  vatRate: number;
+  totalNoVAT: number;
+  totalWithVAT: number;
+  actualProfile: string | null;
+  actualGrade: string | null;
+  status: string;
+  dataSource: string;
+  projectCode: string | null;
+  projectName: string;
+  prRef: string;
+  deliveredQty: number;
+  contractType: string;
+}
+
+export interface PurchaseHistoryVendorSummary {
+  vendorName: string;
+  txCount: number;
+  totalQty: number;
+  totalValue: number;
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+}
+
+export interface PurchaseHistoryItem {
+  itemCode: string;
+  itemName: string;
+  profile: string;
+  grade: string;
+  uom: string;
+  summary: {
+    totalTransactions: number;
+    totalVendors: number;
+    totalQtyBought: number;
+    totalValueNoVAT: number;
+    avgUnitPrice: number;
+    minUnitPrice: number;
+    maxUnitPrice: number;
+    latestVendor: string | null;
+    latestPrice: number | null;
+    latestDate: string | null;
+  };
+  vendorSummary: PurchaseHistoryVendorSummary[];
+  transactions: PurchaseHistoryTransaction[];
+}
+
+export async function fetchPurchaseHistory(
+  itemCodes: string[]
+): Promise<{ data: PurchaseHistoryItem[]; notFound: string[]; total: number }> {
+  const q = itemCodes.join(',');
+  return apiRequest(`/api/v1/purchase-history?itemCodes=${encodeURIComponent(q)}`, {
+    headers: getHeaders(),
+  });
+}
+
+export interface PurchaseHistorySummary {
+  itemCode: string;
+  found: boolean;
+  itemName: string;
+  uom: string;
+  summary: {
+    totalTransactions: number;
+    totalVendors: number;
+    avgUnitPrice: number;
+    minUnitPrice: number;
+    maxUnitPrice: number;
+    latestVendor: string | null;
+    latestPrice: number | null;
+    latestDate: string | null;
+  } | null;
+  recentTransactions: PurchaseHistoryTransaction[];
+  vendorSummary: Array<{ vendorName: string; txCount: number; totalQty: number; latestPrice: number; latestDate: string | null }>;
+}
+
+export async function fetchPurchaseHistorySummary(itemCode: string): Promise<PurchaseHistorySummary> {
+  return apiRequest(`/api/v1/purchase-history/summary?itemCode=${encodeURIComponent(itemCode)}`, {
+    headers: getHeaders(),
+  });
+}
+
+// ─── F1: Inventory Check ──────────────────────────────────────────────────────
+
+export interface InventoryCheckRow {
+  prDetailId: string;
+  itemCode: string;
+  itemName: string;
+  profile: string | null;
+  grade: string | null;
+  uom: string;
+  reqQty: number;
+  remainQty: number;
+  toBuyQty: number;
+  urgency: string;
+  materialGroupCode: string | null;
+  inventory: { onHandQty: number; allocatedQty: number; availableQty: number; warehouseLocation: string | null } | null;
+  stockStatus: 'HAS_STOCK' | 'PARTIAL' | 'NO_STOCK';
+  suggestedUseFromStock: number;
+}
+
+export interface InventoryCheckResult {
+  prId: string;
+  summary: { total: number; hasStock: number; partial: number; noStock: number };
+  rows: InventoryCheckRow[];
+}
+
+export async function checkInventoryForPR(prId: string): Promise<InventoryCheckResult> {
+  return apiRequest(`/api/v1/inventory/check?prId=${encodeURIComponent(prId)}`, {
+    headers: getHeaders(),
+  });
+}
+
+export interface StockImportRow {
+  itemCode: string;
+  itemName?: string;
+  availableQty?: number;
+  onHandQty?: number;
+  uom?: string;
+  warehouseLocation?: string;
+}
+
+export async function importStockData(
+  rows: StockImportRow[],
+  prId?: string
+): Promise<{ upserted: number; errors: number; errorDetails: unknown[]; matchSummary: { total: number; exact: number; partial: number; none: number } | null }> {
+  return apiRequest('/api/v1/inventory/import-stock', {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ rows, prId }),
+  });
+}
+
+export async function bulkUpdateRemainQty(
+  updates: Array<{ prDetailId: string; remainQty: number }>
+): Promise<{ updated: number; results: Array<{ prDetailId: string; remainQty: number; toBuyQty: number }> }> {
+  return apiRequest('/api/v1/inventory/pr-details/remain', {
+    method: 'PATCH',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ updates }),
+  });
+}
+
+// ─── F2: Tech Comments ────────────────────────────────────────────────────────
+
+export interface TechCommentItem {
+  id: string;
+  content: string;
+  commentType: string;
+  threadStatus: string | null;
+  tags: string | null;
+  authorId: string | null;
+  authorName: string;
+  authorRole: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TechThreadRow {
+  prDetailId: string;
+  itemCode: string;
+  itemName: string;
+  profile: string | null;
+  grade: string | null;
+  uom: string;
+  reqQty: number;
+  toBuyQty: number;
+  urgency: string;
+  commentCount: number;
+  threadStatus: string;
+  latestComment: Pick<TechCommentItem, 'id' | 'content' | 'commentType' | 'authorName' | 'authorRole' | 'createdAt'> | null;
+  comments: TechCommentItem[];
+}
+
+export interface TechThreadsResult {
+  prId: string;
+  summary: {
+    total: number;
+    pending: number;
+    inDiscussion: number;
+    clarified: number;
+    substitutionRequested: number;
+    approved: number;
+    rejected: number;
+    readyForRFQ: number;
+  };
+  rows: TechThreadRow[];
+}
+
+export async function fetchTechThreadsByPR(prId: string): Promise<TechThreadsResult> {
+  return apiRequest(`/api/v1/tech-comments?prId=${encodeURIComponent(prId)}`, {
+    headers: getHeaders(),
+  });
+}
+
+export async function fetchTechThread(prDetailId: string): Promise<{ prDetailId: string; itemCode: string; itemName: string; comments: TechCommentItem[] }> {
+  return apiRequest(`/api/v1/tech-comments/${prDetailId}`, {
+    headers: getHeaders(),
+  });
+}
+
+export async function addTechComment(
+  prDetailId: string,
+  data: { content: string; commentType?: string; threadStatus?: string; tags?: string }
+): Promise<TechCommentItem> {
+  return apiRequest(`/api/v1/tech-comments/${prDetailId}`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateTechThreadStatus(
+  prDetailId: string,
+  data: { threadStatus: string; note?: string }
+): Promise<{ success: boolean; newStatus: string; commentId: string }> {
+  return apiRequest(`/api/v1/tech-comments/${prDetailId}/status`, {
     method: 'PATCH',
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(data),

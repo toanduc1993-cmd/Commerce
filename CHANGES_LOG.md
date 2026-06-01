@@ -22,6 +22,134 @@
 
 ---
 
+## 2026-06-01
+
+### 2026-06-01 | feature: F3+F1+F2 — Kiểm tra tồn kho, Làm rõ kỹ thuật, Lịch sử mua hàng
+
+**What:**
+- **F3 — Lịch sử mua hàng:** Backend `GET /api/v1/purchase-history` + `GET /api/v1/purchase-history/summary`; FE `PurchaseHistoryPanel.tsx` (slide-in) + trang `/lich-su-mua-hang` (multi-SKU, vendor bar chart, price trend SVG).
+- **F1 — Kiểm tra tồn kho:** Backend `GET /api/v1/inventory/check`, `POST /api/v1/inventory/import-stock`, `PATCH /api/v1/inventory/pr-details/remain`; FE trang `/kiem-tra-ton-kho` với 2 sub-tab: upload Excel (xlsx.js client-side, auto-detect column, fuzzy preview) + bảng đối chiếu có inline-edit "Dùng từ tồn" + lưu bulk.
+- **F2 — Làm rõ kỹ thuật:** Schema migration `TechComment` table (psql applied), BE CRUD endpoints, FE trang `/lam-ro-ky-thuat` — SKU card list với thread preview + `TechPanel` slide-in (comment thread, quick tags, status transitions).
+- **Sidebar:** Thêm "Kiểm tra tồn kho" (step 1b), "Làm rõ kỹ thuật" (step 1c), "Lịch Sử Mua Hàng" (Data section).
+
+**Files:**
+- `backend/src/controllers/purchaseHistoryController.js` — NEW
+- `backend/src/controllers/inventoryCheckController.js` — NEW
+- `backend/src/controllers/techCommentController.js` — NEW
+- `backend/src/routes/procurementRoutes.js` — Added 7 new routes (F1+F2+F3)
+- `backend/prisma/schema.prisma` — Added `TechComment` model + relations on `PrDetail` + `User`
+- `frontend/src/lib/api.ts` — Added F1/F2/F3 API functions + TypeScript interfaces
+- `frontend/src/components/PurchaseHistoryPanel.tsx` — NEW
+- `frontend/src/app/lich-su-mua-hang/page.tsx` — NEW
+- `frontend/src/app/kiem-tra-ton-kho/page.tsx` — NEW
+- `frontend/src/app/lam-ro-ky-thuat/page.tsx` — NEW
+- `frontend/src/components/layout/Sidebar.tsx` — Added 3 nav items
+
+**Verify:**
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:5005/api/v1/purchase-history` → 401 ✅
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/lich-su-mua-hang` → 200 ✅
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/kiem-tra-ton-kho` → 200 ✅
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/lam-ro-ky-thuat` → 200 ✅
+- DB migration: `TechComment` table created, FK to `PrDetail` + `User` ✅
+
+**Rollback:**
+- F2 schema: `DROP TABLE "TechComment"; ALTER TABLE "PrDetail" DROP COLUMN (no cols added); ALTER TABLE "User" DROP COLUMN (no cols added)` — Prisma relations are FK-level only
+- F1/F3 controllers: delete 3 new files + remove 7 route lines từ procurementRoutes.js
+- FE: delete 3 new page folders + PurchaseHistoryPanel.tsx + revert Sidebar.tsx
+
+---
+
+## 2026-05-30
+
+### 2026-05-30 | feature: MasterTrackingTable — 4 cải tiến UI bảng (Issue 1-4)
+
+**What:**
+- **Issue 2 — Default collapsed**: Đổi 4 nhóm (`revs`, `remain`, `domQC`, `impQC`) từ `true` → `false` trong `defaultColGroupVis`. Mặc định chỉ hiện ~50 cột thay vì ~119.
+- **Issue 4 — Freeze fix**: Khai báo `STICKY_W` + `STICKY_LEFT` object (eval:0, project:32, item:128, desc:208). Thay toàn bộ `sticky left-16/40/60` Tailwind bằng `style={{ left: STICKY_LEFT.x }}`. Freeze columns nay chính xác bất kể nội dung thay đổi.
+- **Issue 1 — Gộp cột (-7 cột tổng)**:
+  - DOM contract: 13 → 11 cols (Profile+Grade → "Spec HĐ", bỏ "BG sản xuất", gộp 3 VAT cols → 2)
+  - IMP contract: 18 → 16 cols (Profile+Grade → "Spec HĐ", bỏ "BG sản xuất")
+  - Bỏ "Đánh giá (Đầu)" trùng → chỉ giữ "KQ Mua" cuối
+  - Bỏ "Remarks cuối" trùng → tổng giá trị hiển thị qua tooltip
+- **Issue 3 — REV dropdown per project**: State `selectedRevByProject` (Record<string, 'all'|'latest'|number>) trong page.tsx. Dropdown "REV" với per-project selector (All / Latest / R0..Rn). `getRevIndices()` helper trong MasterTrackingTable render đúng cột REV theo selection.
+
+**Files:**
+- `frontend/src/components/mua-hang/MasterTrackingTable.tsx` — STICKY_W/LEFT, defaultColGroupVis, column merges, getRevIndices, selectedRevByProject prop
+- `frontend/src/app/mua-hang/page.tsx` — selectedRevByProject state, revDropRef, revDropOpen, REV dropdown UI
+
+**Verify:** `npx tsc --noEmit` clean · `curl http://localhost:3001/mua-hang` → 200
+**Rollback:** `git checkout -- frontend/src/components/mua-hang/MasterTrackingTable.tsx frontend/src/app/mua-hang/page.tsx`
+
+---
+
+### 2026-05-30 | feature: MasterTrackingTable — Column group toggle + filter đầy đủ mọi cột
+
+**What:**
+- **Column group toggle**: 13 nhóm cột có nút `‹`/`›` ở header — click ẩn/hiện cả nhóm. Khi ẩn: colSpan thu về 1, hiển thị 12px placeholder. Nhóm: netQty, revs, totalOrdered, remain, toBuy, domContract, domPurchased, domQC, impContract, impPurchased, impQC, totalBought, diff.
+- **Filter đầy đủ**: Thêm `ColF` vào sub-headers: Net Q.Ty (netQtyFilter numberRange), U.Weight (unitWeight numberRange), Số HĐ DOM/IMP (contractNo text), NCC DOM/IMP (vendorName text).
+- **useTableFilters** trong page.tsx thêm: `contractNo`, `vendorName`, `unitWeight`, `netQtyFilter`.
+
+**Files:**
+- `frontend/src/components/mua-hang/MasterTrackingTable.tsx` — colGroupVis state, toggleGroup, ToggleBtn, ColGrpCells helper
+- `frontend/src/app/mua-hang/page.tsx` — useTableFilters thêm 4 column configs
+
+**Verify:** `npx tsc --noEmit` clean · `curl http://localhost:3001/mua-hang` → 200
+**Rollback:** `git checkout -- frontend/src/components/mua-hang/MasterTrackingTable.tsx frontend/src/app/mua-hang/page.tsx`
+
+---
+
+### 2026-05-30 | feature: /mua-hang UI — Dropdown "Tình trạng hàng hóa" + Dropdown "Theo dự án"
+
+**What:**
+- **Dropdown "Theo dự án"** — Gộp tab Workflow/PR-090 + filter dự án vào 1 dropdown `📁 Theo dự án` (trái). Hiển thị tên dự án đang chọn; section "Lọc theo dự án" chỉ hiện khi workflow mode.
+- **Dropdown "Tình trạng hàng hóa"** — Workflow step chips (7 bước) → dropdown `🚚 Tình trạng hàng`. Hiện count, tick active, divider sau "Tất cả". Style đồng nhất với Hành động.
+- Click-outside handler cho tất cả 3 dropdown gộp vào 1 useEffect.
+
+**Files:**
+- `frontend/src/app/mua-hang/page.tsx` — viewDropRef, statusDropRef, viewDropOpen, statusDropOpen, toolbar bar redesign
+
+**Verify:** `npx tsc --noEmit` clean · `curl http://localhost:3001/mua-hang` → 200
+**Rollback:** `git checkout -- frontend/src/app/mua-hang/page.tsx`
+
+---
+
+### 2026-05-30 | feature: /mua-hang UI — Gộp multilevel dropdown, lift REV toggle, bỏ toolbar thừa
+
+**What:**
+- **A. Dropdown "Hành động"** — Gộp 3 button (Upload PR, Tạo RFQ, Cập nhật mua sắm) vào 1 dropdown `⚡ Hành động` ở góc phải toolbar bar. Click ngoài tự đóng (mousedown handler).
+- **B. Lift REV toggle** — `showAllRevs` state kéo lên `page.tsx`. Toolbar thừa trong `MasterTrackingTable` bị xóa. Toggle REV:5/16 nằm trên toolbar bar chính, kế Hành động.
+- **C. Demo dot** — Badge "Demo" thay bằng dot `w-2 h-2 bg-amber-400 rounded-full` tiết kiệm space.
+- **Upload khỏi TopNav** — Bỏ `onOpenUpload` prop khỏi TopNav call (đã vào Hành động).
+- **Tab label gọn** — "Workflow Mua Sắm" → "Workflow", "Bảng Chi Tiết (PR-090)" → "PR-090".
+- **Info chip** — `{filteredPrs.length} VT` hiện count đang lọc.
+
+**Files:**
+- `frontend/src/app/mua-hang/page.tsx` — state showAllRevs, actionDropOpen, actionDropRef, useEffect click-outside, toolbar bar redesign
+- `frontend/src/components/mua-hang/MasterTrackingTable.tsx` — prop showAllRevs, remove useState, remove toolbar div
+
+**Verify:** `npx tsc --noEmit` clean · `curl http://localhost:3001/mua-hang` → 200
+**Rollback:** `git checkout -- frontend/src/app/mua-hang/page.tsx frontend/src/components/mua-hang/MasterTrackingTable.tsx`
+
+---
+
+### 2026-05-30 | feature: /mua-hang UI — Gộp ô tìm kiếm, filter theo cột trong bảng, bỏ Project pills
+
+**What:**
+1. **Gộp ô search** — Xóa `TableSearch` riêng ở filter toolbar. TopNav `onSearch` giờ set trực tiếp vào `tableFilters.setSearch`, chỉ có 1 ô tìm kiếm duy nhất (TopNav).
+2. **Filter theo cột tại header bảng** — `MasterTrackingTable` nhận `tableFilters` prop, render `ColumnFilter` icon ngay trong header của các cột: Dự án, Mã VT, Tên VT, Profile, Grade, Unit, Q.Ty cần mua.
+3. **Bỏ Project pills** khỏi toolbar — Thêm cột "Dự án" vào bảng với filter `multiSelect`.
+4. **Filter toolbar** còn lại chỉ `ActiveFilterChips` (chỉ hiện khi có filter active).
+
+**Files:**
+- `frontend/src/app/mua-hang/page.tsx`
+- `frontend/src/components/mua-hang/MasterTrackingTable.tsx`
+
+**Verify:** `npx tsc --noEmit` clean · `curl http://localhost:3001/mua-hang` → 200
+
+**Rollback:** Revert 2 files về state trước (restore `viewProjectIds`, Project pills, filter toolbar row).
+
+---
+
 ## 2026-05-29
 
 ### 2026-05-29 12:00 | feature: PR→RFQ entry point từ /mua-hang

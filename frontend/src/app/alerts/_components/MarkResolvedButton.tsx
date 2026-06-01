@@ -21,7 +21,7 @@ export function MarkResolvedButton({ canonicalKey, resolved, onChanged }: Props)
     const verb = resolved ? 'unresolve' : 'resolve';
     const toastId = toast.loading(resolved ? 'Đang mở lại alert…' : 'Đang đánh dấu resolved…');
     try {
-      const csrfToken = await ensureCsrfToken();
+      const token = typeof window !== 'undefined' ? localStorage.getItem('ibshi_token') : null;
       const res = await fetch(
         `${API_URL}/api/v1/alerts/${encodeURIComponent(canonicalKey)}/${verb}`,
         {
@@ -29,7 +29,7 @@ export function MarkResolvedButton({ canonicalKey, resolved, onChanged }: Props)
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: verb === 'resolve' ? JSON.stringify({}) : undefined,
         }

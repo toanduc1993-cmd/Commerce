@@ -143,14 +143,13 @@ function DuyetContent() {
     const toastId = toast.loading('Đang tạo PO + ContractDetail...');
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
-      const { ensureCsrfToken } = await import('@/lib/api');
-      const csrfToken = await ensureCsrfToken();
+      const token = typeof window !== 'undefined' ? localStorage.getItem('ibshi_token') : null;
       const r = await fetch(`${API_URL}/api/v1/bid-analyses/${selectedBidId}/create-po`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({}),
       });
@@ -251,7 +250,8 @@ function DuyetContent() {
                         onClick={async (e) => {
                           e.preventDefault();
                           const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005'}/api/v1/bid-analyses/${bidDetail.id}/download`;
-                          const r = await fetch(url, { credentials: 'include' });
+                          const _dlToken = typeof window !== 'undefined' ? localStorage.getItem('ibshi_token') : null;
+                          const r = await fetch(url, { credentials: 'include', headers: _dlToken ? { Authorization: `Bearer ${_dlToken}` } : undefined });
                           if (!r.ok) { toast.error('Không tải được file'); return; }
                           const blob = await r.blob();
                           const a = document.createElement('a');

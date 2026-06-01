@@ -32,7 +32,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  auditLogs AuditLog[]
+  auditLogs    AuditLog[]
+  techComments TechComment[] @relation("TechCommentAuthor")
 }
 
 model AuditLog {
@@ -208,6 +209,7 @@ model PrDetail {
   contracts           ContractDetail[]
   bids                BidAnalysis[]
   bidLinks            BidAnalysisPrLink[]
+  techComments        TechComment[]
 
   @@index([prId])
   @@index([materialGroupCode])
@@ -669,6 +671,30 @@ model HardPegging {
   status      String   @default("ACTIVE") // ACTIVE | RELEASED | CONSUMED
 
   inventory   Inventory @relation(fields: [inventoryId], references: [id])
+}
+
+// ─── F2 — Tech Comments (Làm rõ kỹ thuật per PrDetail) ─────────────────────
+// Thread-per-SKU audit trail: ai hỏi, ai trả, timestamp, trạng thái
+model TechComment {
+  id           String   @id @default(uuid())
+  prDetailId   String
+  authorId     String?
+  content      String
+  // QUESTION | ANSWER | SUBSTITUTION_REQUEST | APPROVAL | REJECTION | NOTE
+  commentType  String   @default("NOTE")
+  // Thread-level status snapshot tại thời điểm comment này (null = không thay đổi)
+  threadStatus String?
+  // JSON array of quick-tag strings: ["spec-ok", "grade-change", "pending-docs"]
+  tags         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  prDetail PrDetail @relation(fields: [prDetailId], references: [id], onDelete: Cascade)
+  author   User?    @relation("TechCommentAuthor", fields: [authorId], references: [id])
+
+  @@index([prDetailId])
+  @@index([authorId])
+  @@index([commentType])
 }
 
 // ─── F04 — Alert Center (Reconciliation alerts dashboard) ────────────────────

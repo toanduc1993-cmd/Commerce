@@ -40,6 +40,8 @@ const NAV_GROUPS: NavGroup[] = [
     groupLabel: 'Quy Trình Mua Sắm',
     items: [
       { step: 1, icon: 'description', label: 'Yêu cầu mua (PR)', path: '/mua-hang' },
+      { step: 1, icon: 'inventory_2', label: 'Kiểm tra tồn kho', path: '/kiem-tra-ton-kho' },
+      { step: 1, icon: 'engineering', label: 'Làm rõ kỹ thuật', path: '/lam-ro-ky-thuat' },
       { step: 2, icon: 'forward_to_inbox', label: 'Yêu cầu & Báo giá', path: '/bao-gia' },
       { step: 3, icon: 'how_to_reg', label: 'So sánh & Duyệt', path: '/duyet' },
       { step: 6, icon: 'handshake', label: 'Hợp đồng', path: '/hop-dong' },
@@ -52,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { icon: 'domain', label: 'Nhà Cung Cấp', path: '/vendors' },
       { icon: 'inventory', label: 'Danh Mục Vật Tư', path: '/inventory' },
+      { icon: 'history', label: 'Lịch Sử Mua Hàng', path: '/lich-su-mua-hang' },
     ],
   },
 ];
@@ -81,7 +84,6 @@ export function Sidebar() {
     }
     localStorage.removeItem('ibshi_authed');
     localStorage.removeItem('ibshi_user');
-    // Backward compat — clear legacy keys nếu còn
     localStorage.removeItem('ibshi_token');
     router.push('/login');
   };

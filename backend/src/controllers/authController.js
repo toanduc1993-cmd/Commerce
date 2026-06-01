@@ -11,7 +11,9 @@ function setSessionCookie(res, token) {
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'strict' : 'lax',
+    // Dev: SameSite=None ở local vì FE (3001) và BE (5005) khác port → cross-site theo spec
+    // Prod: strict cho bảo mật
+    sameSite: isProd ? 'strict' : 'none',
     maxAge: SESSION_MAX_AGE_MS,
     path: '/',
   });
@@ -21,7 +23,7 @@ function clearSessionCookie(res) {
   res.clearCookie(SESSION_COOKIE, {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'strict' : 'lax',
+    sameSite: isProd ? 'strict' : 'none',
     path: '/',
   });
 }
