@@ -376,3 +376,266 @@ curl -X POST http://localhost:5005/api/v1/auth/users \
 |---|---|---|
 | 2026-05-23 | OCR migration (5 phases) + schema mod (Material + ContractDetail.dataSource) | Claude session |
 | 2026-05-25 | Fix #1/#3/#4/#9 + tailwind symlink workaround + DEVOPS_NOTES tạo mới | Claude session |
+| 2026-06-05 | Section 10 mới — tổng hợp toàn bộ issues đã gặp thành rules bắt buộc | Claude session |
+
+---
+
+## 10. 🔴 RULES BẮT BUỘC — Tổng hợp issues đã gặp (tránh lặp lại)
+
+> Mỗi rule = 1 issue thực tế đã gặp. Code số: **R-XX** để reference trong commit/review.
+
+---
+
+### R-01 — Cookie SameSite cross-port (localStorage token)
+
+**Issue gặp 2026-06-01:** Login thành công nhưng data không load — browser không gửi cookie khi FE `:3001` → BE `:5005`. `SameSite=Lax/Strict` block cross-port. `SameSite=None` yêu cầu `Secure=true` → không dùng được trên HTTP local.
+
+**Rule cứng:**
+- Mọi API call phải gửi `Authorization: Bearer <token>` header — KHÔNG chỉ dựa vào cookie
+- Token lưu trong `localStorage('ibshi_token')` — read bằng `getToken()` trong `frontend/src/lib/api.ts`
+- `getHeaders()` trong api.ts tự động attach header → **KHÔNG dùng raw `fetch()` trực tiếp**, phải dùng hàm trong api.ts hoặc tự thêm header
+
+**Checklist khi thêm fetch mới:**
+```typescript
+// ❌ SAI — không có auth
+const res = await fetch(`${API_URL}/api/v1/foo`, { credentials: 'include' });
+
+// ✅ ĐÚNG
+const token = typeof window !== 'undefined' ? localStorage.getItem('ibshi_token') : null;
+const res = await fetch(`${API_URL}/api/v1/foo`, {
+  credentials: 'include',
+  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+});
+
+// ✅ TỐT NHẤT — dùng hàm trong api.ts
+import { fetchWithAuth } from '@/lib/api';
+const res = await fetchWithAuth('/api/v1/foo');
+```
+
+**Files đã sửa:** `api.ts`, `mua-hang/page.tsx`, `alerts/page.tsx`, `alerts/MarkResolvedButton.tsx`, `duyet/page.tsx`
+
+---
+
+### R-02 — CSRF_SKIP_PATHS phải dùng short path (sau mount point)
+
+**Issue gặp 2026-06-01:** Login trả lỗi "CSRF token không hợp lệ" dù đã skip. Root cause: backend mount tại `/api/v1` → `req.path` = `/auth/login`, KHÔNG phải `/api/v1/auth/login`. Skip array dùng full path → không match → mọi login bị chặn.
+
+**Rule cứng:**
+```javascript
+// ❌ SAI
+const CSRF_SKIP_PATHS = new Set(['/api/v1/auth/login']);
+
+// ✅ ĐÚNG — path sau mount point /api/v1
+const CSRF_SKIP_PATHS = new Set(['/auth/login', '/auth/csrf-token', '/client-errors']);
+```
+
+**Kiểm tra khi thêm path mới:** `console.log(req.path)` trong middleware để xem actual value.
+
+---
+
+### R-03 — Prisma client KHÔNG pickup schema change sau hot-reload
+
+**Issue gặp nhiều lần:** Thêm field vào `schema.prisma`, apply migration, backend hot-reload nhưng truy vấn field mới vẫn undefined/error.
+
+**Rule cứng — sau mọi schema change:**
+```sh
+npx prisma generate       # rebuild client
+# Sau đó PHẢI restart backend thủ công (Ctrl+C + npm run dev)
+# Hot-reload KHÔNG đủ — Prisma client compiled vào node_modules
+```
+
+**Dấu hiệu chưa generate:** `TypeError: Cannot read properties of undefined` trên field mới, hoặc field mới không xuất hiện trong response.
+
+---
+
+### R-04 — `prisma migrate diff` bị nhiễm stderr vào SQL file
+
+**Issue gặp 2026-05-xx:** Chạy `npx prisma migrate diff ... > migration.sql` nhưng file SQL chứa cả warning/info text → psql fail khi apply.
+
+**Rule cứng:**
+```sh
+# ❌ SAI — stderr lẫn vào stdout
+npx prisma migrate diff ... --script > migration.sql
+
+# ✅ ĐÚNG — redirect stderr ra /dev/null
+npx prisma migrate diff ... --script 2>/dev/null > migration.sql
+
+# Verify trước khi apply
+head -5 migration.sql   # phải bắt đầu bằng -- hoặc BEGIN/ALTER/CREATE
+```
+
+---
+
+### R-05 — Multer UTF-8 mojibake với filename tiếng Việt
+
+**Issue gặp 2026-05-xx:** Upload file tên tiếng Việt → DB lưu `dÃµi dá»±` (Latin-1 decode).
+
+**Rule cứng — mọi chỗ dùng `req.file.originalname`:**
+```javascript
+// ❌ SAI
+const name = req.file.originalname;
+
+// ✅ ĐÚNG
+const name = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+```
+
+Áp dụng cho: `bidQuoteUploadController.js`, `uploadController.js`, bất kỳ controller nào nhận file upload.
+
+---
+
+### R-06 — macOS APFS NFD Unicode làm vỡ regex path
+
+**Issue gặp 2026-05-27 (import script):** Regex match path tiếng Việt không work trên macOS dù string trông đúng. Root cause: APFS lưu filename dạng NFD (decomposed), regex dùng NFC.
+
+**Rule cứng — khi dùng regex/string match trên path/filename từ filesystem macOS:**
+```python
+import unicodedata
+path_nfc = unicodedata.normalize('NFC', path_str)
+# Dùng path_nfc cho regex
+```
+
+```javascript
+// Node.js equivalent
+const pathNfc = path.normalize(rawPath);  // không đủ
+const pathNfc = rawPath.normalize('NFC'); // đúng
+```
+
+---
+
+### R-07 — `pg_data/postmaster.pid` stale → PostgreSQL không start
+
+**Issue gặp nhiều lần:** `pg_ctl start` báo "postmaster already running" hoặc fail ngay mà thực ra PG đã chết.
+
+**Rule cứng — mọi lần start PG:**
+```sh
+rm -f backend/pg_data/postmaster.pid
+/opt/homebrew/opt/postgresql@18/bin/pg_ctl -D backend/pg_data start -o "-p 54321"
+```
+
+Script `npm run db:start` đã có `rm -f` này. KHÔNG bỏ bước rm kể cả khi tưởng PG đang chạy.
+
+---
+
+### R-08 — Background process (`nohup`/`& disown`) bị kill cross-turn
+
+**Issue gặp 2026-05-25:** Claude start server bằng `nohup npm run dev & disown` → server chết khi turn kết thúc vì Claude Code harness kill process group.
+
+**Rule cứng:**
+- KHÔNG start server qua Claude Code — user phải tự chạy trong terminal tab riêng
+- Claude chỉ `curl` verify (one-shot, không blocking) sau khi user xác nhận server đang chạy
+- Khi viết hướng dẫn server, luôn dùng format 3-tab (PG / Backend / Frontend)
+
+---
+
+### R-09 — Tailwind symlink mất → Next compile hang
+
+**Issue gặp 2026-05-25:** Next 16 Turbopack resolver tìm `tailwindcss` từ project parent, không tìm trong `frontend/node_modules/`.
+
+**Rule cứng — verify symlink còn tồn tại:**
+```sh
+ls -la "VẬT TƯ/node_modules/tailwindcss"   # phải là symlink
+ls -la "VẬT TƯ/node_modules/@tailwindcss"  # phải là symlink
+
+# Nếu mất → restore:
+cd "VẬT TƯ" && mkdir -p node_modules
+ln -sfn ../frontend/node_modules/tailwindcss node_modules/tailwindcss
+ln -sfn ../frontend/node_modules/@tailwindcss node_modules/@tailwindcss
+```
+
+Triệu chứng mất symlink: frontend `✓ Ready` nhưng curl timeout / compile hang vô tận.
+
+---
+
+### R-10 — `ibshi_authed` flag vs `ibshi_token` — 2 key khác nhau
+
+**Issue tiềm ẩn:** Auth check dùng `localStorage.getItem('ibshi_authed')` (flag string) để guard route, nhưng API call cần `ibshi_token` (JWT string). Nếu chỉ clear một trong hai → state không nhất quán.
+
+**Rule cứng — logout phải clear đủ 3 key:**
+```javascript
+localStorage.removeItem('ibshi_authed');
+localStorage.removeItem('ibshi_user');
+localStorage.removeItem('ibshi_token');
+```
+
+**Auth guard check:** `ibshi_authed` → redirect to login. **API header:** `ibshi_token` → Bearer token. Hai thứ khác nhau, phải maintain cả hai.
+
+---
+
+### R-11 — Không dùng `prisma migrate dev` (mất data)
+
+> Đã có trong RULE CỨNG #6 của CLAUDE.md. Nhắc lại ở đây vì critical.
+
+**Dữ liệu hiện tại:**
+- 1,816 PrDetail rows
+- 2,994 ContractDetail rows
+- 4,440 Material rows
+- 56 Projects, 189 Vendors
+
+`prisma migrate dev` = **DROP + RECREATE** schema → mất sạch. Dùng workflow ở § 2.5.1 thay thế.
+
+---
+
+### R-12 — Excel file parse: min_row off-by-one
+
+**Issue gặp 2026-05-27 (import script):** openpyxl đọc data kể cả row số thứ tự (1, 2, 3...) lẫn vào data thật vì `min_row=header+3` thay vì `header+4`.
+
+**Rule cứng khi viết Excel parser:**
+```python
+# Luôn verify: print vài dòng đầu trước khi import chính thức
+for row in ws.iter_rows(min_row=HEADER_ROW+1, values_only=True):
+    print(row)   # check xem có row số/noise không
+# Thêm filter bỏ noise rows: Roman numerals, single digits, "Tổng", "Ghi chú"
+```
+
+---
+
+### R-13 — Hardcoded `localhost:5005` trong FE → vỡ khi deploy
+
+**Issue gặp 2026-05-25 (Fix #9):** `mua-hang/page.tsx` hardcode `http://localhost:5005` thay vì dùng env.
+
+**Rule cứng:**
+```typescript
+// ❌ SAI
+const res = await fetch('http://localhost:5005/api/v1/prs');
+
+// ✅ ĐÚNG
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
+const res = await fetch(`${API_URL}/api/v1/prs`);
+```
+
+Grep check trước khi push: `grep -r "localhost:5005" frontend/src/` → phải 0 kết quả (chỉ cho phép trong `.env.*`).
+
+---
+
+### R-14 — Thêm route mới phải check `verifyToken` middleware
+
+**Issue pattern:** Route mới thêm nhưng quên `verifyToken` → endpoint public, không cần auth. Security hole.
+
+**Checklist khi thêm route:**
+```javascript
+// ✅ Mọi route data đều cần verifyToken
+router.get('/new-endpoint', verifyToken, newController);
+
+// ✅ Route POST/PATCH/DELETE cần cả verifyToken + restrictTo nếu cần
+router.post('/admin-only', verifyToken, restrictTo('ADMIN'), adminController);
+```
+
+Verify bằng curl không có token → phải trả 401:
+```sh
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5005/api/v1/new-endpoint
+# Expect: 401
+```
+
+---
+
+### R-15 — TypeScript compile check bắt buộc trước khi báo done
+
+**Issue pattern:** Code sửa xong, hot-reload OK, nhưng TypeScript có error ẩn chỉ lộ ra khi build prod.
+
+**Rule cứng — trước khi báo task done:**
+```sh
+cd frontend && npx tsc --noEmit
+# Phải: 0 errors (hoặc chỉ pre-existing errors đã biết)
+```
+
+Nếu tsc báo error mới → fix trước khi báo done.

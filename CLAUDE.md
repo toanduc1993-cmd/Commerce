@@ -132,11 +132,13 @@ Sau khi schema change → restart backend (kill + nohup) vì hot-reload không p
 
 ## 🔥 RULE CỨNG #7 — Mỗi feature mới phải có
 
-- ✅ Backend endpoint + verify qua curl
+- ✅ Backend endpoint + verify qua curl **không có token → 401**
 - ✅ Frontend UI + trigger compile curl HTTP 200
 - ✅ Hot-reload verified (`tail -3 backend.log` thấy "Restarting" hoặc Turbopack rebuild)
 - ✅ Entry vào CHANGES_LOG.md với rollback steps
 - ✅ Nếu schema change → cũng update [DEVOPS_NOTES.md](DEVOPS_NOTES.md)
+- ✅ `npx tsc --noEmit` → 0 errors trước khi báo done (xem **R-15**)
+- ✅ `grep -r "localhost:5005" frontend/src/` → 0 kết quả (xem **R-13**)
 
 ---
 
@@ -167,6 +169,41 @@ Khi user yêu cầu fix bug nhỏ:
 | Cross-session: [../_sessions/](../_sessions/) | MANAGER + PROTOCOL + dashboard | Manager maintains |
 | `CHANGES_LOG_INDEX.md` | Auto-generated archive index | Auto qua compact script |
 | [scripts/compact_logs.sh](scripts/compact_logs.sh) | Auto-compact logs | Run khi log > threshold |
+
+---
+
+## 🔥 RULE CỨNG #9 — Checklist thêm API call mới (tránh auth bug R-01/R-02/R-14)
+
+Mỗi khi thêm **fetch() / API route mới**, bắt buộc kiểm tra:
+
+### FE side (mỗi fetch mới):
+```typescript
+// 1. Dùng api.ts helper hoặc tự attach header
+const token = typeof window !== 'undefined' ? localStorage.getItem('ibshi_token') : null;
+headers: token ? { Authorization: `Bearer ${token}` } : undefined
+// 2. KHÔNG hardcode localhost:5005 → dùng API_URL const
+// 3. Handle 401 → redirect login
+if (res.status === 401) { router.push('/login'); return; }
+```
+
+### BE side (mỗi route mới):
+```javascript
+// 1. verifyToken middleware bắt buộc
+router.get('/endpoint', verifyToken, controller);
+// 2. Test không có token → expect 401
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5005/api/v1/endpoint  # → 401
+// 3. CSRF_SKIP_PATHS: dùng short path (sau /api/v1 mount point)
+// ví dụ: '/auth/login' KHÔNG phải '/api/v1/auth/login'
+```
+
+### Schema change (sau mỗi lần sửa prisma/schema.prisma):
+```sh
+npx prisma generate   # bắt buộc
+# Restart backend thủ công (Ctrl+C + npm run dev)
+# hot-reload KHÔNG pickup Prisma client mới
+```
+
+**Refs:** R-01 (Bearer token), R-02 (CSRF path), R-03 (Prisma restart), R-14 (verifyToken)
 
 ---
 
