@@ -128,7 +128,15 @@ async function apiRequest<T>(url: string, options: RequestInit = {}, timeoutMs =
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error(err.error || err.message || `HTTP ${res.status}`);
+    // Giữ nguyên body lỗi để nơi gọi hiển thị chi tiết (vd: create-po trả về
+    // danh sách dòng có đơn giá 0). Trước đây chỉ còn mỗi chuỗi thông báo.
+    const e = new Error(err.error || err.message || `HTTP ${res.status}`) as Error & {
+      body?: unknown;
+      status?: number;
+    };
+    e.body = err;
+    e.status = res.status;
+    throw e;
   }
   return res.json() as Promise<T>;
 }
@@ -581,7 +589,9 @@ export interface BidOfferRow {
   scope?: string | null;
   unitPrice: number;
   totalPrice: number;
-  vendor?: { vendorName: string; vendorOrder: number };
+  deliveryTerm?: string | null;
+  remarks?: string | null;
+  vendor?: { id?: string; vendorName: string; vendorOrder: number };
 }
 
 export interface BidItemRow {
@@ -600,8 +610,13 @@ export interface BidItemRow {
   estimateTotal: number;
   alreadyBoughtAmount: number;
   selectedVendorName?: string | null;
+  selectedAt?: string | null;
+  selectedBy?: string | null;
   notes?: string | null;
   offers: BidOfferRow[];
+  // Backend gắn sẵn (suy từ mã vật tư) — dùng cho chế độ PER_GROUP
+  groupCode?: string;
+  groupLabel?: string;
 }
 
 export interface BidAnalysisRow {
@@ -671,14 +686,152 @@ export async function uploadBidAnalysesFile(
   );
 }
 
+// Chế độ PER_BID — chọn 1 NCC cho TOÀN BỘ gói (gán xuống mọi dòng).
 export async function selectBidVendor(
   bidId: string,
   vendorId: string
-): Promise<{ success: boolean; message?: string }> {
+): Promise<{ success: boolean; message?: string; itemsApplied?: number; error?: string }> {
   return apiRequest(`/api/v1/bid-analyses/${bidId}/select-vendor`, {
     method: 'POST',
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ vendorId }),
+  });
+}
+
+// Tạo đơn hàng từ BID đã duyệt.
+// 13/08: trước đây trang /duyet gọi fetch thẳng, thiếu header CSRF nên luôn bị 403,
+// đồng thời hardcode localhost:5005 (vi phạm R-13). Nay đi qua apiRequest.
+export interface CreatePoResult {
+  success: boolean;
+  data?: {
+    totalPOs: number;
+    purchaseOrders: Array<{ poCode: string; vendorName: string; totalValue: number }>;
+  };
+  error?: string;
+  invalidLines?: Array<{
+    itemCode?: string | null;
+    itemName?: string | null;
+    vendorName?: string | null;
+    lyDo: string;
+  }>;
+}
+
+export async function createPoFromBid(bidId: string, notes?: string): Promise<CreatePoResult> {
+  return apiRequest(`/api/v1/bid-analyses/${bidId}/create-po`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ notes }),
+  });
+}
+
+// ─── 3 chế độ chọn thầu còn lại (nối giao diện 13/08/2026) ───────────────────
+
+// PER_GROUP — chọn 1 NCC cho cả nhóm vật tư; backend đổ xuống từng dòng thuộc nhóm.
+// 14/08/2026: SelectionModeChooser trước đây tự gọi fetch và QUÊN header Authorization
+// (thẻ đăng nhập nằm ở localStorage, không phải cookie) nên mọi lần đổi chế độ đều 401 —
+// giao diện chưa từng đổi được chế độ lần nào. Phiên 13/08 thử bằng curl nên không lộ. R-17.
+export async function setBidSelectionMode(
+  bidId: string,
+  mode: 'PER_BID' | 'PER_ITEM' | 'PER_GROUP' | 'AUTO_MIN_PRICE' | 'MANUAL_WEIGHTED'
+): Promise<{ success: boolean; selectionMode?: string; resetCount?: number; error?: string }> {
+  return apiRequest(`/api/v1/bid-analyses/${bidId}/selection-mode`, {
+    method: 'PATCH',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ mode }),
+  });
+}
+
+export async function selectGroupVendor(
+  bidId: string,
+  groupCode: string,
+  vendorName: string,
+  notes?: string
+): Promise<{ success: boolean; applied?: number; error?: string }> {
+  return apiRequest(`/api/v1/bid-analyses/${bidId}/group-selection`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ groupCode, vendorName, notes }),
+  });
+}
+
+export interface GroupSelectionRow {
+  id: string;
+  materialSubGroupCode: string;
+  selectedVendorName: string;
+  selectedAt: string;
+  notes?: string | null;
+}
+
+export async function fetchGroupSelections(
+  bidId: string
+): Promise<{ success: boolean; data: GroupSelectionRow[] }> {
+  return apiRequest(`/api/v1/bid-analyses/${bidId}/group-selections`, {
+    headers: getHeaders(),
+  });
+}
+
+// AUTO_MIN_PRICE — hệ thống tự chọn NCC rẻ nhất cho từng dòng.
+export interface AutoMinPriceResult {
+  success: boolean;
+  updated?: number;
+  skipped?: number;
+  bidCurrency?: string;
+  totalValue?: number;
+  details?: {
+    updates: Array<{ itemId: string; itemName?: string | null; vendorName?: string; unitPrice: number; totalPrice: number }>;
+    skips: Array<{ itemId: string; itemName?: string | null; reason: string }>;
+  };
+  error?: string;
+}
+
+export async function autoSelectMinPrice(bidId: string): Promise<AutoMinPriceResult> {
+  return apiRequest(`/api/v1/bid-analyses/${bidId}/auto-select-min-price`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ confirm: true }),
+  });
+}
+
+// MANUAL_WEIGHTED — chấm điểm NCC theo 3 tiêu chí, hệ thống tính điểm tổng.
+export interface VendorScoreRow {
+  id: string;
+  vendorName: string;
+  priceScore: number;
+  qualityScore: number;
+  paymentScore: number;
+  overallScore: number; // điểm tổng có trọng số (mặc định giá 50% · chất lượng 30% · thanh toán 20%)
+  scoredAt?: string;
+  notes?: string | null;
+}
+
+export interface ScoreWeights {
+  price: number;
+  quality: number;
+  paymentTerms: number;
+}
+
+export async function scoreVendor(
+  bidId: string,
+  body: {
+    vendorName: string;
+    priceScore: number;
+    qualityScore: number;
+    paymentScore: number;
+    criteria?: ScoreWeights;
+  }
+): Promise<{ success: boolean; data?: VendorScoreRow; error?: string }> {
+  return apiRequest(`/api/v1/bid-analyses/${bidId}/vendor-scores`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchVendorScores(
+  bidId: string
+): Promise<{ success: boolean; data: VendorScoreRow[] }> {
+  return apiRequest(`/api/v1/bid-analyses/${bidId}/vendor-scores`, {
+    headers: getHeaders(),
   });
 }
 
@@ -1375,4 +1528,185 @@ export async function updateTechThreadStatus(
     headers: getHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(data),
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HẠNG MỤC CHẾ TẠO — 15/08/2026
+// Mỗi dự án có bộ hạng mục riêng. Trước đây danh sách 18 hạng mục bị ghi cứng
+// trong PR090DetailView và là của đúng MỘT dự án, nên dự án khác hiện sai hết.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface HangMucCheTao {
+  id: string;
+  projectId: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  ghiChu?: string | null;
+}
+
+export interface KetQuaNhapHangMuc {
+  success?: boolean;
+  duAn?: string;
+  soDongNhan?: number;
+  soDongNhap?: number;
+  soDongBoQua?: number;
+  loi?: { dong: number; ly_do: string }[];
+  error?: string;
+}
+
+export async function fetchHangMucCheTao(
+  projectId: string
+): Promise<{ success: boolean; count: number; categories: HangMucCheTao[]; error?: string }> {
+  return apiRequest(`/api/v1/projects/${projectId}/fab-categories`, { headers: getHeaders() });
+}
+
+export async function themHangMucCheTao(
+  projectId: string,
+  hm: { code: string; name: string; sortOrder?: number; ghiChu?: string | null }
+): Promise<{ success?: boolean; category?: HangMucCheTao; error?: string }> {
+  return apiRequest(`/api/v1/projects/${projectId}/fab-categories`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(hm),
+  });
+}
+
+export async function suaHangMucCheTao(
+  id: string,
+  hm: { code?: string; name?: string; sortOrder?: number; ghiChu?: string | null }
+): Promise<{ success?: boolean; category?: HangMucCheTao; error?: string }> {
+  return apiRequest(`/api/v1/fab-categories/${id}`, {
+    method: 'PATCH',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(hm),
+  });
+}
+
+export async function xoaHangMucCheTao(
+  id: string
+): Promise<{ success?: boolean; deleted?: string; error?: string; soPhanBo?: number }> {
+  return apiRequest(`/api/v1/fab-categories/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+}
+
+export async function nhapHangMucCheTao(
+  projectId: string,
+  rows: { code: string; name: string; sortOrder?: number; ghiChu?: string | null }[]
+): Promise<KetQuaNhapHangMuc> {
+  return apiRequest(`/api/v1/projects/${projectId}/fab-categories/import`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ rows }),
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LƯỚI PHÂN BỔ CHẾ TẠO — 16/08/2026
+// Dòng = vật tư của dự án · cột = hạng mục của chính dự án đó ·
+// ô = số lượng · khối lượng · ngày cần vật tư tại công trường.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Một cột của lưới. Nhẹ hơn HangMucCheTao — đầu đọc lưới không trả ghi chú. */
+export interface CotHangMuc {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+}
+
+/** Một ô của lưới. Ngày ở dạng chuỗi ISO do JSON không có kiểu ngày. */
+export interface OPhanBo {
+  qty: number;
+  weight: number;
+  ngayCan: string | null;
+}
+
+export interface DongPhanBo {
+  prDetailId: string;
+  prId: string;
+  prRef: string;
+  docNo: string | null;
+  revNo: number | null;
+  itemCode: string;
+  itemName: string;
+  profile: string | null;
+  grade: string | null;
+  uom: string;
+  reqQty: number;
+  reqWeight: number;
+  toBuyQty: number;
+  requiredDate: string | null;
+  tongQty: number;
+  tongWeight: number;
+  conLai: number;
+  vuotTran: boolean;
+  /** reqQty = 0 → không có trần để đối chiếu, khác hẳn với "vượt trần". */
+  khongCoTran: boolean;
+  ngayCanSomNhat: string | null;
+  /** Chỉ có giá trị khi MỌI dòng hợp đồng của vật tư này đã có ngày về. */
+  ngayHangVe: string | null;
+  soDongHD: number;
+  soDongDaVe: number;
+  /** Khoá là id hạng mục. Ô chưa phân bổ thì không có mặt. */
+  o: Record<string, OPhanBo>;
+}
+
+export interface LuoiPhanBo {
+  success: boolean;
+  duAn: { id: string; code: string; name: string };
+  hangMucs: CotHangMuc[];
+  soVatTu: number;
+  soHangMuc: number;
+  soODaPhanBo: number;
+  items: DongPhanBo[];
+  error?: string;
+}
+
+export interface OGuiLen {
+  prDetailId: string;
+  fabricationCategoryId: string;
+  qty: number;
+  weight: number;
+  ngayCanTaiCongTruong: string | null;
+}
+
+export interface KetQuaLuuPhanBo {
+  success?: boolean;
+  message?: string;
+  soOGhi?: number;
+  soOXoa?: number;
+  soVatTu?: number;
+  canhBao?: { itemCode: string; ly_do: string }[];
+  error?: string;
+  /** Ô sai định dạng — số thứ tự trong mảng gửi lên. */
+  loi?: { o: number; ly_do: string }[];
+  /** Vật tư có tổng phân bổ vượt số lượng yêu cầu mua. */
+  vuot?: { itemCode: string; uom: string; tongPhanBo: number; reqQty: number; vuot: number }[];
+}
+
+/** Lưới có thể tới ~500 dòng nên nới thời gian chờ so với mặc định 8 giây. */
+export async function fetchLuoiPhanBo(projectId: string): Promise<LuoiPhanBo> {
+  return apiRequest(
+    `/api/v1/projects/${projectId}/fab-allocations`,
+    { headers: getHeaders() },
+    20000
+  );
+}
+
+export async function luuLuoiPhanBo(
+  projectId: string,
+  cells: OGuiLen[]
+): Promise<KetQuaLuuPhanBo> {
+  return apiRequest(
+    `/api/v1/projects/${projectId}/fab-allocations/bulk`,
+    {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ cells }),
+    },
+    30000
+  );
 }

@@ -20,7 +20,8 @@
  * — đồng bộ với tab Workflow (cùng nguồn, cùng filter project).
  */
 
-import { useState, useMemo } from 'react';
+import { Fragment, useState, useMemo } from 'react';
+import Link from 'next/link';
 import type { PRDetail } from '@/types/procurement';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -71,26 +72,13 @@ interface CategoryGroup {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const FAB_AREAS = [
-  { code: 'INLET-U1', name: 'VẬT TƯ INLET U1' },
-  { code: 'SCR-U1', name: 'VẬT TƯ SCR-U1' },
-  { code: 'BURNER-U1', name: 'VẬT TƯ BURNER-U1' },
-  { code: 'BASE-PLATE-U1', name: 'VẬT TƯ BASE PLATE+STACK TEMPLATE-U1' },
-  { code: 'OUTLET-DUCT-U1', name: 'VẬT TƯ OUTLET DUCT-U1' },
-  { code: 'TOP-BEAM-U1', name: 'VẬT TƯ TOP BEAM-U1' },
-  { code: 'BOX1-U1', name: 'VẬT TƯ BOX 1-U1' },
-  { code: 'BOX2-U1', name: 'VẬT TƯ BOX 2-U1' },
-  { code: 'BOX3-U1', name: 'VẬT TƯ BOX 3-U1' },
-  { code: 'BOX4-U1', name: 'VẬT TƯ BOX 4-U1' },
-  { code: 'BOX5-U1', name: 'VẬT TƯ BOX5-U1' },
-  { code: 'BOX6-U1', name: 'VẬT TƯ BOX6-U1' },
-  { code: 'STACK-U1', name: 'VẬT TƯ STACK-U1' },
-  { code: 'STAIR-TOWER-U1', name: 'VẬT TƯ STAIR TOWER-U1' },
-  { code: 'BUMPER-U1', name: 'VẬT TƯ BUMPER-U1' },
-  { code: 'SCR-BAFER-FRAME-U1', name: 'VẬT TƯ SCR BAFER-FRAME-U1' },
-  { code: 'ATTIC-BASEMENT-U1', name: 'VẬT TƯ ATTIC-BASEMENT PANEL-U1' },
-  { code: 'FIELD-TOP-SPOOL-U1', name: 'FIELD INSTALLED TOP SPOOL-U1' },
-];
+// 15/08/2026 — 18 vùng chế tạo ghi cứng ĐÃ GỠ.
+// Chúng là hạng mục của đúng MỘT dự án (hệ SCR của VPI-095, đuôi -U1). Dự án
+// BRA-090 chỉ có 3 hạng mục hoàn toàn khác mà vẫn bị gán 18 cột kia; 10 dự án
+// còn lại chưa khai hạng mục nào. Mã ghi cứng cũng không trùng mã trong cơ sở
+// dữ liệu (BOX1-U1 vs BOX-1) nên phân bổ nhập vào cũng không bao giờ hiện ra.
+// Anh Hưng chốt phương án B: hạng mục và phân bổ chuyển sang màn riêng
+// /hang-muc-che-tao, mỗi dự án một bộ cột của chính nó.
 
 const DU_TRU_REVS = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // 9 lần dự trù
 
@@ -192,6 +180,28 @@ const TH_FAB =
   'border border-slate-400 text-center text-[7.5px] font-black px-1 py-1 bg-[#0f4c81] text-white whitespace-nowrap max-w-[70px]';
 const TD_LEFT = 'border border-slate-300 text-left text-[9px] px-1 py-0.5 whitespace-nowrap';
 const TD_STICKY = `${TD_LEFT} sticky bg-white z-10`;
+
+// ─── BA CỘT DÍNH BÊN TRÁI ─────────────────────────────────────────────────────
+// 15/08/2026 — bản cũ ghi mốc bằng lớp Tailwind tĩnh (left-0 / left-20 / left-[11rem]
+// = 0 / 80 / 176px) nhưng bề rộng cột lại do trình duyệt tự nới theo nội dung
+// (đo được 144 / 309 / 480px vì TD_LEFT có whitespace-nowrap). Mốc không khớp bề
+// rộng ⇒ cột 2 đè cột 1 64px, cột 3 đè cột 2 213px — ở CẢ tiêu đề lẫn thân bảng.
+// Nhãn tiêu đề căn giữa nên bị chôn hẳn, dữ liệu căn trái thì ló ra ⇒ nhìn như
+// tiêu đề lệch dữ liệu một cột.
+// Cách chữa: ghim cứng width + minWidth + maxWidth, mốc tính từ chính bề rộng đó,
+// nội dung dài thì cắt bằng truncate và giữ đủ ở thuộc tính title.
+const STICKY_W = { stt: 96, desc: 168, profile: 208 } as const;
+const STICKY_LEFT = {
+  stt: 0,
+  desc: STICKY_W.stt,                        // 96
+  profile: STICKY_W.stt + STICKY_W.desc,     // 264
+} as const;
+const pin = (k: keyof typeof STICKY_W) => ({
+  left: STICKY_LEFT[k],
+  width: STICKY_W[k],
+  minWidth: STICKY_W[k],
+  maxWidth: STICKY_W[k],
+});
 const GROUP_ROW =
   'bg-[#dbeafe] border border-slate-400 text-[9px] font-black text-[#1B365D] px-2 py-1.5';
 
@@ -204,7 +214,6 @@ interface PR090DetailViewProps {
 
 export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
   const [showAllRevs, setShowAllRevs] = useState(false);
-  const [showFabCols, setShowFabCols] = useState(true);
 
   // Map data theo project đang chọn
   const groups = useMemo(() => prsToGroups(prs), [prs]);
@@ -269,17 +278,14 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
             {showAllRevs ? 'Thu gọn REV' : 'Xem tất cả 9 REV'}
           </button>
 
-          <button
-            onClick={() => setShowFabCols((v) => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold border transition-all ${
-              showFabCols
-                ? 'bg-[#1B365D] text-white border-[#1B365D]'
-                : 'bg-white border-slate-300 text-slate-600 hover:border-[#1B365D]'
-            }`}
+          <Link
+            href="/hang-muc-che-tao"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-caption text-slate-600 hover:border-[#1B365D] hover:text-[#1B365D] transition-colors"
+            title="Khai hạng mục chế tạo và phân bổ vật tư theo hạng mục"
           >
-            <span className="material-symbols-outlined text-[13px]">account_tree</span>
-            {showFabCols ? `Ẩn ${FAB_AREAS.length} cột Phân bổ` : 'Hiện cột Phân bổ'}
-          </button>
+            <span className="material-symbols-outlined text-[15px]">category</span>
+            Hạng mục chế tạo
+          </Link>
         </div>
       </div>
 
@@ -291,17 +297,17 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
             <thead className="sticky top-0 z-20">
               {/* ── Row 1: Column group headers ─── */}
               <tr>
-                <th rowSpan={2} className={`${TH} w-20 sticky left-0 z-30`}>
+                <th rowSpan={2} className={`${TH} sticky z-30`} style={pin('stt')}>
                   Item/
                   <br />
                   STT
                 </th>
-                <th rowSpan={2} className={`${TH} w-48 sticky left-20 z-30`}>
+                <th rowSpan={2} className={`${TH} sticky z-30`} style={pin('desc')}>
                   Description/
                   <br />
                   Chi tiết
                 </th>
-                <th rowSpan={2} className={`${TH} w-36 sticky left-[11rem] z-30`}>
+                <th rowSpan={2} className={`${TH} sticky z-30`} style={pin('profile')}>
                   Profile/
                   <br />
                   Vật tư
@@ -362,12 +368,6 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                 </th>
 
                 {/* Fab areas */}
-                {showFabCols &&
-                  FAB_AREAS.map((fa) => (
-                    <th key={fa.code} colSpan={2} className={`${TH_FAB} leading-tight`}>
-                      {fa.name}
-                    </th>
-                  ))}
 
                 {/* Summary */}
                 <th rowSpan={2} className={`${TH} bg-[#0a1f38] w-16`}>
@@ -442,21 +442,6 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                   KL (Kg)
                 </th>
 
-                {showFabCols &&
-                  FAB_AREAS.map((fa) => (
-                    <>
-                      <th key={`${fa.code}-qty`} className={`${TH2} bg-[#163966] text-[7.5px]`}>
-                        Q.Ty/
-                        <br />
-                        SL(cái,m,m²)
-                      </th>
-                      <th key={`${fa.code}-kg`} className={`${TH2} bg-[#163966] text-[7.5px]`}>
-                        Weight/
-                        <br />
-                        KL (Kg)
-                      </th>
-                    </>
-                  ))}
               </tr>
             </thead>
 
@@ -518,35 +503,6 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                         {fmt(grpTotalWeight)}
                       </td>
                       <td className="border border-slate-400 bg-[#dbeafe]" />
-                      {showFabCols &&
-                        FAB_AREAS.map((fa) => (
-                          <>
-                            <td
-                              key={`grp-${group.code}-${fa.code}-q`}
-                              className="border border-slate-400 bg-[#dbeafe] text-right text-[9px] font-black px-1"
-                            >
-                              {fmt(
-                                group.items.reduce(
-                                  (s, i) =>
-                                    s + (i.fabAllocs.find((a) => a.code === fa.code)?.qty ?? 0),
-                                  0
-                                )
-                              )}
-                            </td>
-                            <td
-                              key={`grp-${group.code}-${fa.code}-w`}
-                              className="border border-slate-400 bg-[#dbeafe] text-right text-[9px] font-black px-1"
-                            >
-                              {fmt(
-                                group.items.reduce(
-                                  (s, i) =>
-                                    s + (i.fabAllocs.find((a) => a.code === fa.code)?.weight ?? 0),
-                                  0
-                                )
-                              )}
-                            </td>
-                          </>
-                        ))}
                       <td className="border border-slate-400 bg-[#dbeafe]" />
                       <td className="border border-slate-400 bg-[#dbeafe]" />
                       <td className="border border-slate-400 bg-[#dbeafe]" />
@@ -562,13 +518,21 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                         }`}
                       >
                         <td
-                          className={`${TD_STICKY} left-0 w-20 font-mono text-[8px] text-slate-500`}
+                          className={`${TD_STICKY} font-mono text-[8px] text-slate-500`}
+                          style={pin('stt')}
+                          title={item.stt}
                         >
-                          {item.stt}
+                          <div className="truncate">{item.stt}</div>
                         </td>
-                        <td className={`${TD_STICKY} left-20 w-48`}>{item.description}</td>
-                        <td className={`${TD_STICKY} left-[11rem] w-36 font-mono text-[8.5px]`}>
-                          {item.profile}
+                        <td className={TD_STICKY} style={pin('desc')} title={item.description}>
+                          <div className="truncate">{item.description}</div>
+                        </td>
+                        <td
+                          className={`${TD_STICKY} font-mono text-[8.5px]`}
+                          style={pin('profile')}
+                          title={item.profile}
+                        >
+                          <div className="truncate">{item.profile}</div>
                         </td>
                         <td className={`${TD_LEFT} w-28 font-bold text-[#1B365D]`}>{item.grade}</td>
                         <td className="border border-slate-300 text-center text-[9px] px-1 py-0.5 w-14">
@@ -588,7 +552,9 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                         {visibleRevs.map((rev) => {
                           const r = item.duTruRevs.find((d) => d.lan === rev);
                           return (
-                            <>
+                            // 15/08/2026 — key phải đặt ở Fragment (phần tử ngoài cùng map trả về),
+                            // đặt ở <td> bên trong là React không thấy ⇒ cảnh báo thiếu key.
+                            <Fragment key={`${item.id}-rev${rev}`}>
                               <td
                                 key={`${item.id}-rev${rev}-qty`}
                                 className={`${TD} w-16 ${
@@ -609,7 +575,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                               >
                                 {fmt(r?.weight ?? 0)}
                               </td>
-                            </>
+                            </Fragment>
                           );
                         })}
 
@@ -627,34 +593,6 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                         </td>
 
                         {/* Fab allocations */}
-                        {showFabCols &&
-                          FAB_AREAS.map((fa) => {
-                            const alloc = item.fabAllocs.find((a) => a.code === fa.code);
-                            return (
-                              <>
-                                <td
-                                  key={`${item.id}-${fa.code}-qty`}
-                                  className={`${TD} w-16 ${
-                                    alloc && alloc.qty > 0
-                                      ? 'text-emerald-700 font-semibold'
-                                      : 'text-slate-200'
-                                  }`}
-                                >
-                                  {fmt(alloc?.qty ?? 0)}
-                                </td>
-                                <td
-                                  key={`${item.id}-${fa.code}-kg`}
-                                  className={`${TD} w-20 ${
-                                    alloc && alloc.weight > 0
-                                      ? 'text-emerald-700 font-semibold'
-                                      : 'text-slate-200'
-                                  }`}
-                                >
-                                  {fmt(alloc?.weight ?? 0)}
-                                </td>
-                              </>
-                            );
-                          })}
 
                         {/* QTY/WEIGHT summary */}
                         <td className={`${TD} w-16 text-slate-600`}>{fmt(item.qty1U)}</td>
@@ -734,13 +672,6 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                   )}
                 </td>
                 <td className="border border-[#2a5298]" />
-                {showFabCols &&
-                  FAB_AREAS.map((fa) => (
-                    <>
-                      <td key={`grand-${fa.code}-q`} className="border border-[#2a5298]" />
-                      <td key={`grand-${fa.code}-w`} className="border border-[#2a5298]" />
-                    </>
-                  ))}
                 <td className="border border-[#2a5298]" />
                 <td className="border border-[#2a5298]" />
                 <td className="border border-[#2a5298]" />

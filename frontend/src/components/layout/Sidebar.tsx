@@ -12,13 +12,18 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { WorkspaceSelector } from './WorkspaceSelector';
 
 interface NavItem {
   icon: string;
   label: string;
   path: string;
-  step?: number; // 1-7 for workflow steps
+  // 15/08/2026 (M-09) — đổi từ số sang chuỗi để ghi được 1a / 1b / 1c.
+  // Ba việc của bước 1 song song chứ không nối tiếp, nhưng vẫn cần phân biệt được
+  // với nhau. Dải chỉ đường trong hai trang phụ đã ghi "1b." và "1c." từ trước —
+  // giờ menu ghi giống hệt, hết cảnh một bước ba cách gọi.
+  step?: string;
   badge?: string | number;
   badgeTone?: 'info' | 'warning' | 'danger' | 'success';
 }
@@ -39,14 +44,22 @@ const NAV_GROUPS: NavGroup[] = [
   {
     groupLabel: 'Quy Trình Mua Sắm',
     items: [
-      { step: 1, icon: 'description', label: 'Yêu cầu mua (PR)', path: '/mua-hang' },
-      { step: 1, icon: 'inventory_2', label: 'Kiểm tra tồn kho', path: '/kiem-tra-ton-kho' },
-      { step: 1, icon: 'engineering', label: 'Làm rõ kỹ thuật', path: '/lam-ro-ky-thuat' },
-      { step: 2, icon: 'forward_to_inbox', label: 'Yêu cầu & Báo giá', path: '/bao-gia' },
-      { step: 3, icon: 'how_to_reg', label: 'So sánh & Duyệt', path: '/duyet' },
-      { step: 6, icon: 'handshake', label: 'Hợp đồng', path: '/hop-dong' },
-      { step: 7, icon: 'warehouse', label: 'Hàng về & QC', path: '/warehouse' },
-      { step: 8, icon: 'payments', label: 'Thanh toán', path: '/thanh-toan' },
+      { step: '1a', icon: 'description', label: 'Yêu cầu mua (PR)', path: '/mua-hang' },
+      // 15/08/2026 — mục con của Yêu cầu mua hàng (anh Hưng chốt phương án B).
+      // Không đánh số vì nó là danh mục nền của 1a, không phải một bước quy trình.
+      { icon: 'category', label: 'Hạng mục chế tạo', path: '/hang-muc-che-tao' },
+      { icon: 'grid_on', label: 'Phân bổ chế tạo', path: '/phan-bo-che-tao' },
+      { step: '1b', icon: 'inventory_2', label: 'Kiểm tra tồn kho', path: '/kiem-tra-ton-kho' },
+      { step: '1c', icon: 'engineering', label: 'Làm rõ kỹ thuật', path: '/lam-ro-ky-thuat' },
+      { step: '2', icon: 'forward_to_inbox', label: 'Yêu cầu & Báo giá', path: '/bao-gia' },
+      { step: '3', icon: 'how_to_reg', label: 'So sánh & Duyệt', path: '/duyet' },
+      { step: '4', icon: 'handshake', label: 'Hợp đồng', path: '/hop-dong' },
+      { step: '5', icon: 'warehouse', label: 'Hàng về & QC', path: '/warehouse' },
+      { step: '6', icon: 'payments', label: 'Thanh toán', path: '/thanh-toan' },
+      // 15/08/2026 — module Theo dõi mua hàng, tách khỏi /mua-hang.
+      // KHÔNG đánh số (anh Hưng chốt 14a): nó cắt ngang cả sáu bước chứ không nằm
+      // trong chuỗi, nhét vào dãy 1→6 là sai logic quy trình.
+      { icon: 'fact_check', label: 'Theo dõi mua hàng', path: '/theo-doi-mua-hang' },
     ],
   },
   {
@@ -90,14 +103,17 @@ export function Sidebar() {
 
   return (
     <aside className="h-screen w-64 fixed left-0 top-0 bg-[#eff4ff] flex flex-col py-5 z-50 border-r border-slate-200/60">
-      {/* Brand */}
+      {/* Thương hiệu — logo thay cho khối chữ cũ (14/08/2026).
+          Tệp gốc: LOGO/Logo IBS-02.png, bản duy nhất nền trong suốt chữ tối. */}
       <div className="px-6 mb-4">
-        <div className="font-['Manrope'] font-extrabold text-[var(--color-brand)] text-lg leading-tight">
-          IBS Heavy Industry
-        </div>
-        <div className="text-caption text-slate-500 mt-0.5">
-          Shipbuilding &amp; Steel Fabrication
-        </div>
+        <Image
+          src="/brand/ibs-logo.png"
+          alt="IBS Heavy Industry"
+          width={989}
+          height={587}
+          priority
+          className="h-11 w-auto object-contain object-left"
+        />
       </div>
 
       {/* Workspace selector (UI-1-3) */}

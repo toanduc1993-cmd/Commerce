@@ -19,6 +19,12 @@ const {
   saveFabAllocations,
   clearFabAllocations,
   getProjectFabCategories,
+  createFabCategory,
+  updateFabCategory,
+  deleteFabCategory,
+  importFabCategories,
+  getProjectFabAllocations,
+  saveProjectFabAllocationsBulk,
 } = require('../controllers/fabAllocationController');
 const {
   listProjects,
@@ -114,6 +120,42 @@ router.put('/clarification/flag', verifyToken, updateClarificationFlag);
 // ─── Module 5: Fab Allocations (Phân bổ hạng mục gia công) ───────────────────
 // Hạng mục gia công của project
 router.get('/projects/:projectId/fab-categories', verifyToken, getProjectFabCategories);
+// 15/08/2026 — quản lý danh mục hạng mục (anh Hưng chốt phương án B).
+// Trước đây chỉ đọc được; muốn thêm hạng mục phải sửa thẳng cơ sở dữ liệu.
+router.post(
+  '/projects/:projectId/fab-categories',
+  verifyToken,
+  restrictTo('KY_THUAT', 'MUA_HANG', 'ADMIN'),
+  createFabCategory
+);
+router.post(
+  '/projects/:projectId/fab-categories/import',
+  verifyToken,
+  restrictTo('KY_THUAT', 'MUA_HANG', 'ADMIN'),
+  importFabCategories
+);
+router.patch(
+  '/fab-categories/:id',
+  verifyToken,
+  restrictTo('KY_THUAT', 'MUA_HANG', 'ADMIN'),
+  updateFabCategory
+);
+router.delete(
+  '/fab-categories/:id',
+  verifyToken,
+  restrictTo('KY_THUAT', 'MUA_HANG', 'ADMIN'),
+  deleteFabCategory
+);
+
+// 16/08/2026 — lưới phân bổ của cả dự án (dòng = vật tư, cột = hạng mục).
+// Đọc thì ai đăng nhập cũng xem được; ghi thì chỉ Kỹ thuật / Mua hàng / Quản trị.
+router.get('/projects/:projectId/fab-allocations', verifyToken, getProjectFabAllocations);
+router.post(
+  '/projects/:projectId/fab-allocations/bulk',
+  verifyToken,
+  restrictTo('KY_THUAT', 'MUA_HANG', 'ADMIN'),
+  saveProjectFabAllocationsBulk
+);
 
 // Phân bổ cho toàn bộ PR
 router.get('/prs/:prId/fab-allocations', verifyToken, getFabAllocations);

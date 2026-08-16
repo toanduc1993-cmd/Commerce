@@ -132,6 +132,9 @@ model FabricationCategory {
   code      String  // INLET-U1 | SCR-U1 | KCTC | KCDK
   name      String  // Tên đầy đủ
   sortOrder Int    @default(0)
+  // 15/08/2026 — module Phân bổ chế tạo. DDL áp tay bằng psql
+  // (backend/scripts/fab_category_20260815.sql), KHÔNG chạy prisma migrate dev.
+  ghiChu    String? // mô tả thêm, không bắt buộc
 
   project     Project                 @relation(fields: [projectId], references: [id])
   allocations PrDetailFabAllocation[]
@@ -165,6 +168,13 @@ model PurchaseRequisition {
   id         String   @id @default(uuid())
   projectId  String
   prRef      String   @unique
+  // 15/08/2026 — tách prRef thành mã phiếu gốc + lần dự trù.
+  // Anh Hưng chốt: một "lần dự trù" là một PHIÊN BẢN MỚI của cùng một phiếu.
+  // prRef giữ nguyên làm bản gốc để đối chiếu; hai cột dưới là bản đã chuẩn hoá.
+  // DDL áp tay bằng psql (backend/scripts/rev_normalize_20260815.sql) theo RULE CỨNG #6,
+  // KHÔNG chạy prisma migrate dev.
+  docNo      String?  // mã phiếu gốc đã bỏ phần REV, ví dụ A260-2025
+  revNo      Int?     // 0 = bản gốc · 1..n = phiên bản sau · NULL = phiếu nhập hàng loạt
   department String
   client     String?
   status     String   @default("DRAFT") // DRAFT | SOURCING | APPROVED | PO_ISSUED | CLOSED
@@ -174,6 +184,8 @@ model PurchaseRequisition {
   project Project     @relation(fields: [projectId], references: [id])
   details PrDetail[]
   bids    BidAnalysis[]
+
+  @@index([projectId, docNo, revNo])
 }
 
 model PrDetail {
@@ -224,6 +236,9 @@ model PrDetailFabAllocation {
   fabricationCategoryId String
   qty                   Float  @default(0) // Số lượng phân bổ (m², tấn, chiếc...)
   weight                Float  @default(0) // Trọng lượng phân bổ (kg)
+  // 15/08/2026 — anh Hưng chốt: tiến độ tính theo NGÀY CẦN VẬT TƯ TẠI CÔNG TRƯỜNG.
+  // So mốc này với ngày hàng thực về (ContractDetail.arrivedDate) ra số ngày sớm/muộn.
+  ngayCanTaiCongTruong  DateTime?
 
   prDetail            PrDetail            @relation(fields: [prDetailId], references: [id], onDelete: Cascade)
   fabricationCategory FabricationCategory @relation(fields: [fabricationCategoryId], references: [id])
@@ -440,6 +455,10 @@ model BidQuoteVendor {
   bid    BidAnalysis      @relation(fields: [bidId], references: [id], onDelete: Cascade)
   offers BidQuoteOffer[]
 
+  // P1-5 (13/08/2026): vendorOrder PHẢI duy nhất trong 1 BID. Trước đây 60 BID trùng số,
+  // giao diện ghép báo giá vào cột theo số này nên hiển thị nhầm NCC.
+  // Dữ liệu cũ đã đánh số lại: backend/scripts/fix_vendor_order_20260813.sql
+  @@unique([bidId, vendorOrder])
   @@index([bidId])
 }
 
@@ -462,6 +481,10 @@ model BidQuoteItem {
   // Đã mua (đến hiện tại)
   alreadyBoughtAmount Float @default(0)
   selectedVendorName  String? // Vendor chọn (manually từ "Lựa chọn" col)
+  // P1-4 (13/08/2026): dấu vết phê duyệt cấp dòng. Trước đây 508 dòng đã duyệt NCC
+  // mà không biết ai duyệt / lúc nào — AuditLog có 0 bản ghi về hành vi duyệt.
+  selectedAt          DateTime?
+  selectedBy          String?  // userId người chọn NCC cho dòng này
   notes               String?
   createdAt           DateTime @default(now())
 
