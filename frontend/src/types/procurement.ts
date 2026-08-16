@@ -208,6 +208,11 @@ export interface PRDetail {
   pr?: {
     id: string;
     prRef: string;
+    // 15/08/2026 — prRef đã tách thành mã phiếu gốc + lần dự trù ở backend.
+    // docNo: mã gốc đã bỏ phần REV · revNo: 0 = bản gốc, 1..n = phiên bản sau,
+    // null = phiếu nhập hàng loạt (không có khái niệm lần).
+    docNo?: string | null;
+    revNo?: number | null;
     projectId: string;
     department?: string;
     status?: string;

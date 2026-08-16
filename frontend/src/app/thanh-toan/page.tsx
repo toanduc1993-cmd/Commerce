@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import {
   fetchPaymentSchedules,
@@ -42,6 +42,9 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
 export default function ThanhToanPage() {
   const router = useRouter();
   const [schedules, setSchedules] = useState<PaymentScheduleRow[]>([]);
+  // Tham số ?contractNo= do màn Theo dõi mua hàng truyền sang (đợt 3, 15/08/2026)
+  const searchParams = useSearchParams();
+  const [loHopDong, setLoHopDong] = useState(searchParams.get('contractNo') ?? '');
   const [summary, setSummary] = useState<
     Array<{ month: string; count: number; totalValue: number }>
   >([]);
@@ -128,6 +131,9 @@ export default function ThanhToanPage() {
   }, [filterProject]);
 
   const filtered = tableFilters.apply(schedules);
+  const hienThi = loHopDong
+    ? filtered.filter((p) => ((p.contractDetail?.contractNo ?? p.saleContract) ?? '') === loHopDong)
+    : filtered;
 
   const handleUpload = async () => {
     if (!uploadFile) return;
@@ -175,6 +181,26 @@ export default function ThanhToanPage() {
       <Sidebar />
 
       <div className="flex-1 ml-64 px-8 pt-8 pb-12 space-y-6">
+
+        {/* ── Lọc theo hợp đồng đến từ module Theo dõi mua hàng ─────────────────
+            15/08/2026 (đợt 3) — trước đây trang này không nhận tham số nào, nên nút
+            "xem hợp đồng" trên dòng vật tư chỉ mở được danh sách chung. Nay nhận
+            `?contractNo=` và tự lọc về đúng hợp đồng đó. */}
+        {loHopDong && (
+          <div className="flex items-center gap-3 rounded-lg border border-[#1B365D]/25 bg-[#1B365D]/5 px-4 py-2.5">
+            <span className="material-symbols-outlined text-[18px] text-[#1B365D]">filter_alt</span>
+            <div className="flex-1 text-body">
+              Đang lọc theo hợp đồng <b className="font-mono">{loHopDong}</b>
+              <span className="text-slate-500"> — đến từ màn Theo dõi mua hàng</span>
+            </div>
+            <button
+              onClick={() => setLoHopDong('')}
+              className="text-caption text-[#1B365D] underline hover:opacity-70"
+            >
+              Bỏ lọc, xem tất cả
+            </button>
+          </div>
+        )}
         <div className="flex items-end justify-between">
           <div>
             <h1 className="text-xl font-black text-[#1B365D]">Kế Hoạch Thanh Toán</h1>
@@ -188,7 +214,7 @@ export default function ThanhToanPage() {
                 value={search}
                 onChange={setSearch}
                 placeholder="Tìm NCC, sale contract..."
-                resultCount={filtered.length}
+                resultCount={hienThi.length}
                 totalCount={schedules.length}
               />
             </div>
@@ -383,14 +409,14 @@ export default function ThanhToanPage() {
                   </td>
                 </tr>
               )}
-              {!isLoading && filtered.length === 0 && (
+              {!isLoading && hienThi.length === 0 && (
                 <tr>
                   <td colSpan={16} className="text-center py-12 text-slate-400 text-xs">
                     Chưa có kế hoạch thanh toán
                   </td>
                 </tr>
               )}
-              {filtered.map((s, idx) => {
+              {hienThi.map((s, idx) => {
                 const status = STATUS_CFG[s.status] || STATUS_CFG['PLANNED'];
                 return (
                   <tr

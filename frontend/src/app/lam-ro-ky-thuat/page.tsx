@@ -10,6 +10,7 @@ import {
   type TechThreadsResult,
   type TechCommentItem,
 } from '@/lib/api';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { PurchaseHistoryPanel } from '@/components/PurchaseHistoryPanel';
 
 const STATUS_CONFIG = {
@@ -388,9 +389,17 @@ export default function LamRoKyThuatPage() {
   const summary = data?.summary;
 
   return (
-    <div className="min-h-screen bg-[var(--color-background,#f8f9ff)]">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-5">
+    // 15/08/2026 — khung chuẩn giống /mua-hang và /duyet:
+    //   · có thanh menu (M-01). Trước đây trang này không dựng Sidebar nên bấm vào là mất
+    //     sạch điều hướng.
+    //   · cột dọc h-screen overflow-hidden; tiêu đề, thẻ đếm và thanh lọc nằm ngoài vùng cuộn
+    //     nên luôn thấy (M-04). Trước đây cả trang cao 51.949px — 58 màn hình — cuộn xuống
+    //     12% là thanh lọc và nút Tạo RFQ đã ra khỏi màn, muốn lọc lại phải cuộn ngược lên đầu.
+    <div className="flex min-h-screen bg-[#f4f6fb]">
+      <Sidebar />
+      <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
+      {/* Header + thẻ đếm + thanh lọc — đứng yên, không cuộn theo */}
+      <div className="bg-white border-b border-slate-200 px-8 py-5 shrink-0">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 text-caption text-slate-400 mb-1">
@@ -466,6 +475,8 @@ export default function LamRoKyThuatPage() {
         </div>
       </div>
 
+      {/* ── Vùng cuộn: chỉ danh sách thẻ cuộn ── */}
+      <div className="flex-1 overflow-auto min-h-0">
       {/* Content */}
       <div className="px-8 py-6">
         {!prId && (
@@ -497,7 +508,10 @@ export default function LamRoKyThuatPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 max-w-3xl">
+        {/* M-07 — 15/08/2026: trước đây `grid-cols-1 max-w-3xl` nên 434 thẻ xếp một cột,
+                  chỉ dùng ~1.010px trong màn 1.512px và trang cao 51.949px.
+                  Xếp nhiều cột theo bề ngang: hẹp thì tự về một cột. */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3">
           {filteredRows.map((row) => (
             <SkuCard
               key={row.prDetailId}
@@ -511,6 +525,8 @@ export default function LamRoKyThuatPage() {
           ))}
         </div>
       </div>
+
+      </div>{/* hết vùng cuộn */}
 
       {/* Panels */}
       {selectedPanel && (
@@ -537,6 +553,7 @@ export default function LamRoKyThuatPage() {
           onClose={() => setHistoryPanel(null)}
         />
       )}
+      </div>
     </div>
   );
 }

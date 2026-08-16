@@ -8,7 +8,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, Fragment } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import {
   fetchArrivals,
@@ -52,6 +52,9 @@ const fmtWeight = (kg: number) =>
 export default function WarehousePage() {
   const router = useRouter();
   const [arrivals, setArrivals] = useState<ArrivalRow[]>([]);
+  // Tham số ?contractNo= do màn Theo dõi mua hàng truyền sang (đợt 3, 15/08/2026)
+  const searchParams = useSearchParams();
+  const [loHopDong, setLoHopDong] = useState(searchParams.get('contractNo') ?? '');
   const [stats, setStats] = useState<ArrivalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -105,6 +108,10 @@ export default function WarehousePage() {
       (a.item.itemName || '').toLowerCase().includes(q)
     );
   });
+
+  const hienThi = loHopDong
+    ? filtered.filter((a) => (a.contractNo ?? '') === loHopDong)
+    : filtered;
 
   const handleHandover = async (a: ArrivalRow) => {
     if (a.isHandedOver) {
@@ -184,6 +191,26 @@ export default function WarehousePage() {
       <Sidebar />
 
       <div className="flex-1 ml-64 px-8 pt-8 pb-12 space-y-6">
+
+        {/* ── Lọc theo hợp đồng đến từ module Theo dõi mua hàng ─────────────────
+            15/08/2026 (đợt 3) — trước đây trang này không nhận tham số nào, nên nút
+            "xem hợp đồng" trên dòng vật tư chỉ mở được danh sách chung. Nay nhận
+            `?contractNo=` và tự lọc về đúng hợp đồng đó. */}
+        {loHopDong && (
+          <div className="flex items-center gap-3 rounded-lg border border-[#1B365D]/25 bg-[#1B365D]/5 px-4 py-2.5">
+            <span className="material-symbols-outlined text-[18px] text-[#1B365D]">filter_alt</span>
+            <div className="flex-1 text-body">
+              Đang lọc theo hợp đồng <b className="font-mono">{loHopDong}</b>
+              <span className="text-slate-500"> — đến từ màn Theo dõi mua hàng</span>
+            </div>
+            <button
+              onClick={() => setLoHopDong('')}
+              className="text-caption text-[#1B365D] underline hover:opacity-70"
+            >
+              Bỏ lọc, xem tất cả
+            </button>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-end justify-between">
           <div>
@@ -356,7 +383,7 @@ export default function WarehousePage() {
                   </td>
                 </tr>
               )}
-              {!loading && filtered.length === 0 && (
+              {!loading && hienThi.length === 0 && (
                 <tr>
                   <td colSpan={10} className="text-center py-12 text-slate-400 text-xs">
                     <span className="material-symbols-outlined text-[40px] block mx-auto opacity-30">
@@ -366,7 +393,7 @@ export default function WarehousePage() {
                   </td>
                 </tr>
               )}
-              {filtered.map((a, idx) => {
+              {hienThi.map((a, idx) => {
                 const status = QC_CFG[a.qcStatus] || QC_CFG.PENDING;
                 const isExp = expandedId === a.id;
                 return (

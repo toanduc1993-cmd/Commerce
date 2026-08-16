@@ -36,7 +36,8 @@ export function WorkspaceSelector() {
           {project ? 'folder_open' : 'all_inclusive'}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="label">Workspace</div>
+          {/* Bỏ nhãn "Workspace" 14/08/2026 — logo phía trên đã nói rõ đây là gì,
+              giữ lại chỉ làm đầu thanh dọc rối thêm. Nút chọn dự án giữ nguyên. */}
           <div className="text-h3 truncate">
             {project ? project.code : 'Tất cả dự án'}
           </div>

@@ -113,6 +113,52 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
 
+  /* ═══════════════════════════════════════════════════════════════════
+   *  BỔ SUNG 14/08/2026 — các nhóm còn thiếu, đo từ giao diện đang chạy.
+   *  Nguyên tắc: MỖI THỨ MỘT GIÁ TRỊ DUY NHẤT, khai ở đây và chỉ ở đây.
+   *  Tài liệu UI_DESIGN_SYSTEM.md chỉ mô tả, không chép lại con số.
+   * ═══════════════════════════════════════════════════════════════════ */
+
+  /* ─── Khung bố cục (đo từ giao diện thật) ───────────────────────────── */
+  --sidebar-w: 16rem;        /* 256px — bề rộng thanh điều hướng dọc */
+  --topbar-h: 3.5rem;        /* 56px — chiều cao thanh ngang */
+  --nav-item-h: 2.75rem;     /* 44px — chiều cao một mục menu */
+  --content-max: 90rem;      /* 1440px — bề rộng tối đa vùng nội dung */
+
+  /* ─── Chiều cao ô điều khiển (nút, ô nhập, ô chọn) ──────────────────── */
+  --control-sm: 1.75rem;     /* 28px — nút phụ, ô lọc trong bảng */
+  --control-md: 2.125rem;    /* 34px — mặc định */
+  --control-lg: 2.5rem;      /* 40px — nút chính, ô tìm kiếm */
+
+  /* ─── Bảng dữ liệu ──────────────────────────────────────────────────── */
+  --row-h: 2.25rem;          /* 36px — chiều cao dòng thường */
+  --row-h-compact: 1.75rem;  /* 28px — bảng dày đặc, vd ma trận so sánh giá */
+  --row-h-header: 2rem;      /* 32px — dòng tiêu đề bảng */
+  --cell-px: var(--space-3); /* 12px — đệm ngang trong ô */
+  --cell-py: var(--space-2); /*  8px — đệm dọc trong ô */
+
+  /* ─── Biểu tượng ────────────────────────────────────────────────────── */
+  --icon-sm: 1rem;           /* 16px — trong nút nhỏ, trong ô bảng */
+  --icon-md: 1.25rem;        /* 20px — mặc định */
+  --icon-lg: 1.5rem;         /* 24px — đầu mục menu, tiêu đề thẻ */
+
+  /* ─── Thanh và dải ──────────────────────────────────────────────────── */
+  --bar-h: 0.5rem;           /*  8px — thanh tiến độ, thanh tỉ trọng */
+  --bar-h-thin: 0.25rem;     /*  4px — dải mảnh dưới thẻ số liệu */
+  --bar-radius: var(--radius-full);
+  --accent-bar-w: 0.25rem;   /*  4px — dải màu bên trái thẻ/khung cảnh báo */
+
+  /* ─── Đường kẻ ──────────────────────────────────────────────────────── */
+  --border-w: 1px;
+  --border-w-strong: 2px;
+  --color-border: #e2e8f0;         /* đường kẻ thường */
+  --color-border-strong: #cbd5e1;  /* đường kẻ nhấn, viền bảng */
+
+  /* ─── Ngưỡng cỡ chữ ─────────────────────────────────────────────────── */
+  /* KHÔNG dùng cỡ nhỏ hơn giá trị này. Giao diện hiện còn nhiều chỗ
+   * text-[9px] và text-[10px] — đó là nợ phải trả dần, không phải chuẩn. */
+  --text-min: 0.75rem;       /* 12px */
+
   /* ─── Workflow step semantic (7-step progress timeline) ─────────────── */
   --step-done: var(--color-success);
   --step-active: var(--color-info);

@@ -18,7 +18,8 @@
  *   ┌─ L. TỔNG ĐÃ MUA + So sánh + Đánh giá cuối ─┐
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import type { PRDetail, ContractDetail, InspectionRecord } from '@/types/procurement';
 import { ColumnFilter } from '@/components/data-table';
 import type { UseTableFiltersResult } from '@/hooks/useTableFilters';
@@ -61,7 +62,7 @@ const G = {
   eval: 'bg-[#7a5c2e] text-white',
   item: 'bg-[#1B365D] text-white',
   netQty: 'bg-[#1e4976] text-white',
-  rev: 'bg-[#37547a] text-white',
+  rev: 'bg-[#37547a] text-white',   // cột "Ký theo REV"
   total: 'bg-[#0d2b4e] text-white',
   remain: 'bg-[#5b21b6] text-white',
   toBuy: 'bg-[#7c3aed] text-white',
@@ -91,18 +92,61 @@ const TH2 =
 // Dùng JS object thay vì Tailwind left-* hardcode để offsets luôn chính xác
 // khi thay đổi width cột sticky
 // Không còn cột KQ sticky đầu — 4 sticky cols: Dự án, Item, Description (+ KQ ở cuối, không sticky)
-const STICKY_W = { project: 96, item: 80, desc: 176 } as const;
+//
+// 15/08/2026 — bề rộng phải TÍNH ĐỦ cho nội dung, nếu không trình duyệt tự nới
+// cột ra và mốc left bên dưới thành sai ⇒ cột dính đè lên nhau khi cuộn ngang.
+// Công thức: width = max-w của div truncate bên trong + px-1 hai bên (8) + border (2).
+//   project: 88 + 10 = 98 → lấy 96, div truncate tự co
+//   item   : 80 (mã hàng) + 8 (khoảng cách) + 2×14 (hai nút nhảy 1b/1c) + 10 = 126 → lấy 128
+//   desc   : 170 + 10 = 180 (trước ghi 176)
+// Ba ô đều ghim width + minWidth + maxWidth nên bề rộng đo được luôn đúng bằng
+// con số ở đây. Đổi số nào thì đổi max-w của div truncate tương ứng.
+const STICKY_W = { project: 96, item: 128, desc: 180 } as const;
 const STICKY_LEFT = {
   project: 0,
   item: STICKY_W.project,                          // 96
-  desc: STICKY_W.project + STICKY_W.item,          // 176
+  desc: STICKY_W.project + STICKY_W.item,          // 224
 } as const;
+// Ghim cứng bề rộng ô dính — dùng chung cho cả th và td
+const pin = (k: keyof typeof STICKY_W) => ({
+  left: STICKY_LEFT[k],
+  width: STICKY_W[k],
+  minWidth: STICKY_W[k],
+  maxWidth: STICKY_W[k],
+});
+
+// ─── Nút nhảy theo số hợp đồng ───────────────────────────────────────────────
+// 15/08/2026 (đợt 3) — từ một dòng vật tư đi thẳng tới hợp đồng, tới lô hàng về
+// và tới kế hoạch thanh toán của chính hợp đồng đó. Cả ba trang nay nhận
+// `?contractNo=` và tự lọc; trước đây chúng không nhận tham số nào nên nút kiểu
+// này chỉ mở được danh sách chung.
+const DIEM_DEN = [
+  { path: '/hop-dong', icon: 'handshake', ten: 'Hợp đồng' },
+  { path: '/warehouse', icon: 'local_shipping', ten: 'Hàng về & QC' },
+  { path: '/thanh-toan', icon: 'payments', ten: 'Thanh toán' },
+] as const;
+
+function NutHopDong({ soHD }: { soHD: string }) {
+  return (
+    <span className="flex items-center gap-0.5 shrink-0">
+      {DIEM_DEN.map((d) => (
+        <Link
+          key={d.path}
+          href={`${d.path}?contractNo=${encodeURIComponent(soHD)}`}
+          title={`${d.ten} của hợp đồng ${soHD}`}
+          className="w-[14px] h-[14px] inline-flex items-center justify-center text-slate-400 hover:text-[#1B365D] transition-colors overflow-hidden"
+        >
+          <span className="material-symbols-outlined text-[13px] leading-none">{d.icon}</span>
+        </Link>
+      ))}
+    </span>
+  );
+}
 
 // ─── COL GROUP VISIBILITY ─────────────────────────────────────────────────────
 
 const defaultColGroupVis = {
   netQty: true,
-  revs: false,      // collapsed by default — open khi cần xem REV history
   totalOrdered: true,
   remain: false,    // collapsed by default
   toBuy: true,
@@ -119,6 +163,18 @@ type ColGroupKey = keyof typeof defaultColGroupVis;
 
 // Collapsed th style
 const TH_COLLAPSED = 'border border-slate-400 w-3 min-w-[12px] cursor-pointer text-center bg-slate-200 hover:bg-slate-300 transition-colors';
+// ─── DỰNG DÒNG THEO MẺ ────────────────────────────────────────────────────────
+// 15/08/2026 — trước đây bảng dựng hết 1.816 dòng × 55 ô = 125.673 nút DOM ngay khi
+// mở trang, cuộn tốn 23ms/nhịp (mượt là dưới 17ms). Giờ dựng 300 dòng đầu, cuộn gần
+// đáy thì nạp thêm 300. Bộ lọc và ô tìm chạy TRƯỚC khi cắt mẻ nên vẫn tìm được trong
+// toàn bộ dữ liệu, không phải chỉ phần đang hiện.
+const BUOC_DONG = 300;
+
+// Collapsed th style cho HÀNG 2 (sub-header).
+// 15/08/2026 — BẮT BUỘC phải có. Hàng 1 và thân bảng đều sinh 1 ô đệm cho mỗi nhóm
+// đang thu gọn; nếu hàng 2 không sinh thì nó thiếu ô ⇒ mọi nhãn phía sau trượt sang
+// trái, và người dùng đọc số của cột này dưới tên của cột kia.
+const TH2_COLLAPSED = 'border border-slate-400 w-3 min-w-[12px] bg-slate-200';
 // Collapsed td placeholder style
 const TD_PLACEHOLDER = 'w-3 min-w-[12px] border border-slate-200 bg-slate-50/80';
 
@@ -159,14 +215,9 @@ interface MasterTrackingTableProps {
   prs: PRDetail[];
   isLoading?: boolean;
   tableFilters?: UseTableFiltersResult<PRDetail>;
-  showAllRevs?: boolean;
-  selectedRevByProject?: Record<string, 'all' | 'latest' | number>;
 }
 
-// ─── STABLE EMPTY OBJECT — tránh tạo {} mới mỗi render khi prop bị omit ──────
-const EMPTY_REV_SEL: Record<string, 'all' | 'latest' | number> = {};
-
-export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs = false, selectedRevByProject = EMPTY_REV_SEL }: MasterTrackingTableProps) {
+export function MasterTrackingTable({ prs, isLoading, tableFilters }: MasterTrackingTableProps) {
   // ── Column group visibility state — initializer fn để đảm bảo default collapsed mỗi mount ──
   const [colGroupVis, setColGroupVis] = useState<typeof defaultColGroupVis>(() => ({ ...defaultColGroupVis }));
 
@@ -175,22 +226,6 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
     (key: ColGroupKey) => setColGroupVis((v) => ({ ...v, [key]: !v[key] })),
     []
   );
-
-  const REV_COUNT = showAllRevs ? 16 : 5;
-
-  // getRevIndices — stable với useMemo trên selectedRevByProject + REV_COUNT
-  const getRevIndices = useCallback(
-    (projectCode: string): number[] => {
-      const sel = selectedRevByProject[projectCode];
-      if (!sel || sel === 'all') return Array.from({ length: REV_COUNT }, (_, i) => i);
-      if (sel === 'latest') return [REV_COUNT - 1];
-      return [Math.min(sel as number, REV_COUNT - 1)];
-    },
-    [selectedRevByProject, REV_COUNT]
-  );
-
-  // Số cột REV tối đa để header row dùng colSpan nhất quán
-  const maxRevCols = REV_COUNT * 2;
 
   // Group PR theo materialSubGroupCode (VTC01, VTC02, VPK, VDK)
   const grouped = useMemo(() => {
@@ -202,6 +237,35 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
     }
     return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [prs]);
+
+  // ── Dựng theo mẻ ──
+  const tongDong = prs.length;
+  const [soDongHien, setSoDongHien] = useState(BUOC_DONG);
+  // đổi bộ lọc ⇒ về lại mẻ đầu
+  useEffect(() => { setSoDongHien(BUOC_DONG); }, [grouped]);
+
+  // Cắt bớt nhưng GIỮ tổng số thật của từng nhóm để dòng tiêu đề nhóm đếm đúng
+  const nhomHienThi = useMemo(() => {
+    let conLai = soDongHien;
+    const ra: { code: string; items: PRDetail[]; tong: number }[] = [];
+    for (const [code, items] of grouped) {
+      if (conLai <= 0) break;
+      ra.push({ code, items: items.length <= conLai ? items : items.slice(0, conLai), tong: items.length });
+      conLai -= items.length;
+    }
+    return ra;
+  }, [grouped, soDongHien]);
+  const daHien = nhomHienThi.reduce((n, g) => n + g.items.length, 0);
+  const conNua = daHien < tongDong;
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 800) {
+      setSoDongHien((n) => (n >= tongDong ? n : n + BUOC_DONG));
+    }
+  }, [tongDong]);
 
   if (isLoading) {
     return (
@@ -223,7 +287,7 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
   return (
     <div className="flex flex-col h-full">
       {/* Table area — scroll horizontal + vertical */}
-      <div className="flex-1 overflow-auto min-h-0">
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-auto min-h-0">
         <table className="border-collapse text-[9px]" style={{ minWidth: 'max-content' }}>
           <thead className="sticky top-0 z-30">
             {/* ═══ ROW 1: Group headers ═══ */}
@@ -232,7 +296,7 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
               <th
                 rowSpan={2}
                 className={`${TH(G.item)} sticky z-40`}
-                style={{ left: STICKY_LEFT.project, width: STICKY_W.project, minWidth: STICKY_W.project }}
+                style={pin('project')}
               >
                 <div className="flex items-center justify-center gap-0.5">
                   Dự án
@@ -243,8 +307,8 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
               {/* Item info */}
               <th
                 rowSpan={2}
-                className={`${TH(G.item)} sticky z-40 min-w-[${STICKY_W.item}px]`}
-                style={{ left: STICKY_LEFT.item, width: STICKY_W.item }}
+                className={`${TH(G.item)} sticky z-40`}
+                style={pin('item')}
               >
                 <div className="flex items-center justify-center gap-0.5">
                   Item/STT
@@ -253,8 +317,8 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
               </th>
               <th
                 rowSpan={2}
-                className={`${TH(G.item)} sticky z-40 min-w-[${STICKY_W.desc}px]`}
-                style={{ left: STICKY_LEFT.desc, width: STICKY_W.desc }}
+                className={`${TH(G.item)} sticky z-40`}
+                style={pin('desc')}
               >
                 <div className="flex items-center justify-center gap-0.5">
                   Description/Chi tiết
@@ -311,28 +375,19 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                 </th>
               )}
 
-              {/* ── REVs ── */}
-              {colGroupVis.revs ? (
-                <th colSpan={maxRevCols} className={TH(G.rev)}>
-                  <div className="flex items-center justify-center">
-                    Current Ordered/
-                    <br />
-                    Dự trù lần 0 → {REV_COUNT - 1}
-                    <ToggleBtn groupKey="revs" isOpen={colGroupVis["revs"]} onToggle={toggleGroup} />
-                  </div>
-                </th>
-              ) : (
-                <th
-                  colSpan={1}
-                  className={TH_COLLAPSED}
-                  onClick={() => toggleGroup('revs')}
-                  title="Hiện nhóm REVs"
-                >
-                  <span className="material-symbols-outlined text-[10px] leading-none text-slate-500">
-                    chevron_right
-                  </span>
-                </th>
-              )}
+              {/* ── REV — đợt 2 tách module, 15/08/2026 ──────────────────────────
+                  Cả nhóm "Dự trù lần 0 → n" đã gỡ khỏi bảng theo dõi: nó thuộc về
+                  module Yêu cầu mua hàng (anh Hưng chốt 13a). Thay bằng ĐÚNG MỘT cột
+                  cho biết dòng này thuộc phiên bản nào của phiếu — tức hợp đồng ký
+                  theo lần dự trù nào.
+                  Nhóm cũ chiếm 10–32 cột và hiển thị toàn dấu "—" vì chưa từng có dữ
+                  liệu; cột mới đọc `pr.revNo`, là trường thật đã chuẩn hoá ở backend. */}
+              <th rowSpan={2} className={`${TH(G.rev)} w-14 min-w-[56px]`}>
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>Ký theo<br />REV</span>
+                  <ColF col="revNo" tableFilters={tableFilters} />
+                </div>
+              </th>
 
               {/* ── Total Ordered ── */}
               {colGroupVis.totalOrdered ? (
@@ -359,9 +414,10 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
 
               {/* Remarks — rowSpan=2, không thuộc group nào */}
               <th rowSpan={2} className={`${TH(G.total)} w-20 min-w-[80px]`}>
-                Remarks/
-                <br />
-                Ghi chú
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>Remarks/<br />Ghi chú</span>
+                  <ColF col="remarks" tableFilters={tableFilters} />
+                </div>
               </th>
 
               {/* ── Tận dụng tồn kho ── */}
@@ -412,11 +468,10 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
 
               {/* Material Available Date — rowSpan=2, không thuộc group nào */}
               <th rowSpan={2} className={`${TH(G.toBuy)} w-16 min-w-[64px]`}>
-                Material
-                <br />
-                Available
-                <br />
-                Date
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>Material<br />Available<br />Date</span>
+                  <ColF col="requiredDate" tableFilters={tableFilters} />
+                </div>
               </th>
 
               {/* ── DOMESTIC contract ── */}
@@ -614,7 +669,7 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
             {/* ═══ ROW 2: Sub-headers ═══ */}
             <tr>
               {/* Net Qty sub-headers — only when visible */}
-              {colGroupVis.netQty && (
+              {colGroupVis.netQty ? (
                 <>
                   <th className={TH2}>
                     <div className="flex items-center justify-center gap-0.5">
@@ -622,172 +677,261 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                       <ColF col="netQtyFilter" tableFilters={tableFilters} />
                     </div>
                   </th>
-                  <th className={TH2}>Weight (Kg)</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Weight (Kg)
+                    <ColF col="netWeight" tableFilters={tableFilters} />
+                  </div>
+                </th>
                 </>
-              )}
-
-              {/* REVs sub-headers — only when visible */}
-              {colGroupVis.revs && (
-                <>
-                  {Array.from({ length: REV_COUNT }).map((_, i) => (
-                    <React.Fragment key={`rev${i}`}>
-                      <th className={TH2}>
-                        Lần {i}
-                        <br />
-                        Q.Ty
-                      </th>
-                      <th className={TH2}>
-                        Lần {i}
-                        <br />
-                        Weight
-                      </th>
-                    </React.Fragment>
-                  ))}
-                </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* Total Ordered sub-headers */}
-              {colGroupVis.totalOrdered && (
+              {colGroupVis.totalOrdered ? (
                 <>
-                  <th className={TH2}>Q.Ty</th>
-                  <th className={TH2}>Weight (Kg)</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Q.Ty
+                    <ColF col="reqQty" tableFilters={tableFilters} />
+                  </div>
+                </th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Weight (Kg)
+                    <ColF col="reqWeight" tableFilters={tableFilters} />
+                  </div>
+                </th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* Remain sub-headers */}
-              {colGroupVis.remain && (
+              {colGroupVis.remain ? (
                 <>
                   <th className={TH2}>Report No</th>
-                  <th className={TH2}>Q.Ty</th>
-                  <th className={TH2}>Weight (Kg)</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Q.Ty
+                    <ColF col="remainQty" tableFilters={tableFilters} />
+                  </div>
+                </th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Weight (Kg)
+                    <ColF col="remainWeight" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>Ngày ACC</th>
                   <th className={TH2}>Remarks</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* ToBuy sub-headers */}
-              {colGroupVis.toBuy && (
+              {colGroupVis.toBuy ? (
                 <>
                   <th className={TH2}>
                     <div className="flex items-center justify-center gap-0.5">
-                      Q.Ty <ColF col="reqQty" tableFilters={tableFilters} />
+                      Q.Ty <ColF col="toBuyQty" tableFilters={tableFilters} />
                     </div>
                   </th>
-                  <th className={TH2}>Weight (Kg)</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Weight (Kg)
+                    <ColF col="toBuyWeight" tableFilters={tableFilters} />
+                  </div>
+                </th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* DOM contract sub-headers (11 cols — gộp Profile+Grade HĐ, gộp VAT, bỏ BG sản xuất) */}
-              {colGroupVis.domContract && (
+              {colGroupVis.domContract ? (
                 <>
                   <th className={TH2}>
                     <div className="flex items-center justify-center gap-0.5">
-                      Số HĐ <ColF col="contractNo" tableFilters={tableFilters} />
+                      Số HĐ <ColF col="domContractNo" tableFilters={tableFilters} />
                     </div>
                   </th>
                   <th className={TH2}>
                     <div className="flex items-center justify-center gap-0.5">
-                      NCC <ColF col="vendorName" tableFilters={tableFilters} />
+                      NCC <ColF col="domVendor" tableFilters={tableFilters} />
                     </div>
                   </th>
-                  <th className={TH2}>Spec HĐ</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Spec HĐ
+                    <ColF col="domSpec" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>KL theo HĐ</th>
-                  <th className={TH2}>Ngày ký</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Ngày ký
+                    <ColF col="domSignDate" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>Handover Q.Ty</th>
                   <th className={TH2}>Handover Weight</th>
-                  <th className={TH2}>Đơn giá NoVAT</th>
-                  <th className={TH2}>Tổng NoVAT</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Đơn giá NoVAT
+                    <ColF col="domUnitPrice" tableFilters={tableFilters} />
+                  </div>
+                </th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Tổng NoVAT
+                    <ColF col="domTotal" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>%VAT</th>
-                  <th className={TH2}>Handover Date</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Handover Date
+                    <ColF col="domHandoverDate" tableFilters={tableFilters} />
+                  </div>
+                </th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* DOM purchased sub-headers */}
-              {colGroupVis.domPurchased && (
+              {colGroupVis.domPurchased ? (
                 <>
                   <th className={TH2}>Q.Ty</th>
                   <th className={TH2}>Weight</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* DOM QC sub-headers */}
-              {colGroupVis.domQC && (
+              {colGroupVis.domQC ? (
                 <>
                   <th className={TH2}>Report No</th>
                   <th className={TH2}>Insp Date</th>
                   <th className={TH2}>KL Acc</th>
                   <th className={TH2}>Result</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* IMP contract sub-headers (16 cols — gộp Profile+Grade HĐ, bỏ BG sản xuất) */}
-              {colGroupVis.impContract && (
+              {colGroupVis.impContract ? (
                 <>
                   <th className={TH2}>
                     <div className="flex items-center justify-center gap-0.5">
-                      Số HĐ <ColF col="contractNo" tableFilters={tableFilters} />
+                      Số HĐ <ColF col="impContractNo" tableFilters={tableFilters} />
                     </div>
                   </th>
                   <th className={TH2}>
                     <div className="flex items-center justify-center gap-0.5">
-                      NCC <ColF col="vendorName" tableFilters={tableFilters} />
+                      NCC <ColF col="impVendor" tableFilters={tableFilters} />
                     </div>
                   </th>
-                  <th className={TH2}>Spec HĐ</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Spec HĐ
+                    <ColF col="impSpec" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>KL HĐ</th>
-                  <th className={TH2}>Ngày ký</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Ngày ký
+                    <ColF col="impSignDate" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>Handover Q.Ty</th>
                   <th className={TH2}>Handover Weight</th>
-                  <th className={TH2}>Đơn giá (USD)</th>
-                  <th className={TH2}>Total HĐ</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Đơn giá (USD)
+                    <ColF col="impUnitPrice" tableFilters={tableFilters} />
+                  </div>
+                </th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Total HĐ
+                    <ColF col="impTotal" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>Ngày mở L/C</th>
-                  <th className={TH2}>Cảng xuất</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Cảng xuất
+                    <ColF col="impExportPort" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>CIF Hải Phòng</th>
                   <th className={TH2}>Ngày TT</th>
                   <th className={TH2}>Hải quan</th>
-                  <th className={TH2}>Ngày hàng về</th>
+                  <th className={TH2}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    Ngày hàng về
+                    <ColF col="impArrivedDate" tableFilters={tableFilters} />
+                  </div>
+                </th>
                   <th className={TH2}>Mời QC</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* IMP purchased sub-headers */}
-              {colGroupVis.impPurchased && (
+              {colGroupVis.impPurchased ? (
                 <>
                   <th className={TH2}>Q.Ty</th>
                   <th className={TH2}>Weight</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* IMP QC sub-headers */}
-              {colGroupVis.impQC && (
+              {colGroupVis.impQC ? (
                 <>
                   <th className={TH2}>Report No</th>
                   <th className={TH2}>Insp Date</th>
                   <th className={TH2}>KL Acc</th>
                   <th className={TH2}>Result</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* Total Bought sub-headers */}
-              {colGroupVis.totalBought && (
+              {colGroupVis.totalBought ? (
                 <>
                   <th className={TH2}>Q.Ty</th>
                   <th className={TH2}>Weight</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
 
               {/* Diff sub-headers */}
-              {colGroupVis.diff && (
+              {colGroupVis.diff ? (
                 <>
                   <th className={TH2}>Diff Q.Ty</th>
                   <th className={TH2}>Diff Weight</th>
                 </>
+              ) : (
+                <th className={TH2_COLLAPSED} />
               )}
             </tr>
           </thead>
 
           <tbody>
-            {grouped.map(([code, items]) => {
+            {nhomHienThi.map(({ code, items, tong }) => {
               const sample = items[0];
               const groupName = sample.materialSubGroupName || sample.materialGroupName || code;
               return (
@@ -796,12 +940,18 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                   <tr>
                     <td
                       colSpan={100}
-                      className="bg-[#dbeafe] border border-slate-400 px-3 py-1 text-[10px] font-black text-[#1B365D] sticky left-0"
+                      className="bg-[#dbeafe] border border-slate-400 py-1 text-[10px] font-black text-[#1B365D]"
                     >
-                      {code} — {groupName}
-                      <span className="ml-3 text-[9px] font-normal text-slate-500">
-                        ({items.length} mã vật tư)
-                      </span>
+                      {/* 15/08/2026 — dính phải đặt ở LỚP CON, không phải ở ô.
+                          Ô này rộng bằng cả bảng (4.009px) nên `sticky left-0` trên chính nó
+                          vô tác dụng: nó trôi đi cùng nội dung, cuộn ngang là mất tên nhóm.
+                          Cho lớp con dính thì nhãn đứng yên ở mép trái suốt lúc cuộn. */}
+                      <div className="sticky left-0 inline-block px-3">
+                        {code} — {groupName}
+                        <span className="ml-3 text-[9px] font-normal text-slate-500">
+                          ({tong} mã vật tư)
+                        </span>
+                      </div>
                     </td>
                   </tr>
 
@@ -839,7 +989,9 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                     const domI1 = domInsp[0];
                     const impI1 = impInsp[0];
 
-                    const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40';
+                    // 15/08/2026 — nền phải ĐỤC 100%. Bản cũ dùng bg-slate-50/40 (đục 40%)
+                    // nên ba ô dính ở dòng lẻ để lộ nội dung cuộn phía sau ⇒ chữ chồng chữ.
+                    const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
 
                     // Suppress unused variable warning for domTotalVAT which is used indirectly
                     void domTotalVAT;
@@ -849,7 +1001,7 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                         {/* Dự án — sticky đầu tiên */}
                         <td
                           className={`${TD_TEXT} sticky z-10 ${rowBg} text-[8px] font-bold text-[#1B365D]`}
-                          style={{ left: STICKY_LEFT.project }}
+                          style={pin('project')}
                           title={pr.pr?.project?.name ?? ''}
                         >
                           <div className="truncate max-w-[88px]">
@@ -860,16 +1012,40 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                         {/* Item/STT */}
                         <td
                           className={`${TD_TEXT} sticky z-10 ${rowBg} font-mono font-bold text-[#1B365D]`}
-                          style={{ left: STICKY_LEFT.item }}
+                          style={pin('item')}
                           title={pr.itemCode}
                         >
-                          <div className="truncate max-w-[78px]">{pr.itemCode}</div>
+                          {/* M-02 — 15/08/2026: lối vào 1b và 1c ngay trên dòng vật tư.
+                              Trước đây hai trang phụ chỉ vào được bằng cách gõ tay `?prId=`
+                              vào thanh địa chỉ: chúng bảo "mở trang này từ màn hình PR"
+                              nhưng màn hình PR không có đường nào dẫn tới. */}
+                          <div className="flex items-center gap-1">
+                            <div className="truncate max-w-[80px] flex-1">{pr.itemCode}</div>
+                            {pr.pr?.id && (
+                              <>
+                                <Link
+                                  href={`/kiem-tra-ton-kho?prId=${pr.pr.id}`}
+                                  title={`Đối chiếu tồn kho cho phiếu ${pr.pr.prRef ?? ''}`}
+                                  className="shrink-0 w-[14px] h-[14px] inline-flex items-center justify-center text-slate-400 hover:text-[#1B365D] transition-colors overflow-hidden"
+                                >
+                                  <span className="material-symbols-outlined text-[13px] leading-none">inventory_2</span>
+                                </Link>
+                                <Link
+                                  href={`/lam-ro-ky-thuat?prId=${pr.pr.id}`}
+                                  title={`Làm rõ kỹ thuật cho phiếu ${pr.pr.prRef ?? ''}`}
+                                  className="shrink-0 w-[14px] h-[14px] inline-flex items-center justify-center text-slate-400 hover:text-[#1B365D] transition-colors overflow-hidden"
+                                >
+                                  <span className="material-symbols-outlined text-[13px] leading-none">engineering</span>
+                                </Link>
+                              </>
+                            )}
+                          </div>
                         </td>
 
                         {/* Description */}
                         <td
                           className={`${TD_TEXT} sticky z-10 ${rowBg}`}
-                          style={{ left: STICKY_LEFT.desc }}
+                          style={pin('desc')}
                           title={pr.itemName}
                         >
                           <div className="truncate max-w-[170px]">{pr.itemName}</div>
@@ -903,33 +1079,18 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                           <td className={TD_PLACEHOLDER} />
                         )}
 
-                        {/* ── REVs group ── */}
-                        {colGroupVis.revs ? (
-                          (() => {
-                            const projectCode = pr.pr?.project?.code ?? '';
-                            const visIndices = getRevIndices(projectCode);
-                            const allIndices = Array.from({ length: REV_COUNT }, (_, i) => i);
-                            return (
-                              <>
-                                {allIndices.map((i) =>
-                                  visIndices.includes(i) ? (
-                                    <React.Fragment key={`rev${i}`}>
-                                      <td className={`${TD} text-slate-300`}>—</td>
-                                      <td className={`${TD} text-slate-300`}>—</td>
-                                    </React.Fragment>
-                                  ) : (
-                                    <React.Fragment key={`rev${i}`}>
-                                      <td className={`${TD_PLACEHOLDER} opacity-30`} />
-                                      <td className={`${TD_PLACEHOLDER} opacity-30`} />
-                                    </React.Fragment>
-                                  )
-                                )}
-                              </>
-                            );
-                          })()
-                        ) : (
-                          <td className={TD_PLACEHOLDER} />
-                        )}
+                        {/* ── REV: dòng này thuộc phiên bản nào của phiếu ── */}
+                        {(() => {
+                          const rev = pr.pr?.revNo;
+                          return (
+                            <td
+                              className={`${TD} text-[8px] ${rev == null ? 'text-slate-300' : 'text-[#37547a] font-bold'}`}
+                              title={pr.pr?.prRef ?? ''}
+                            >
+                              {rev == null ? '—' : rev === 0 ? 'gốc' : `R${rev}`}
+                            </td>
+                          );
+                        })()}
 
                         {/* ── Total Ordered group ── */}
                         {colGroupVis.totalOrdered ? (
@@ -989,7 +1150,12 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                               className={`${TD_TEXT} font-mono text-emerald-700`}
                               title={dom1?.contractNo || ''}
                             >
-                              <div className="truncate max-w-[100px]">{dom1?.contractNo || ''}</div>
+                              {dom1?.contractNo ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="truncate max-w-[92px] flex-1">{dom1.contractNo}</div>
+                                  <NutHopDong soHD={dom1.contractNo} />
+                                </div>
+                              ) : null}
                             </td>
                             <td
                               className={`${TD_TEXT} font-bold text-emerald-700`}
@@ -1068,7 +1234,12 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                               className={`${TD_TEXT} font-mono text-indigo-700`}
                               title={imp1?.contractNo || ''}
                             >
-                              <div className="truncate max-w-[100px]">{imp1?.contractNo || ''}</div>
+                              {imp1?.contractNo ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="truncate max-w-[92px] flex-1">{imp1.contractNo}</div>
+                                  <NutHopDong soHD={imp1.contractNo} />
+                                </div>
+                              ) : null}
                             </td>
                             <td
                               className={`${TD_TEXT} font-bold text-indigo-700`}
@@ -1197,6 +1368,19 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters, showAllRevs 
                 </React.Fragment>
               );
             })}
+
+            {/* Dòng chân — chỉ hiện khi còn dòng chưa dựng */}
+            {conNua && (
+              <tr>
+                <td colSpan={100} className="border border-slate-300 bg-slate-50 py-2">
+                  <div className="sticky left-0 inline-flex items-center gap-2 px-3 text-[10px] text-slate-500">
+                    <span className="material-symbols-outlined text-[13px] animate-pulse">expand_more</span>
+                    Đang hiện {daHien.toLocaleString('vi-VN')} / {tongDong.toLocaleString('vi-VN')} dòng
+                    — cuộn tiếp để tải thêm
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

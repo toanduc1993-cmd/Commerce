@@ -11,6 +11,7 @@ import {
   type InventoryCheckResult,
   type StockImportRow,
 } from '@/lib/api';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { PurchaseHistoryPanel } from '@/components/PurchaseHistoryPanel';
 
 type SubTab = 'import' | 'compare';
@@ -233,9 +234,17 @@ export default function KiemTraTonKhoPage() {
   const notFoundInPR = matchPreview.filter((r) => r.matchStatus === 'NOT_FOUND').length;
 
   return (
-    <div className="min-h-screen bg-[var(--color-background,#f8f9ff)]">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-5">
+    // 15/08/2026 — khung chuẩn giống /mua-hang và /duyet:
+    //   · có thanh menu (M-01). Trước đây trang này không dựng Sidebar nên bấm vào từ menu
+    //     là mất sạch điều hướng, không có đường quay lại ngoài nút Back của trình duyệt.
+    //   · cột dọc h-screen overflow-hidden, đầu trang shrink-0, CHỈ vùng nội dung cuộn (M-05).
+    //     Trước đây cả trang dài 23.349px nên cuộn tới dòng cần nhập là mất tiêu đề bảng,
+    //     mất thẻ tổng kết và mất luôn nút Lưu phân bổ tồn (M-03).
+    <div className="flex min-h-screen bg-[#f4f6fb]">
+      <Sidebar />
+      <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
+      {/* Header — đứng yên, không cuộn theo */}
+      <div className="bg-white border-b border-slate-200 px-8 py-5 shrink-0">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 text-caption text-slate-400 mb-1">
@@ -302,6 +311,8 @@ export default function KiemTraTonKhoPage() {
         </div>
       </div>
 
+      {/* ── Vùng cuộn: chỉ phần này cuộn, đầu trang đứng yên ── */}
+      <div className="flex-1 overflow-auto min-h-0">
       {/* Alerts */}
       {error && (
         <div className="mx-8 mt-4 p-3 bg-red-50 rounded-lg text-red-600 text-body flex items-center gap-2">
@@ -459,24 +470,29 @@ export default function KiemTraTonKhoPage() {
                 </div>
               )}
 
-              {/* Import result */}
-              {importStatus === 'confirmed' && importResult && (
-                <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
-                  <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-                    <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                    Nhập tồn kho thành công
-                  </div>
-                  <div className="text-caption text-emerald-600 space-y-1">
-                    <div>Đã nhập: {importResult.upserted} mã • Lỗi: {importResult.errors} mã</div>
-                    {importResult.matchSummary && (
-                      <div>Khớp với PR: {importResult.matchSummary.exact} đủ tồn · {importResult.matchSummary.partial} một phần · {importResult.matchSummary.none} không có</div>
-                    )}
-                  </div>
-                  <button onClick={() => setTab('compare')} className="text-body text-emerald-700 underline">
-                    Xem bảng đối chiếu →
-                  </button>
-                </div>
-              )}
+            </div>
+          )}
+
+          {/* Import result — 15/08/2026: khối này TRƯỚC ĐÂY nằm bên trong bọc
+              `importFile && importStatus !== \'confirmed\'` ở trên, nên điều kiện
+              `importStatus === \'confirmed\'` vĩnh viễn sai và người dùng nhập file xong
+              không bao giờ nhận được xác nhận. Đưa ra ngoài bọc thì nó chạy đúng lúc.
+              (M-08 · TS2367) */}
+          {importStatus === 'confirmed' && importResult && (
+            <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                Nhập tồn kho thành công
+              </div>
+              <div className="text-caption text-emerald-600 space-y-1">
+                <div>Đã nhập: {importResult.upserted} mã • Lỗi: {importResult.errors} mã</div>
+                {importResult.matchSummary && (
+                  <div>Khớp với PR: {importResult.matchSummary.exact} đủ tồn · {importResult.matchSummary.partial} một phần · {importResult.matchSummary.none} không có</div>
+                )}
+              </div>
+              <button onClick={() => setTab('compare')} className="text-body text-emerald-700 underline">
+                Xem bảng đối chiếu →
+              </button>
             </div>
           )}
         </div>
@@ -500,14 +516,22 @@ export default function KiemTraTonKhoPage() {
             </div>
           )}
 
+            {/* M-03 + M-06 — 15/08/2026: bỏ khung cuộn riêng của bảng.
+                Trước đây bảng nằm trong `overflow-x-auto` nên nó tự thành một khung cuộn,
+                và `sticky` trên tiêu đề bám vào khung đó chứ không bám vào vùng cuộn của
+                trang ⇒ cuộn xuống là mất tên cột. Giờ để vùng cuộn chung lo cả hai chiều:
+                tiêu đề dính đỉnh, và ở màn 1280 bảng cuộn ngang trong chính vùng đó. 
+                Bảng cũng thu lại cho vừa màn 1280: đệm px-3 → px-2, tiêu đề được
+                xuống dòng, và ba cột chữ dài (Tên vật tư · Quy cách · Mác) bị chặn
+                bề rộng — cắt bớt nhưng giữ đủ chữ ở thuộc tính title khi rê chuột. */}
           {checkResult && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-xl border border-slate-200">
+              <div>
                 <table className="w-full text-caption">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_var(--color-border,#e2e8f0)]">
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-500">
                       {['Mã vật tư', 'Tên vật tư', 'Quy cách', 'Mác', 'ĐVT', 'SL yêu cầu', 'Tồn khả dụng', 'Dùng từ tồn', 'Cần mua', 'Tồn / Yêu cầu', 'Trạng thái', 'Hành động'].map((h) => (
-                        <th key={h} className="px-3 py-2.5 text-left font-medium whitespace-nowrap">{h}</th>
+                        <th key={h} className="px-2 py-2.5 text-left font-medium leading-tight">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -518,16 +542,16 @@ export default function KiemTraTonKhoPage() {
                       const avail = row.inventory?.availableQty ?? 0;
                       return (
                         <tr key={row.prDetailId} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-3 py-2 font-medium text-slate-800">{row.itemCode}</td>
-                          <td className="px-3 py-2 text-slate-600 max-w-[160px] truncate" title={row.itemName}>{row.itemName}</td>
-                          <td className="px-3 py-2 text-slate-500">{row.profile || '—'}</td>
-                          <td className="px-3 py-2 text-slate-500">{row.grade || '—'}</td>
-                          <td className="px-3 py-2 text-slate-500">{row.uom}</td>
-                          <td className="px-3 py-2 text-right tabular-nums font-medium">{row.reqQty.toLocaleString('vi-VN', { maximumFractionDigits: 3 })}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">
+                          <td className="px-2 py-2 font-medium text-slate-800">{row.itemCode}</td>
+                          <td className="px-2 py-2 text-slate-600 max-w-[150px] truncate" title={row.itemName}>{row.itemName}</td>
+                          <td className="px-2 py-2 text-slate-500 max-w-[110px] truncate" title={row.profile || ''}>{row.profile || '—'}</td>
+                          <td className="px-2 py-2 text-slate-500 max-w-[90px] truncate" title={row.grade || ''}>{row.grade || '—'}</td>
+                          <td className="px-2 py-2 text-slate-500">{row.uom}</td>
+                          <td className="px-2 py-2 text-right tabular-nums font-medium">{row.reqQty.toLocaleString('vi-VN', { maximumFractionDigits: 3 })}</td>
+                          <td className="px-2 py-2 text-right tabular-nums">
                             {avail > 0 ? <span className="text-emerald-600 font-medium">{avail.toLocaleString('vi-VN', { maximumFractionDigits: 3 })}</span> : <span className="text-slate-300">0</span>}
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-2 py-2">
                             <input
                               type="number"
                               min={0}
@@ -542,16 +566,16 @@ export default function KiemTraTonKhoPage() {
                               disabled={avail === 0}
                             />
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--color-brand,#002046)]">
+                          <td className="px-2 py-2 text-right tabular-nums font-semibold text-[var(--color-brand,#002046)]">
                             {needToBuy.toLocaleString('vi-VN', { maximumFractionDigits: 3 })}
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-2 py-2">
                             <StockBar reqQty={row.reqQty} available={avail} />
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-2 py-2">
                             <StatusBadge status={row.stockStatus} />
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-2 py-2">
                             <button
                               onClick={() => setHistoryPanel({ itemCode: row.itemCode, itemName: row.itemName })}
                               className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-[var(--color-brand)] transition-colors"
@@ -571,6 +595,8 @@ export default function KiemTraTonKhoPage() {
         </div>
       )}
 
+      </div>{/* hết vùng cuộn */}
+
       {/* History panel */}
       {historyPanel && (
         <PurchaseHistoryPanel
@@ -579,6 +605,7 @@ export default function KiemTraTonKhoPage() {
           onClose={() => setHistoryPanel(null)}
         />
       )}
+      </div>
     </div>
   );
 }
