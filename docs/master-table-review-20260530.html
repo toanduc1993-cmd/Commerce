@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review MasterTrackingTable — Đề xuất hiệu chỉnh</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: #f4f6fb; color: #1a1a2e; line-height: 1.5; }
+
+  /* Layout */
+  .page { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 900; color: #1B365D; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 12px; margin-bottom: 32px; }
+
+  /* Section */
+  .section { background: white; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; overflow: hidden; }
+  .section-header { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
+  .section-header h2 { font-size: 14px; font-weight: 800; color: #1B365D; }
+  .section-body { padding: 20px; }
+
+  /* Badge */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-purple { background: #ede9fe; color: #5b21b6; }
+  .badge-slate { background: #f1f5f9; color: #475569; }
+
+  /* Issue table */
+  .issue-grid { display: grid; gap: 12px; }
+  .issue-row { display: grid; grid-template-columns: 200px 1fr 1fr; gap: 16px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; align-items: start; }
+  .issue-row:hover { border-color: #94a3b8; }
+  .issue-label { font-size: 11px; font-weight: 700; color: #1B365D; }
+  .issue-desc { font-size: 12px; color: #475569; }
+  .issue-fix { font-size: 12px; color: #065f46; background: #f0fdf4; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #22c55e; }
+
+  /* Column map */
+  .col-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .col-table th { background: #1B365D; color: white; padding: 6px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .col-table td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .col-table tr:hover td { background: #f8fafc; }
+  .col-table .group-row td { background: #1e40af; color: white; font-weight: 800; font-size: 11px; }
+  .col-table .merged td { background: #fef3c7; }
+  .col-table .removed td { background: #fee2e2; text-decoration: line-through; color: #991b1b; }
+  .col-table .kept td { background: #f0fdf4; }
+
+  /* Preview table */
+  .preview-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 12px; }
+  .preview-table { border-collapse: collapse; font-size: 9px; white-space: nowrap; }
+  .preview-table th, .preview-table td { border: 1px solid #cbd5e1; padding: 3px 6px; text-align: center; }
+  .preview-table .sticky-col { background: #f8fafc; font-weight: 700; position: sticky; }
+  .preview-table .g-eval { background: #7a5c2e; color: white; }
+  .preview-table .g-item { background: #1B365D; color: white; }
+  .preview-table .g-net { background: #1e4976; color: white; }
+  .preview-table .g-rev { background: #37547a; color: white; }
+  .preview-table .g-total { background: #0d2b4e; color: white; }
+  .preview-table .g-remain { background: #5b21b6; color: white; }
+  .preview-table .g-tobuy { background: #7c3aed; color: white; }
+  .preview-table .g-dom { background: #047857; color: white; }
+  .preview-table .g-domqc { background: #0d9488; color: white; }
+  .preview-table .g-imp { background: #1d3f6b; color: white; }
+  .preview-table .g-impqc { background: #5b21b6; color: white; }
+  .preview-table .g-bought { background: #0d2b4e; color: white; }
+  .preview-table .g-diff { background: #7c2d12; color: white; }
+  .preview-table .g-collapse { background: #e2e8f0; cursor: pointer; width: 12px; min-width: 12px; }
+  .preview-table .sub { background: #2a5298; color: white; font-size: 8px; }
+  .preview-table .data-row td { font-size: 8.5px; }
+  .preview-table .data-row td.eval-ok { background: #d1fae5; color: #065f46; font-weight: 700; }
+  .preview-table .data-row td.eval-bad { background: #fee2e2; color: #991b1b; font-weight: 700; }
+  .preview-table .data-row td.proj { color: #1B365D; font-weight: 700; }
+
+  /* Freeze fix diagram */
+  .sticky-diagram { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; margin-top: 12px; }
+  .sticky-cell { padding: 8px; border-radius: 6px; font-size: 10px; text-align: center; }
+  .sticky-cell.fixed { background: #1B365D; color: white; font-weight: 700; }
+  .sticky-cell.normal { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  .sticky-cell.broken { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .sticky-cell .w-label { font-size: 9px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+  .sticky-cell.fixed .w-label { color: rgba(255,255,255,0.7); }
+  .sticky-cell.normal .w-label, .sticky-cell.broken .w-label { color: #94a3b8; }
+
+  /* Accordion preview */
+  details { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; }
+  summary { padding: 10px 16px; cursor: pointer; font-weight: 700; font-size: 12px; background: #f8fafc; border-radius: 8px; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '▶'; font-size: 10px; color: #94a3b8; transition: transform 0.2s; }
+  details[open] summary { border-radius: 8px 8px 0 0; border-bottom: 1px solid #e2e8f0; }
+  details[open] summary::after { transform: rotate(90deg); }
+  details .detail-body { padding: 16px; }
+
+  /* Rev dropdown mockup */
+  .rev-dropdown { background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 32px rgba(0,0,0,0.12); padding: 8px 0; width: 220px; }
+  .rev-item { padding: 8px 14px; font-size: 11px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .rev-item:hover { background: #f8fafc; }
+  .rev-item.active { background: #dbeafe; color: #1e40af; font-weight: 700; }
+  .rev-item .rev-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; flex-shrink: 0; }
+  .rev-item.active .rev-dot { background: #1e40af; }
+  .rev-section-label { padding: 4px 14px 2px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; border-top: 1px solid #f1f5f9; }
+
+  /* Code block */
+  .code { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 14px 16px; font-family: 'Fira Code', 'Courier New', monospace; font-size: 11px; overflow-x: auto; margin: 8px 0; line-height: 1.6; }
+  .code .comment { color: #64748b; }
+  .code .key { color: #7dd3fc; }
+  .code .val { color: #86efac; }
+  .code .type { color: #f9a8d4; }
+
+  /* Step indicator */
+  .steps { display: flex; gap: 0; margin: 16px 0; }
+  .step { flex: 1; padding: 10px 14px; background: #f1f5f9; border-right: 2px solid white; font-size: 11px; }
+  .step:first-child { border-radius: 8px 0 0 8px; }
+  .step:last-child { border-radius: 0 8px 8px 0; border-right: none; }
+  .step.active { background: #1B365D; color: white; }
+  .step-num { font-size: 9px; opacity: 0.7; margin-bottom: 2px; }
+  .step-label { font-weight: 700; }
+
+  /* TOC */
+  .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 28px; }
+  .toc-item { padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; transition: all 0.15s; }
+  .toc-item:hover { border-color: #1B365D; background: #f0f7ff; }
+  .toc-num { width: 28px; height: 28px; background: #1B365D; color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; flex-shrink: 0; }
+  .toc-text h3 { font-size: 12px; font-weight: 800; color: #1B365D; }
+  .toc-text p { font-size: 11px; color: #64748b; margin-top: 1px; }
+
+  .note { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #78350f; margin: 12px 0; }
+  .note strong { font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>📋 Review MasterTrackingTable — Đề xuất hiệu chỉnh</h1>
+  <div class="subtitle">Ngày review: 2026-05-30 · Scope: 4 vấn đề · Cần xác nhận trước khi code</div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <a href="#issue1" class="toc-item">
+      <div class="toc-num">1</div>
+      <div class="toc-text">
+        <h3>Gộp cột trùng thông tin</h3>
+        <p>Đánh giá đầu/cuối · Profile HĐ · BG sản xuất · Handover</p>
+      </div>
+    </a>
+    <a href="#issue2" class="toc-item">
+      <div class="toc-num">2</div>
+      <div class="toc-text">
+        <h3>Group mặc định gom lại</h3>
+        <p>Default colGroupVis = false cho DOM/IMP/REV/QC</p>
+      </div>
+    </a>
+    <a href="#issue3" class="toc-item">
+      <div class="toc-num">3</div>
+      <div class="toc-text">
+        <h3>REV dropdown theo dự án</h3>
+        <p>Chọn lần REV cụ thể · REV 0 = baseline · Tất cả REV</p>
+      </div>
+    </a>
+    <a href="#issue4" class="toc-item">
+      <div class="toc-num">4</div>
+      <div class="toc-text">
+        <h3>Freeze columns bị lệch</h3>
+        <p>left-* offset sai khi group ẩn · Giải pháp CSS var</p>
+      </div>
+    </a>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- ISSUE 1: GỘP CỘT TRÙNG -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section" id="issue1">
+    <div class="section-header">
+      <span class="badge badge-red">Vấn đề 1</span>
+      <h2>Gộp cột trùng thông tin</h2>
+    </div>
+    <div class="section-body">
+
+      <p style="color:#475569; margin-bottom:16px;">Phân tích các cột có nội dung trùng hoặc có thể gộp để giảm chiều ngang bảng:</p>
+
+      <table class="col-table">
+        <thead>
+          <tr>
+            <th>Cột hiện tại</th>
+            <th>Vị trí</th>
+            <th>Vấn đề</th>
+            <th>Đề xuất</th>
+            <th>Tiết kiệm</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Group: Eval -->
+          <tr class="group-row"><td colspan="5">A. NHÓM ĐÁNH GIÁ (Eval)</td></tr>
+          <tr class="merged">
+            <td><strong>Đánh giá (Đầu)</strong></td>
+            <td>Cột 1 — sticky left-0</td>
+            <td>100% giống hệt "Đánh giá (Cuối)" — tính cùng 1 logic <code>diffQty</code></td>
+            <td><span class="badge badge-red">Xóa cột Đánh giá (Đầu)</span> — chỉ giữ Đánh giá (Cuối) ở cuối. Hoặc gộp thành cột "KQ" sticky đầu hiển thị icon ✓/✗/—</td>
+            <td>−64px width</td>
+          </tr>
+
+          <!-- Group: Item -->
+          <tr class="group-row"><td colspan="5">B. NHÓM ITEM INFO</td></tr>
+          <tr class="kept">
+            <td><strong>Dự án / Item / Description / Profile / Grade / Unit / U.Weight</strong></td>
+            <td>Sticky cols</td>
+            <td>Không trùng — giữ nguyên</td>
+            <td><span class="badge badge-green">Giữ nguyên</span></td>
+            <td>—</td>
+          </tr>
+
+          <!-- Group: Net + Total -->
+          <tr class="group-row"><td colspan="5">C–E. NET QTY + REVS + TOTAL ORDERED</td></tr>
+          <tr class="merged">
+            <td><strong>Total Ordered Q.Ty</strong></td>
+            <td>Nhóm E</td>
+            <td>"Total Ordered Q.Ty" = reqQty (field DB). "Net Q.Ty" (netQty) = số lượng sau điều chỉnh kỹ thuật. Hai con số gần nhau nhưng khác nhau về ý nghĩa — không nên gộp.</td>
+            <td><span class="badge badge-slate">Giữ — đổi label rõ hơn:</span> "Net Q.Ty" = Q.Ty tinh; "PR Q.Ty" = Q.Ty đặt mua</td>
+            <td>—</td>
+          </tr>
+          <tr class="merged">
+            <td><strong>Remarks (giữa)</strong> + <strong>Remarks (Cuối)</strong></td>
+            <td>Sau nhóm E · Cuối bảng</td>
+            <td>2 cột Remarks — cột cuối hiện đang hiển thị tổng tiền, không phải remarks</td>
+            <td><span class="badge badge-amber">Gộp thành 1 cột</span> "Remarks" sau Total Ordered. Cột cuối đổi thành "Tổng tiền" (fmtMoney) thay vì dùng tên Remarks</td>
+            <td>−80px width</td>
+          </tr>
+
+          <!-- Group: Remain -->
+          <tr class="group-row"><td colspan="5">F. TẬN DỤNG TỒN KHO (Remain Stock)</td></tr>
+          <tr class="merged">
+            <td><strong>Report No</strong> (cột 1 nhóm Remain)</td>
+            <td>Sub-header "Report No"</td>
+            <td>Nhóm Remain có "Report No" — nhưng data hiện tại trống (schema chưa có). Tên không rõ nghĩa trong ngữ cảnh "tận dụng tồn kho"</td>
+            <td><span class="badge badge-amber">Đổi label</span> "Kho No" (số kho/batch tận dụng). Giữ cột.</td>
+            <td>—</td>
+          </tr>
+
+          <!-- Group: DOM -->
+          <tr class="group-row"><td colspan="5">H. DOM CONTRACT (13 cột)</td></tr>
+          <tr class="merged">
+            <td><strong>Profile HĐ</strong> + <strong>Grade HĐ</strong></td>
+            <td>DOM sub-cols 3–4</td>
+            <td>Profile HĐ và Grade HĐ thường = Profile/Grade PR (copy từ PR khi ký HĐ). Chỉ khác khi vendor thay thế spec → cần hiện nhưng thường rỗng</td>
+            <td><span class="badge badge-amber">Gộp thành 1 cột</span> "Spec HĐ" hiển thị <code>profile + ' / ' + grade</code> truncate. Tiết kiệm 1 col.</td>
+            <td>−1 col</td>
+          </tr>
+          <tr class="merged">
+            <td><strong>Tổng cả VAT</strong> + <strong>Tổng chưa VAT</strong> + <strong>%VAT</strong></td>
+            <td>DOM sub-cols 10–12</td>
+            <td>3 cột liên quan VAT chiếm nhiều không gian. Với procurement tracking, con số chính là "Tổng chưa VAT". %VAT thường cố định 8% hay 10%.</td>
+            <td><span class="badge badge-amber">Rút xuống 2 cột:</span> "Tổng HĐ (NoVAT)" + "% VAT". Bỏ "Tổng cả VAT" — tính ngầm = NoVAT × (1+%VAT)</td>
+            <td>−1 col</td>
+          </tr>
+          <tr class="merged">
+            <td><strong>BG sản xuất (DOM)</strong></td>
+            <td>DOM col 13</td>
+            <td>"BG sản xuất" = ngày bàn giao cho sản xuất. Trùng ý nghĩa với "Material Available Date" (cột riêng rowSpan=2 sau nhóm KL mua)</td>
+            <td><span class="badge badge-red">Xóa "BG sản xuất" trong DOM</span> — dùng "Material Available Date" làm trường chung. Tương tự xóa BG sản xuất trong IMP (18 cols → 17 cols)</td>
+            <td>−2 col (DOM+IMP)</td>
+          </tr>
+
+          <!-- Group: IMP -->
+          <tr class="group-row"><td colspan="5">J. IMP CONTRACT (18 cột)</td></tr>
+          <tr class="merged">
+            <td><strong>Profile HĐ + Grade HĐ</strong></td>
+            <td>IMP sub-cols 3–4</td>
+            <td>Như DOM — gộp thành "Spec HĐ"</td>
+            <td><span class="badge badge-amber">Gộp thành "Spec HĐ"</span></td>
+            <td>−1 col</td>
+          </tr>
+          <tr class="merged">
+            <td><strong>Handover Q.Ty + Handover Weight</strong> (DOM &amp; IMP)</td>
+            <td>DOM col 7–8 · IMP col 7–8</td>
+            <td>Handover Q.Ty/Weight = số lượng bàn giao theo HĐ (kế hoạch). "Đã mua" (nhóm I/K) = số thực giao. Hiện bảng có cả 2 → trùng khi vendor giao đúng HĐ</td>
+            <td><span class="badge badge-slate">Giữ cả 2</span> nhưng rename: "Kế hoạch Q.Ty/KL" và "Thực nhận Q.Ty/KL" trong nhóm "Đã mua". Phân biệt rõ hơn.</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note" style="margin-top:16px;">
+        <strong>Tóm tắt tiết kiệm:</strong> Xóa Đánh giá (Đầu) (−1 col) · Gộp Remarks (−1 col) · Gộp Profile+Grade HĐ DOM+IMP (−2 col) · Gộp VAT cols DOM (−1 col) · Xóa BG sản xuất DOM+IMP (−2 col) = <strong>−7 cột</strong>, từ ~119 → ~112 cột.
+      </div>
+
+      <!-- Preview after merge -->
+      <details style="margin-top:16px;">
+        <summary>Xem preview header sau khi gộp</summary>
+        <div class="detail-body">
+          <div class="preview-wrap">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th class="g-item" rowspan="2" style="position:sticky;left:0;z-index:10">KQ</th>
+                  <th class="g-item" rowspan="2" style="position:sticky;left:32px;z-index:10">Dự án</th>
+                  <th class="g-item" rowspan="2" style="position:sticky;left:128px;z-index:10">Item/STT</th>
+                  <th class="g-item" rowspan="2" style="position:sticky;left:208px;z-index:10">Description</th>
+                  <th class="g-item" rowspan="2">Profile</th>
+                  <th class="g-item" rowspan="2">Grade</th>
+                  <th class="g-item" rowspan="2">Unit</th>
+                  <th class="g-item" rowspan="2">U.Weight</th>
+                  <th class="g-net" colspan="2">Net Qty</th>
+                  <th class="g-rev" colspan="3" style="background:#37547a">REV lần 0→N ▼</th>
+                  <th class="g-total" colspan="2">PR Qty</th>
+                  <th class="g-total" rowspan="2">Remarks</th>
+                  <th class="g-remain" colspan="4" style="background:#5b21b6">Tồn kho tận dụng</th>
+                  <th class="g-tobuy" colspan="2">KL mua</th>
+                  <th class="g-tobuy" rowspan="2">MAD</th>
+                  <th class="g-dom" colspan="10">DOM Contract ◀</th>
+                  <th class="g-dom" colspan="2" style="background:#059669">ĐÃ MUA DOM</th>
+                  <th class="g-domqc" colspan="4">QC DOM</th>
+                  <th class="g-imp" colspan="15">IMP Contract ◀</th>
+                  <th class="g-imp" colspan="2" style="background:#3730a3">ĐÃ MUA IMP</th>
+                  <th class="g-impqc" colspan="4">QC IMP</th>
+                  <th class="g-bought" colspan="2">TỔNG MUA</th>
+                  <th class="g-diff" colspan="2">DIFF vs PR</th>
+                  <th class="g-eval" rowspan="2">Tổng tiền</th>
+                </tr>
+                <tr>
+                  <th class="sub">Q.Ty ▼</th><th class="sub">KL(kg)</th>
+                  <th class="sub" colspan="3" style="background:#2c4a6e;font-size:8px;color:#94a3b8">← thu gọn</th>
+                  <th class="sub">Q.Ty ▼</th><th class="sub">KL(kg)</th>
+                  <th class="sub">Kho No</th><th class="sub">Q.Ty ▼</th><th class="sub">KL</th><th class="sub">Ngày</th>
+                  <th class="sub">Q.Ty ▼</th><th class="sub">KL(kg)</th>
+                  <th class="sub">Số HĐ ▼</th><th class="sub">NCC ▼</th><th class="sub">Spec HĐ</th><th class="sub">KL HĐ</th><th class="sub">Ngày ký</th><th class="sub">KH Q.Ty</th><th class="sub">KH KL</th><th class="sub">Đơn giá</th><th class="sub">NoVAT ▼</th><th class="sub">%VAT</th>
+                  <th class="sub">TH Q.Ty</th><th class="sub">TH KL</th>
+                  <th class="sub">Rpt No</th><th class="sub">Ngày</th><th class="sub">KL Acc</th><th class="sub">KQ</th>
+                  <th class="sub">Số HĐ ▼</th><th class="sub">NCC ▼</th><th class="sub">Spec HĐ</th><th class="sub">KL HĐ</th><th class="sub">Ngày ký</th><th class="sub">KH Q.Ty</th><th class="sub">KH KL</th><th class="sub">USD</th><th class="sub">Total $</th><th class="sub">L/C</th><th class="sub">Cảng</th><th class="sub">CIF</th><th class="sub">TT</th><th class="sub">Hải quan</th><th class="sub">Về</th><th class="sub">Mời QC</th>
+                  <th class="sub">TH Q.Ty</th><th class="sub">TH KL</th>
+                  <th class="sub">Rpt No</th><th class="sub">Ngày</th><th class="sub">KL Acc</th><th class="sub">KQ</th>
+                  <th class="sub">Q.Ty</th><th class="sub">KL</th>
+                  <th class="sub">ΔQ.Ty</th><th class="sub">ΔKL</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="data-row">
+                  <td class="eval-ok" style="position:sticky;left:0;background:#d1fae5">✓</td>
+                  <td class="proj" style="position:sticky;left:32px;background:#f8fafc">VPI-095</td>
+                  <td style="position:sticky;left:128px;background:#f8fafc;font-family:monospace;font-weight:700;color:#1B365D">VTC01-001</td>
+                  <td style="position:sticky;left:208px;background:#f8fafc;max-width:160px;overflow:hidden;text-overflow:ellipsis">Thép tấm CT3 dày 10mm</td>
+                  <td style="font-family:monospace">PLT 10×1500×6000</td>
+                  <td style="font-family:monospace;font-weight:700;color:#1B365D">CT3</td>
+                  <td>kg</td>
+                  <td style="text-align:right">7.850</td>
+                  <td style="text-align:right">12,450</td><td style="text-align:right">97,672</td>
+                  <td colspan="3" style="background:#f8fafc;color:#94a3b8;font-size:8px;text-align:center">ẩn</td>
+                  <td style="text-align:right;font-weight:700">12,450</td><td style="text-align:right">97,672</td>
+                  <td style="color:#64748b;font-size:8px">—</td>
+                  <td colspan="4" style="background:#f8fafc;color:#94a3b8;font-size:8px;text-align:center">—</td>
+                  <td style="text-align:right;color:#7c3aed">12,450</td><td style="text-align:right;color:#7c3aed">97,672</td>
+                  <td style="text-align:center;color:#94a3b8">—</td>
+                  <td style="font-family:monospace;color:#047857">DOM-2025-001</td><td style="color:#047857;font-weight:700">Công ty Thép XYZ</td><td style="font-size:8px;font-family:monospace">PLT 10 / CT3</td><td style="text-align:right">97,672</td><td>15/01/26</td><td style="text-align:right">12,450</td><td style="text-align:right">97,672</td><td style="text-align:right">12,500</td><td style="text-align:right;color:#047857;font-weight:700">1.221 tr</td><td>8%</td>
+                  <td style="text-align:right;font-weight:700;color:#047857">12,450</td><td style="text-align:right;font-weight:700;color:#047857">97,672</td>
+                  <td colspan="4" style="background:#f8fafc;color:#94a3b8;font-size:8px;text-align:center">—</td>
+                  <td colspan="17" style="background:#f8fafc;color:#94a3b8;font-size:8px;text-align:center">ẩn</td>
+                  <td colspan="2" style="background:#f8fafc;color:#94a3b8;font-size:8px;text-align:center">ẩn</td>
+                  <td colspan="4" style="background:#f8fafc;color:#94a3b8;font-size:8px;text-align:center">—</td>
+                  <td style="text-align:right;font-weight:900;color:#0d2b4e">12,450</td><td style="text-align:right;font-weight:900;color:#0d2b4e">97,672</td>
+                  <td style="color:#22c55e;font-weight:700">0</td><td style="color:#22c55e">0</td>
+                  <td style="font-family:monospace;font-weight:700;color:#047857">1.221 tr</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:#64748b;">
+            <strong>Ghi chú:</strong> "KQ" = cột đánh giá gộp (thay Đánh giá Đầu+Cuối) · "Spec HĐ" = Profile+Grade gộp · "MAD" = Material Available Date · "KH/TH" = Kế hoạch/Thực hiện · REV group ẩn mặc định
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- ISSUE 2: GROUP MẶC ĐỊNH GOM LẠI -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section" id="issue2">
+    <div class="section-header">
+      <span class="badge badge-amber">Vấn đề 2</span>
+      <h2>Group mặc định gom lại (collapsed)</h2>
+    </div>
+    <div class="section-body">
+      <p style="color:#475569;margin-bottom:16px;">
+        Hiện tại tất cả groups đều mở (visible = true). Khi mở trang lần đầu, user thấy ~119 cột ngay lập tức → choáng ngợp. Đề xuất: các group chi tiết mặc định ẩn, chỉ hiện khi cần.
+      </p>
+
+      <table class="col-table">
+        <thead>
+          <tr>
+            <th>Group</th>
+            <th>Default mới</th>
+            <th>Lý do</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="kept"><td>Net Quantity</td><td><span class="badge badge-green">OPEN</span></td><td>Cột cơ bản — cần xem ngay</td></tr>
+          <tr class="merged"><td>REVs (lần dự trù)</td><td><span class="badge badge-red">COLLAPSED</span></td><td>Chỉ cần khi so sánh giữa các lần revise</td></tr>
+          <tr class="kept"><td>Total Ordered</td><td><span class="badge badge-green">OPEN</span></td><td>Số lượng PR cuối cùng — cần xem</td></tr>
+          <tr class="merged"><td>Tận dụng tồn kho</td><td><span class="badge badge-red">COLLAPSED</span></td><td>Chỉ cần khi phân tích tồn kho</td></tr>
+          <tr class="kept"><td>KL phải mua</td><td><span class="badge badge-green">OPEN</span></td><td>Số lượng cần mua — cần xem ngay</td></tr>
+          <tr class="merged"><td>DOM Contract (13 col)</td><td><span class="badge badge-amber">OPEN</span></td><td>Thông tin hợp đồng quan trọng, nhưng user có thể tự ẩn</td></tr>
+          <tr class="merged"><td>Đã mua DOM</td><td><span class="badge badge-amber">OPEN</span></td><td>Kết quả mua — cần xem</td></tr>
+          <tr class="merged"><td>QC DOM</td><td><span class="badge badge-red">COLLAPSED</span></td><td>Chỉ cần khi review nghiệm thu</td></tr>
+          <tr class="merged"><td>IMP Contract (18 col)</td><td><span class="badge badge-red">COLLAPSED</span></td><td>Nhiều cột nhất — chỉ mở khi cần xem import</td></tr>
+          <tr class="merged"><td>Đã mua IMP</td><td><span class="badge badge-red">COLLAPSED</span></td><td>Ẩn cùng IMP Contract</td></tr>
+          <tr class="merged"><td>QC IMP</td><td><span class="badge badge-red">COLLAPSED</span></td><td>Chỉ cần khi review nghiệm thu IMP</td></tr>
+          <tr class="kept"><td>Tổng đã mua</td><td><span class="badge badge-green">OPEN</span></td><td>KPI chính</td></tr>
+          <tr class="kept"><td>So sánh vs PR</td><td><span class="badge badge-green">OPEN</span></td><td>Diff — cần xem ngay</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note" style="margin-top:16px;">
+        <strong>Kết quả:</strong> Default view còn ~45–50 cột (từ 119) — gọn hơn 60%. User expand từng group khi cần.
+      </div>
+
+      <details style="margin-top:12px;">
+        <summary>Xem code thay đổi defaultColGroupVis</summary>
+        <div class="detail-body">
+          <div class="code">
+<span class="comment">// Trước (tất cả true)</span>
+<span class="key">const</span> defaultColGroupVis = {
+  <span class="key">netQty</span>: <span class="val">true</span>,
+  <span class="key">revs</span>: <span class="val">true</span>,       <span class="comment">// ← đổi false</span>
+  <span class="key">totalOrdered</span>: <span class="val">true</span>,
+  <span class="key">remain</span>: <span class="val">true</span>,      <span class="comment">// ← đổi false</span>
+  <span class="key">toBuy</span>: <span class="val">true</span>,
+  <span class="key">domContract</span>: <span class="val">true</span>,
+  <span class="key">domPurchased</span>: <span class="val">true</span>,
+  <span class="key">domQC</span>: <span class="val">true</span>,       <span class="comment">// ← đổi false</span>
+  <span class="key">impContract</span>: <span class="val">true</span>,   <span class="comment">// ← đổi false</span>
+  <span class="key">impPurchased</span>: <span class="val">true</span>,  <span class="comment">// ← đổi false</span>
+  <span class="key">impQC</span>: <span class="val">true</span>,       <span class="comment">// ← đổi false</span>
+  <span class="key">totalBought</span>: <span class="val">true</span>,
+  <span class="key">diff</span>: <span class="val">true</span>,
+};
+
+<span class="comment">// Sau (gom các group chi tiết)</span>
+<span class="key">const</span> defaultColGroupVis = {
+  <span class="key">netQty</span>: <span class="val">true</span>,
+  <span class="key">revs</span>: <span class="val">false</span>,      <span class="comment">// ← ẩn mặc định</span>
+  <span class="key">totalOrdered</span>: <span class="val">true</span>,
+  <span class="key">remain</span>: <span class="val">false</span>,     <span class="comment">// ← ẩn mặc định</span>
+  <span class="key">toBuy</span>: <span class="val">true</span>,
+  <span class="key">domContract</span>: <span class="val">true</span>,
+  <span class="key">domPurchased</span>: <span class="val">true</span>,
+  <span class="key">domQC</span>: <span class="val">false</span>,      <span class="comment">// ← ẩn mặc định</span>
+  <span class="key">impContract</span>: <span class="val">false</span>,  <span class="comment">// ← ẩn mặc định</span>
+  <span class="key">impPurchased</span>: <span class="val">false</span>, <span class="comment">// ← ẩn mặc định</span>
+  <span class="key">impQC</span>: <span class="val">false</span>,      <span class="comment">// ← ẩn mặc định</span>
+  <span class="key">totalBought</span>: <span class="val">true</span>,
+  <span class="key">diff</span>: <span class="val">true</span>,
+};
+          </div>
+          <p style="font-size:11px;color:#64748b;margin-top:8px;">Thay đổi chỉ 1 dòng trong MasterTrackingTable.tsx — không cần sửa logic.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- ISSUE 3: REV DROPDOWN -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section" id="issue3">
+    <div class="section-header">
+      <span class="badge badge-purple">Vấn đề 3</span>
+      <h2>REV dropdown theo dự án</h2>
+    </div>
+    <div class="section-body">
+
+      <p style="color:#475569;margin-bottom:16px;">
+        Hiện tại: toggle REV chỉ có 2 mode: "5 REV" hoặc "16 REV" (global). Cần: dropdown chọn lần REV cụ thể (REV 0, REV 1...) hoặc "Tất cả". Theo từng dự án vì mỗi dự án có số lần revise khác nhau.
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Mockup dropdown -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;">Mockup dropdown UI:</div>
+          <div>
+            <!-- Trigger button -->
+            <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#1B365D;color:white;border-radius:8px;font-size:11px;font-weight:700;margin-bottom:8px;cursor:pointer;">
+              <span style="font-family:'Material Symbols Outlined',sans-serif;font-size:14px;">layers</span>
+              REV: Tất cả
+              <span style="font-family:'Material Symbols Outlined',sans-serif;font-size:12px;">expand_more</span>
+            </div>
+            <!-- Dropdown panel -->
+            <div class="rev-dropdown">
+              <div class="rev-section-label" style="padding-top:8px;border-top:none;">Chế độ hiển thị REV</div>
+              <div class="rev-item active">
+                <div class="rev-dot"></div>
+                Tất cả REV (0 → N)
+              </div>
+              <div class="rev-item">
+                <div class="rev-dot"></div>
+                Chỉ REV mới nhất
+              </div>
+              <div class="rev-section-label">VPI-I-095 (5 lần)</div>
+              <div class="rev-item">
+                <div class="rev-dot" style="background:#1B365D;"></div>
+                REV 0 — Baseline <span style="margin-left:auto;font-size:9px;color:#94a3b8;">12,450 kg</span>
+              </div>
+              <div class="rev-item">
+                <div class="rev-dot" style="background:#1B365D;"></div>
+                REV 1 — 15/01/2026 <span style="margin-left:auto;font-size:9px;color:#94a3b8;">13,120 kg</span>
+              </div>
+              <div class="rev-item">
+                <div class="rev-dot" style="background:#1B365D;"></div>
+                REV 2 — 20/02/2026 <span style="margin-left:auto;font-size:9px;color:#94a3b8;">13,050 kg</span>
+              </div>
+              <div class="rev-section-label">VPI-I-090 (3 lần)</div>
+              <div class="rev-item">
+                <div class="rev-dot" style="background:#047857;"></div>
+                REV 0 — Baseline <span style="margin-left:auto;font-size:9px;color:#94a3b8;">8,800 kg</span>
+              </div>
+              <div class="rev-item">
+                <div class="rev-dot" style="background:#047857;"></div>
+                REV 1 — 10/02/2026 <span style="margin-left:auto;font-size:9px;color:#94a3b8;">9,200 kg</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Implementation plan -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;">Phương án triển khai:</div>
+
+          <div class="issue-grid">
+            <div class="issue-row" style="grid-template-columns:1fr;">
+              <div>
+                <div class="issue-label">State management</div>
+                <div class="issue-desc" style="margin-top:6px;">
+                  Thêm state trong <code>page.tsx</code>:
+                  <div class="code" style="margin-top:6px;">
+<span class="type">type</span> <span class="key">RevMode</span> = <span class="val">'all'</span> | <span class="val">'latest'</span> | <span class="val">number</span>;
+<span class="comment">// number = REV index (0, 1, 2...)</span>
+
+<span class="key">const</span> [selectedRev, setSelectedRev] =
+  useState&lt;<span class="key">RevMode</span>&gt;(<span class="val">'all'</span>);
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="issue-row" style="grid-template-columns:1fr;">
+              <div>
+                <div class="issue-label">Truyền xuống bảng</div>
+                <div class="issue-desc" style="margin-top:6px;">
+                  <code>MasterTrackingTable</code> nhận thêm prop <code>selectedRev</code>. Khi render REV columns:
+                  <ul style="margin-top:6px;padding-left:16px;font-size:11px;color:#475569;line-height:1.8;">
+                    <li><strong>all</strong> → hiện REV_COUNT cols như hiện tại</li>
+                    <li><strong>latest</strong> → chỉ hiện cột REV index cao nhất có data</li>
+                    <li><strong>số N</strong> → chỉ hiện cột REV N (colSpan=2 thay REV_COUNT×2)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="issue-row" style="grid-template-columns:1fr;">
+              <div>
+                <div class="issue-label">Dropdown UI</div>
+                <div class="issue-desc" style="margin-top:6px;">
+                  Đặt trong toolbar bar chính (thay nút REV:5/16 hiện tại). Nhóm theo dự án, detect số REV thực tế từ data (max revisionNo của PRs trong project đó).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="note" style="margin-top:12px;">
+            <strong>Lưu ý:</strong> Hiện tại REV data trong DB chưa có (cột luôn hiện "—"). Feature REV dropdown sẽ có hiệu quả thực tế khi import file Excel có dữ liệu revision. Đề xuất: làm UI trước, hook data sau.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- ISSUE 4: FREEZE COLUMN FIX -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section" id="issue4">
+    <div class="section-header">
+      <span class="badge badge-red">Vấn đề 4</span>
+      <h2>Freeze column bị lệch khi kéo ngang</h2>
+    </div>
+    <div class="section-body">
+
+      <p style="color:#475569;margin-bottom:16px;">
+        Root cause: CSS <code>left-*</code> là giá trị pixel cứng. Khi group bị collapse, chiều rộng thực tế thay đổi nhưng offset <code>left-*</code> của các cột sticky phía sau không cập nhật → overlap hoặc lệch vị trí.
+      </p>
+
+      <!-- Diagram: Vấn đề hiện tại -->
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;">Vấn đề: offset cứng bị sai khi group ẩn</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:2px;margin-bottom:16px;">
+        <div class="sticky-cell fixed">
+          Đánh giá<br>Eval
+          <div class="w-label">left: 0 · w-16(64px)</div>
+        </div>
+        <div class="sticky-cell fixed">
+          Dự án
+          <div class="w-label">left: 64px · w-24(96px)</div>
+        </div>
+        <div class="sticky-cell fixed">
+          Item/STT
+          <div class="w-label">left: 160px · w-20(80px)</div>
+        </div>
+        <div class="sticky-cell fixed">
+          Description
+          <div class="w-label">left: 240px · w-44(176px)</div>
+        </div>
+        <div class="sticky-cell normal">
+          Profile
+          <div class="w-label">non-sticky</div>
+        </div>
+        <div class="sticky-cell normal">
+          [các cột khác...]
+          <div class="w-label">scroll freely</div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:8px;">⚠ Khi Eval group bị ẩn (nếu có) HOẶC khi Profile/Grade không sticky nhưng bị chồng:</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:2px;margin-bottom:20px;">
+        <div class="sticky-cell broken">
+          ← GAP →<br>Bị lệch!
+          <div class="w-label">left: 64px nhưng Eval ẩn</div>
+        </div>
+        <div class="sticky-cell broken">
+          Overlap!
+          <div class="w-label">offset cũ không còn đúng</div>
+        </div>
+        <div class="sticky-cell normal" style="opacity:0.4;">...</div>
+        <div class="sticky-cell normal" style="opacity:0.4;">...</div>
+        <div class="sticky-cell normal" style="opacity:0.4;">...</div>
+        <div class="sticky-cell normal" style="opacity:0.4;">...</div>
+      </div>
+
+      <!-- Giải pháp -->
+      <div style="font-size:13px;font-weight:800;color:#1B365D;margin-bottom:12px;">Phương án khắc phục: CSS Custom Properties (--left-*)</div>
+
+      <div class="issue-grid">
+        <div class="issue-row" style="grid-template-columns: 1fr 1fr;">
+          <div>
+            <div class="issue-label" style="color:#ef4444;">❌ Cách hiện tại (CSS static)</div>
+            <div class="code" style="margin-top:8px;">
+<span class="comment">/* Hardcode — sai khi width thay đổi */</span>
+sticky left-0   <span class="comment">← Đánh giá (64px)</span>
+sticky left-16  <span class="comment">← Dự án (96px sau)</span>
+sticky left-40  <span class="comment">← Item (80px sau)</span>
+sticky left-60  <span class="comment">← Description</span>
+            </div>
+          </div>
+          <div>
+            <div class="issue-label" style="color:#22c55e;">✅ Cách mới (CSS variables tính động)</div>
+            <div class="code" style="margin-top:8px;">
+<span class="comment">// Tính offset động trong JS</span>
+<span class="key">const</span> COL_WIDTHS = {
+  eval: <span class="val">64</span>,
+  project: <span class="val">96</span>,
+  item: <span class="val">80</span>,
+  desc: <span class="val">176</span>,
+};
+<span class="key">const</span> left = {
+  eval: <span class="val">0</span>,
+  project: <span class="val">64</span>,           <span class="comment">// = eval</span>
+  item: <span class="val">64 + 96</span>,         <span class="comment">// = eval + project</span>
+  desc: <span class="val">64 + 96 + 80</span>,    <span class="comment">// = ...</span>
+};
+<span class="comment">// Truyền qua style={{ left: left.project }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;font-size:13px;font-weight:800;color:#1B365D;margin-bottom:12px;">3 phương án khắc phục — so sánh:</div>
+
+      <table class="col-table">
+        <thead>
+          <tr>
+            <th>Phương án</th>
+            <th>Mô tả</th>
+            <th>Ưu điểm</th>
+            <th>Nhược điểm</th>
+            <th>Khuyến nghị</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A — JS offset object</strong></td>
+            <td>Khai báo <code>const STICKY_OFFSETS</code> = object tính cộng dồn. Dùng <code>style={{ left: STICKY_OFFSETS.desc }}</code> thay <code>left-60</code></td>
+            <td>Đơn giản, dễ đọc, không phụ thuộc Tailwind</td>
+            <td>Offset vẫn cứng — không tự động khi width thay đổi theo content</td>
+            <td><span class="badge badge-green">Khuyến nghị</span> — phù hợp với bảng width cố định hiện tại</td>
+          </tr>
+          <tr>
+            <td><strong>B — useRef + getBoundingClientRect</strong></td>
+            <td>Gán ref cho mỗi sticky col, dùng <code>useEffect</code> để đo width thực và set <code>left</code> động</td>
+            <td>Hoàn toàn chính xác dù width thay đổi</td>
+            <td>Phức tạp hơn, cần re-measure khi window resize hoặc group toggle</td>
+            <td><span class="badge badge-slate">Dự phòng nếu A chưa đủ</span></td>
+          </tr>
+          <tr>
+            <td><strong>C — CSS subgrid / display:grid</strong></td>
+            <td>Chuyển từ <code>&lt;table&gt;</code> sang CSS Grid với sticky columns</td>
+            <td>Linh hoạt nhất về layout</td>
+            <td>Refactor lớn toàn bộ bảng — riskyy</td>
+            <td><span class="badge badge-red">Không làm</span> — quá lớn</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Phương án A chi tiết -->
+      <details style="margin-top:16px;">
+        <summary>Chi tiết Phương án A (JS offset object) — code thay đổi cụ thể</summary>
+        <div class="detail-body">
+
+          <div style="font-size:12px;font-weight:700;color:#1B365D;margin-bottom:8px;">Bước 1: Thêm STICKY_COLS constant</div>
+          <div class="code">
+<span class="comment">// Khai báo trên component — ngoài function body</span>
+<span class="key">const</span> STICKY_W = {
+  eval: <span class="val">32</span>,     <span class="comment">// w-8 = 32px (thu gọn từ 64 — chỉ còn KQ icon)</span>
+  project: <span class="val">96</span>,  <span class="comment">// w-24</span>
+  item: <span class="val">80</span>,     <span class="comment">// w-20</span>
+  desc: <span class="val">176</span>,    <span class="comment">// w-44</span>
+};
+
+<span class="comment">// Tính offset cộng dồn</span>
+<span class="key">const</span> STICKY_LEFT = {
+  eval:    <span class="val">0</span>,
+  project: STICKY_W.eval,
+  item:    STICKY_W.eval + STICKY_W.project,
+  desc:    STICKY_W.eval + STICKY_W.project + STICKY_W.item,
+};
+<span class="comment">// = { eval:0, project:32, item:128, desc:208 }</span>
+          </div>
+
+          <div style="font-size:12px;font-weight:700;color:#1B365D;margin:12px 0 8px;">Bước 2: Sửa th/td sticky dùng style thay className</div>
+          <div class="code">
+<span class="comment">/* Trước */</span>
+&lt;th className=<span class="val">"... sticky left-16 z-40 ..."</span>&gt;
+
+<span class="comment">/* Sau */</span>
+&lt;th
+  className=<span class="val">"... sticky z-40 ..."</span>
+  style={{ left: STICKY_LEFT.project }}
+&gt;
+
+<span class="comment">/* Tất cả 4 sticky cols:</span>
+<span class="comment">   eval    → style={{ left: STICKY_LEFT.eval }}    = 0</span>
+<span class="comment">   project → style={{ left: STICKY_LEFT.project }} = 32</span>
+<span class="comment">   item    → style={{ left: STICKY_LEFT.item }}    = 128</span>
+<span class="comment">   desc    → style={{ left: STICKY_LEFT.desc }}    = 208</span>
+<span class="comment">*/</span>
+          </div>
+
+          <div style="font-size:12px;font-weight:700;color:#1B365D;margin:12px 0 8px;">Bước 3: Sticky col widths cụ thể sau gộp Đánh giá</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px;">
+            <div class="sticky-cell fixed">
+              KQ<br>(gộp Eval Đầu+Cuối)
+              <div class="w-label">w: 32px · left: 0</div>
+            </div>
+            <div class="sticky-cell fixed">
+              Dự án
+              <div class="w-label">w: 96px · left: 32px</div>
+            </div>
+            <div class="sticky-cell fixed">
+              Item/STT
+              <div class="w-label">w: 80px · left: 128px</div>
+            </div>
+            <div class="sticky-cell fixed">
+              Description
+              <div class="w-label">w: 176px · left: 208px</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:#64748b;">
+            Tổng sticky width = 384px. Các cột sau scroll tự do.
+          </div>
+        </div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TỔNG KẾT -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="badge badge-blue">Tổng kết</span>
+      <h2>Thứ tự triển khai đề xuất</h2>
+    </div>
+    <div class="section-body">
+
+      <div class="steps">
+        <div class="step active">
+          <div class="step-num">Bước 1 · Ưu tiên cao</div>
+          <div class="step-label">Vấn đề 2: Default collapsed</div>
+        </div>
+        <div class="step active">
+          <div class="step-num">Bước 2 · Ưu tiên cao</div>
+          <div class="step-label">Vấn đề 4: Freeze fix (Phương án A)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">Bước 3 · Sau</div>
+          <div class="step-label">Vấn đề 1: Gộp cột</div>
+        </div>
+        <div class="step">
+          <div class="step-num">Bước 4 · Sau</div>
+          <div class="step-label">Vấn đề 3: REV dropdown</div>
+        </div>
+      </div>
+
+      <div class="note" style="margin-top:12px;">
+        <strong>Lý do thứ tự:</strong> Bước 1 chỉ 1 dòng code, impact ngay. Bước 2 cần trước vì sticky fix sẽ ảnh hưởng đến bước 3 (gộp cột → đổi sticky width). REV dropdown (bước 4) cần data thực để test đầy đủ.
+      </div>
+
+      <table class="col-table" style="margin-top:16px;">
+        <thead>
+          <tr><th>Vấn đề</th><th>File sửa</th><th>Số dòng thay đổi (ước tính)</th><th>TypeScript risk</th></tr>
+        </thead>
+        <tbody>
+          <tr class="kept"><td><strong>2</strong> — Default collapsed</td><td>MasterTrackingTable.tsx (1 chỗ)</td><td>~7 dòng</td><td><span class="badge badge-green">Không</span></td></tr>
+          <tr class="kept"><td><strong>4</strong> — Freeze fix</td><td>MasterTrackingTable.tsx</td><td>~30 dòng (replace left-* → style)</td><td><span class="badge badge-green">Thấp</span></td></tr>
+          <tr class="merged"><td><strong>1</strong> — Gộp cột</td><td>MasterTrackingTable.tsx + types</td><td>~80 dòng</td><td><span class="badge badge-amber">Trung bình</span></td></tr>
+          <tr class="merged"><td><strong>3</strong> — REV dropdown</td><td>page.tsx + MasterTrackingTable.tsx</td><td>~120 dòng</td><td><span class="badge badge-amber">Trung bình</span></td></tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <div style="text-align:center;color:#94a3b8;font-size:11px;padding:20px 0;">
+    Generated by CPVT · 2026-05-30 · Review trước khi triển khai
+  </div>
+
+</div>
+</body>
+</html>

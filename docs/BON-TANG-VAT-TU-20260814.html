@@ -1,0 +1,344 @@
+<title>Bốn Tầng Vật Tư</title>
+<style>
+:root{
+  --paper:#F5F7FB; --surface:#FFFFFF; --surface-2:#EEF2F9;
+  --rule:#DFE6F1; --rule-strong:#C3D0E4;
+  --ink:#0E1A2B; --muted:#5C6B84; --faint:#8494AC;
+  --brand:#1B365D; --brand-soft:#E7EDF7; --on-brand:#FFFFFF;
+  --info:#0D6EFD; --info-soft:#E4EDFF;
+  --ok:#198754; --ok-soft:#E2F1E9;
+  --warn:#FD7E14; --warn-soft:#FFEEDF;
+  --danger:#DC2626; --danger-soft:#FCE7E7;
+  --shadow:0 1px 2px rgba(14,26,43,.06), 0 8px 24px -12px rgba(14,26,43,.18);
+  --f-head:'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-body:'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0B1420; --surface:#121E2E; --surface-2:#182739;
+    --rule:#22334A; --rule-strong:#31465F;
+    --ink:#E4EDF8; --muted:#94A7C2; --faint:#71859F;
+    --brand:#7FA8DC; --brand-soft:#17293E; --on-brand:#0B1420;
+    --info:#5B9BFF; --info-soft:#12263F;
+    --ok:#4ADE9B; --ok-soft:#10281F;
+    --warn:#FFA94D; --warn-soft:#2E2013;
+    --danger:#FF6B6B; --danger-soft:#301618;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0B1420; --surface:#121E2E; --surface-2:#182739;
+  --rule:#22334A; --rule-strong:#31465F;
+  --ink:#E4EDF8; --muted:#94A7C2; --faint:#71859F;
+  --brand:#7FA8DC; --brand-soft:#17293E; --on-brand:#0B1420;
+  --info:#5B9BFF; --info-soft:#12263F;
+  --ok:#4ADE9B; --ok-soft:#10281F;
+  --warn:#FFA94D; --warn-soft:#2E2013;
+  --danger:#FF6B6B; --danger-soft:#301618;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px; margin:0 auto; padding:40px 24px 96px; display:flex; flex-direction:column; gap:54px}
+h1,h2,h3{font-family:var(--f-head); text-wrap:balance; margin:0; color:var(--ink)}
+h1{font-size:clamp(28px,4.4vw,42px); font-weight:800; letter-spacing:-.02em; line-height:1.1}
+h2{font-size:clamp(19px,2.4vw,24px); font-weight:700; letter-spacing:-.01em}
+h3{font-size:15px; font-weight:700}
+p{margin:0}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:.1em .38em; border-radius:3px; color:var(--ink)}
+.eyebrow{font-size:10px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); font-family:var(--f-head)}
+header{display:flex; flex-direction:column; gap:14px; padding-bottom:30px; border-bottom:2px solid var(--rule-strong)}
+.sub{color:var(--muted); max-width:66ch; font-size:15.5px}
+.meta{display:flex; flex-wrap:wrap; gap:8px 22px; font-size:12.5px; color:var(--faint); font-family:var(--f-mono)}
+section{display:flex; flex-direction:column; gap:18px}
+.shead{display:flex; flex-direction:column; gap:6px; border-left:3px solid var(--brand); padding-left:14px}
+
+/* ── bốn tầng ── */
+.layers{display:flex; flex-direction:column; gap:0; border:1px solid var(--rule); border-radius:10px; overflow:hidden; box-shadow:var(--shadow)}
+.lay{display:grid; grid-template-columns:44px minmax(150px,190px) 1fr auto; gap:14px; align-items:center; padding:15px 18px; background:var(--surface); border-bottom:1px solid var(--rule)}
+.lay:last-child{border-bottom:none}
+.lay .ln{font-family:var(--f-mono); font-size:12px; font-weight:700; width:30px; height:30px; display:grid; place-items:center; border-radius:6px; background:var(--brand); color:var(--on-brand)}
+.lay .lt{font-family:var(--f-head); font-weight:700; font-size:14.5px}
+.lay .lt small{display:block; font-family:var(--f-mono); font-size:11px; font-weight:400; color:var(--faint); margin-top:1px}
+.lay .ld{font-size:13.5px; color:var(--muted)}
+.lay .lc{font-family:var(--f-mono); font-size:12px; color:var(--faint); text-align:right; white-space:nowrap}
+
+/* ── đường đi ── */
+.path{background:var(--surface); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow); padding:18px 20px; display:flex; flex-direction:column; gap:0}
+.hop{display:grid; grid-template-columns:26px 1fr; gap:13px; padding:9px 0; border-bottom:1px dashed var(--rule); align-items:start}
+.hop:last-child{border-bottom:none}
+.hop .hn{font-family:var(--f-mono); font-size:10.5px; font-weight:700; width:22px; height:22px; display:grid; place-items:center; border-radius:5px; background:var(--surface-2); border:1px solid var(--rule-strong); color:var(--muted)}
+.hop.gate .hn{background:var(--warn-soft); border-color:var(--warn); color:var(--warn)}
+.hop.db .hn{background:var(--brand); border-color:var(--brand); color:var(--on-brand)}
+.hop .ht{font-size:13.5px}
+.hop .hf{font-family:var(--f-mono); font-size:11.5px; color:var(--faint); display:block; margin-top:2px; word-break:break-all}
+
+/* ── bảng ── */
+.tblwrap{overflow-x:auto; border:1px solid var(--rule); border-radius:9px; background:var(--surface); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; min-width:720px; font-size:13.5px}
+caption{text-align:left; padding:14px 16px 2px; font-family:var(--f-head); font-weight:700; font-size:14px}
+th,td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--rule); vertical-align:top}
+thead th{font-family:var(--f-head); font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); background:var(--surface-2); border-bottom:1px solid var(--rule-strong)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface-2)}
+td.mono{font-family:var(--f-mono); font-size:11.5px}
+.c{text-align:center; font-weight:700; font-family:var(--f-mono)}
+.y{color:var(--ok)} .n{color:var(--danger)}
+tr.gap td{background:var(--danger-soft)}
+tr.gap:hover td{background:var(--danger-soft)}
+tr.warn td{background:var(--warn-soft)}
+tr.warn:hover td{background:var(--warn-soft)}
+.verdict{font-size:12.5px; font-weight:600}
+.note{border-left:3px solid var(--tone,var(--warn)); background:var(--tone-soft,var(--warn-soft)); padding:13px 16px; border-radius:0 7px 7px 0; font-size:13.5px; display:flex; flex-direction:column; gap:5px}
+.note b{font-family:var(--f-head)}
+.orph{display:grid; grid-template-columns:1fr auto; gap:8px 14px; font-family:var(--f-mono); font-size:12.5px; padding:7px 12px; background:var(--surface-2); border-radius:6px; border-left:3px solid var(--danger)}
+.orph .sz{color:var(--faint)}
+.stack{display:flex; flex-direction:column; gap:6px}
+footer{border-top:1px solid var(--rule); padding-top:20px; font-size:12.5px; color:var(--faint); display:flex; flex-direction:column; gap:5px}
+@media (max-width:760px){ .lay{grid-template-columns:36px 1fr; gap:10px} .lay .ld,.lay .lc{grid-column:1/-1} }
+@media (max-width:640px){ .wrap{padding:28px 15px 64px; gap:40px} }
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">IBS Heavy Industry · Nền tảng Vật tư</span>
+  <h1>Bốn tầng Vật tư</h1>
+  <p class="sub">Mỗi chức năng của nền tảng phải đi qua bốn tầng mới tới được tay người dùng. Trang này chỉ ra từng chức năng đang có mặt ở tầng nào, thiếu ở tầng nào, và chỗ nào hai tầng đang giữ cùng một luật nghiệp vụ nên sẽ lệch nhau khi sửa một bên.</p>
+  <div class="meta"><span>14/08/2026</span><span>30 bảng</span><span>86 cửa API</span><span>56 hàm gọi</span><span>16 màn hình</span></div>
+</header>
+
+<section>
+  <div class="shead"><span class="eyebrow">Phần một</span><h2>Bốn tầng là gì</h2></div>
+  <div class="layers">
+    <div class="lay">
+      <span class="ln">1</span>
+      <span class="lt">Dữ liệu<small>backend/prisma/schema.prisma</small></span>
+      <span class="ld">Bảng, cột, ràng buộc duy nhất, khoá ngoại. Postgres cổng 54321.</span>
+      <span class="lc">30 bảng</span>
+    </div>
+    <div class="lay">
+      <span class="ln">2</span>
+      <span class="lt">Backend<small>backend/src/routes · controllers</small></span>
+      <span class="ld">Cửa API, luật nghiệp vụ, phân quyền. 84/86 cửa đòi thẻ đăng nhập — chỉ <code>/auth/login</code> và <code>/auth/csrf-token</code> mở.</span>
+      <span class="lc">86 cửa · 17 controller</span>
+    </div>
+    <div class="lay">
+      <span class="ln">3</span>
+      <span class="lt">Hàm gọi<small>frontend/src/lib/api.ts · hooks</small></span>
+      <span class="ld">Lớp trung gian gắn thẻ đăng nhập và thẻ CSRF, bắt lỗi 401/403, giữ phần thân lỗi để màn hình đọc chi tiết.</span>
+      <span class="lc">56 hàm · 3 hook</span>
+    </div>
+    <div class="lay">
+      <span class="ln">4</span>
+      <span class="lt">Màn hình<small>frontend/src/app · components</small></span>
+      <span class="ld">Trang, tab ngang, nút bấm. Đây là tầng duy nhất người dùng chạm được — chức năng không có mặt ở đây thì coi như không tồn tại.</span>
+      <span class="lc">16 trang</span>
+    </div>
+  </div>
+  <div class="note" style="--tone:var(--info); --tone-soft:var(--info-soft)">
+    <b>Vì sao chia đúng bốn tầng này</b>
+    <span>Bản mô tả ban đầu tách “frontend” và “UI” thành hai tầng, nhưng UI nằm bên trong frontend nên tách vậy không đo được gì. Tầng thứ ba thật sự của dự án là <b>lớp hàm gọi API</b> — và đó chính là nơi mọi lỗ hổng đang lộ ra: hàm viết xong mà không màn hình nào gọi, hoặc màn hình bỏ qua lớp này gọi thẳng xuống backend.</span>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần hai</span>
+    <h2>Một cú bấm đi xuống tới đâu</h2>
+    <p class="sub">Lấy nút “Tạo PO / HĐ” trên trang Duyệt làm ví dụ — đường đi dài nhất và có đủ mọi lớp bảo vệ.</p>
+  </div>
+  <div class="path">
+    <div class="hop"><span class="hn">1</span><span class="ht">Người dùng bấm nút. Trình xử lý hỏi xác nhận bằng hộp thoại của trình duyệt, đếm số dòng đã duyệt.<span class="hf">frontend/src/app/duyet/page.tsx:183-195</span></span></div>
+    <div class="hop"><span class="hn">2</span><span class="ht">Gọi hàm ở tầng ba. Từ đây trở đi màn hình không biết gì về đường dẫn hay tiêu đề HTTP nữa.<span class="hf">frontend/src/lib/api.ts:719 createPoFromBid</span></span></div>
+    <div class="hop gate"><span class="hn">3</span><span class="ht"><b>Lấy thẻ CSRF.</b> Có bộ nhớ đệm ở cấp mô-đun và gộp các lần gọi trùng; nếu chưa có thì gọi <code>GET /api/v1/auth/csrf-token</code>.<span class="hf">frontend/src/lib/api.ts:17 ensureCsrfToken</span></span></div>
+    <div class="hop gate"><span class="hn">4</span><span class="ht"><b>Gắn thẻ đăng nhập.</b> Đọc <code>ibshi_token</code> từ <code>localStorage</code> — chưa chuyển sang cookie HttpOnly, đây là phần chưa xong của sprint bảo mật S2-1.<span class="hf">frontend/src/lib/api.ts:53 getHeaders</span></span></div>
+    <div class="hop gate"><span class="hn">5</span><span class="ht">Đính <code>X-CSRF-Token</code> cho mọi lệnh ghi, gửi kèm <code>credentials: 'include'</code> để cookie đi cùng. Nếu nhận 403 vì thẻ hết hạn thì tự lấy thẻ mới và thử lại đúng một lần.<span class="hf">frontend/src/lib/api.ts:88-107</span></span></div>
+    <div class="hop"><span class="hn">6</span><span class="ht">Qua mạng — từ cổng 3000 sang cổng 5005. Khác cổng nên là khác nguồn gốc, phải qua CORS.<span class="hf">POST /api/v1/bid-analyses/:id/create-po</span></span></div>
+    <div class="hop gate"><span class="hn">7</span><span class="ht"><b>CORS.</b> Kiểm nguồn gốc có trong danh sách cho phép, bật <code>credentials</code>, chấp nhận tiêu đề <code>X-CSRF-Token</code>.<span class="hf">backend/src/app.js:86-95</span></span></div>
+    <div class="hop gate"><span class="hn">8</span><span class="ht"><b>Giới hạn tần suất</b> rồi <b>kiểm CSRF.</b> So thẻ trong tiêu đề với bí mật trong cookie <code>ibshi_csrf</code>. Bỏ qua ba đường: đăng nhập, xin thẻ, báo lỗi trình duyệt.<span class="hf">backend/src/app.js:208, 219 · middleware/csrfProtection.js:35</span></span></div>
+    <div class="hop gate"><span class="hn">9</span><span class="ht"><b>Kiểm thẻ đăng nhập.</b> Giải mã JWT, gắn <code>req.user</code>. Không có thẻ thì 401 ngay tại đây.<span class="hf">backend/src/middleware/authMiddleware.js:23 verifyToken</span></span></div>
+    <div class="hop"><span class="hn">10</span><span class="ht">Vào controller. Kiểm gói đã lên hợp đồng chưa (409), có dòng nào được duyệt chưa (400), rồi <b>kiểm từng dòng thiếu giá và trả 400 trước khi mở giao dịch</b>.<span class="hf">backend/src/controllers/bidAnalysisController.js:1577 · cửa chặn ở 1637-1663</span></span></div>
+    <div class="hop db"><span class="hn">11</span><span class="ht">Mở giao dịch Prisma: tạo đơn hàng, tạo dòng hợp đồng, đổi trạng thái gói, ghi nhật ký kiểm toán. Tất cả trong một giao dịch — hỏng một bước là huỷ hết.<span class="hf">Postgres 127.0.0.1:54321 · vpi_procurement</span></span></div>
+  </div>
+  <div class="note" style="--tone:var(--danger); --tone-soft:var(--danger-soft)">
+    <b>Chặng 3–5 và chặng 8 là chỗ vừa hỏng hôm nay</b>
+    <span>Cookie <code>ibshi_csrf</code> được đặt với <code>SameSite=None</code> mà thiếu <code>Secure</code>, nên Chrome vứt luôn ở chặng 3 — chặng 8 không bao giờ tìm thấy cookie để so, và mọi lệnh ghi trả 403. Safari thì vẫn nhận nên anh dùng bình thường. Đã vá một dòng, chờ khởi động lại backend. Ghi thành luật R-18.</span>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần ba · phần cần nhất</span>
+    <h2>Chức năng nào thiếu ở tầng nào</h2>
+    <p class="sub">Ba mươi hai chức năng, bốn tầng. Hàng tô đỏ là chỗ đứt — tầng dưới có năng lực mà tầng trên không dùng tới.</p>
+  </div>
+  <div class="tblwrap">
+    <table>
+      <caption>Ma trận chức năng × tầng</caption>
+      <thead><tr>
+        <th style="width:23%">Chức năng</th>
+        <th class="c" style="width:7%">Dữ liệu</th><th class="c" style="width:7%">Backend</th><th class="c" style="width:7%">Hàm gọi</th><th class="c" style="width:7%">Màn hình</th>
+        <th>Kết luận</th></tr></thead>
+      <tbody>
+        <tr><td>Đăng nhập · đổi mật khẩu</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ bốn tầng</td></tr>
+        <tr><td>Danh sách yêu cầu mua</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+        <tr class="gap"><td>Nhập yêu cầu mua từ tệp</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Chỉ hook mồ côi gọi <code>importPRFile</code></td></tr>
+        <tr><td>Kiểm tra tồn kho theo PR</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+        <tr><td>Nhập số liệu tồn kho</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · khối báo thành công là mã chết</td></tr>
+        <tr><td>Làm rõ kỹ thuật</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · thừa hàm <code>fetchTechThread</code></td></tr>
+        <tr class="gap"><td>Phân bổ chế tạo</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="c n">✗</td><td class="verdict">Đứt hai tầng. 4 cửa API chạy được, không có hàm gọi, hộp thoại mồ côi</td></tr>
+        <tr class="warn"><td>Tạo gói báo giá từ PR</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="c y">✓</td><td class="verdict">Vượt tầng — hộp thoại gọi thẳng <code>fetch</code>, bỏ qua lớp hàm gọi</td></tr>
+        <tr><td>Tải tệp báo giá lên</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+        <tr><td>So sánh báo giá</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · vừa vá 13/08</td></tr>
+        <tr><td>Duyệt NCC từng dòng</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+        <tr><td>Giao cả gói cho một NCC</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · rời chế độ không dọn dữ liệu</td></tr>
+        <tr><td>Chọn NCC theo nhóm</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · thừa hàm <code>fetchGroupSelections</code></td></tr>
+        <tr><td>Chọn tự động giá thấp nhất</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+        <tr><td>Chấm điểm NCC đa tiêu chí</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · nhãn trọng số viết cứng ở tầng 4</td></tr>
+        <tr class="warn"><td>Đổi chế độ chọn thầu</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="c y">✓</td><td class="verdict">Vượt tầng — <code>SelectionModeChooser</code> tự gọi <code>fetch</code></td></tr>
+        <tr><td>Tạo đơn hàng từ gói báo giá</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · đường duy nhất tạo được đơn hàng</td></tr>
+        <tr class="gap"><td>Tạo đơn hàng từ PR</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Đứt. <code>generatePO</code> chỉ hook mồ côi gọi</td></tr>
+        <tr><td>Xem hợp đồng</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · 2.994 dòng</td></tr>
+        <tr><td>Hàng về &amp; nghiệm thu (nhánh arrivals)</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · thừa hàm <code>updateInspectionRecord</code></td></tr>
+        <tr class="gap"><td>Nhận hàng vào kho (phiếu nhập)</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Đứt. Backend tạo đủ phiếu + dòng + cập nhật tồn</td></tr>
+        <tr class="gap"><td>Xác nhận QC phiếu nhập</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Đứt. <code>confirmQC</code> hoàn toàn mồ côi</td></tr>
+        <tr class="gap"><td>Ghim tồn kho cho nhu cầu</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Đứt. <code>pegStock</code> chỉ hook mồ côi gọi</td></tr>
+        <tr class="gap"><td>Xem tồn kho</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Đứt. Trang <code>/inventory</code> thực chất là danh mục vật tư, không phải tồn kho</td></tr>
+        <tr class="gap"><td>Xem danh sách đơn hàng</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Đứt. <code>fetchPOs</code> mồ côi — không màn hình nào liệt kê đơn hàng</td></tr>
+        <tr class="gap"><td>Xem phiếu nhập kho</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="verdict">Đứt. <code>fetchGRNs</code> mồ côi</td></tr>
+        <tr><td>Kế hoạch thanh toán</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+        <tr><td>Nhà cung cấp</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · thừa hàm <code>fetchVendors</code> trùng vai với <code>vendor-master</code></td></tr>
+        <tr><td>Danh mục vật tư</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ · 86% dòng chưa gán phân nhóm</td></tr>
+        <tr><td>Lịch sử mua hàng</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+        <tr class="warn"><td>Cảnh báo đối soát</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="c y">✓</td><td class="verdict">Vượt tầng, và trang không có trong menu nên không ai vào được</td></tr>
+        <tr><td>Bảng điều khiển</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="verdict">Đủ</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note" style="--tone:var(--danger); --tone-soft:var(--danger-soft)">
+    <b>Đọc ma trận này ra một câu</b>
+    <span><b>Không có chức năng nào thiếu ở tầng dữ liệu hay tầng backend.</b> Tám trong chín chỗ đứt nằm ở tầng bốn — màn hình; chỗ còn lại, phân bổ chế tạo, đứt cả tầng ba lẫn tầng bốn. Nghĩa là công sức đã bỏ ra xây nền và xây cửa API, nhưng phần nối tới tay người dùng bị bỏ dở. Đây đúng là hình dạng của luật R-17 nhìn ở quy mô cả nền tảng: mã chưa từng chạy qua đường thật thì coi như chưa tồn tại.</span>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần bốn</span>
+    <h2>Ba kiểu lệch tầng</h2>
+  </div>
+
+  <h3>Một · Cả một hệ thống con không ai với tới</h3>
+  <p class="sub">Mười một mô-đun, <b>3.069 dòng</b>, tạo thành bản cài đặt song song hoàn chỉnh cho trang yêu cầu mua. Không đường import nào từ bất kỳ màn hình nào chạm tới chúng. Trang <code>/mua-hang</code> đang chạy trên bộ khác hẳn: <code>MasterTrackingTable</code>, <code>PR090DetailView</code>, <code>UpdateProcurementModal</code>.</p>
+  <div class="stack">
+    <div class="orph"><span>components/pr-tracker/PRTable.tsx</span><span class="sz">903 dòng</span></div>
+    <div class="orph"><span>components/mua-hang/workflowSteps.tsx</span><span class="sz">554 dòng</span></div>
+    <div class="orph"><span>components/mua-hang/ProcurementWorkflowPanel.tsx</span><span class="sz">445 dòng</span></div>
+    <div class="orph"><span>components/pr-tracker/FabAllocationModal.tsx</span><span class="sz">371 dòng</span></div>
+    <div class="orph"><span>hooks/usePRData.ts — nối sẵn nhận hàng · ghim tồn · tạo PO</span><span class="sz">199 dòng</span></div>
+    <div class="orph"><span>components/pr-tracker/ClarificationLog · KPICards · PRProgressTimeline · StatusBadge · TechConstraints · WorkflowProgress</span><span class="sz">597 dòng</span></div>
+  </div>
+  <div class="note" style="--tone:var(--info); --tone-soft:var(--info-soft)">
+    <b>Có thứ trong đống này đang bị ghi là “chưa làm”</b>
+    <span><code>PRProgressTimeline.tsx</code> chính là mục <b>UI-2-1 “Per-PR progress timeline component — 6h”</b> trong backlog, vẫn nằm ở danh sách chờ. Nó đã được viết xong 131 dòng. Trước khi anh giao lại việc này cho ai, nên xem trong đây đã có gì.</span>
+  </div>
+
+  <h3 style="margin-top:14px">Hai · Chín hàm gọi không màn hình nào dùng</h3>
+  <div class="tblwrap">
+    <table>
+      <caption>Tầng ba có, tầng bốn không</caption>
+      <thead><tr><th style="width:24%">Hàm</th><th style="width:34%">Cửa API</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">confirmQC</td><td class="mono">POST /receipts/qc-confirm</td><td>Mắt xích 3 của vòng nhập kho</td></tr>
+        <tr><td class="mono">fetchGRNs</td><td class="mono">GET /grns</td><td>Không màn hình nào xem được phiếu nhập kho</td></tr>
+        <tr><td class="mono">fetchPOs</td><td class="mono">GET /pos</td><td>Không màn hình nào liệt kê đơn hàng</td></tr>
+        <tr><td class="mono">fetchInventoryList</td><td class="mono">GET /inventory</td><td>Tồn kho thật, khác với danh mục vật tư</td></tr>
+        <tr><td class="mono">fetchInventory</td><td class="mono n">GET /inventory/:itemCode</td><td class="n"><b>Cửa này không tồn tại ở backend</b> — gọi vào sẽ 404. Chỗ duy nhất tầng trên đòi thứ tầng dưới chưa có.</td></tr>
+        <tr><td class="mono">fetchVendors</td><td class="mono">GET /vendors</td><td>Trùng vai với <code>vendor-master</code> đang dùng</td></tr>
+        <tr><td class="mono">fetchGroupSelections</td><td class="mono">GET /bid-analyses/:id/group-selections</td><td>Trang Duyệt tự suy từ dữ liệu cấp dòng</td></tr>
+        <tr><td class="mono">fetchTechThread</td><td class="mono">GET /tech-comments/:prDetailId</td><td>Trang dùng bản theo PR thay vì theo dòng</td></tr>
+        <tr><td class="mono">updateInspectionRecord</td><td class="mono">PATCH /arrivals/inspections/:id</td><td>Trang chỉ thêm và xoá, không sửa</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:14px">Ba · Bảy chỗ nhảy cóc qua tầng ba</h3>
+  <p class="sub">Gọi thẳng <code>fetch</code> xuống backend thay vì đi qua <code>lib/api.ts</code>. Hậu quả: mỗi nơi tự lo thẻ CSRF, tự lo lỗi 401, tự khai lại địa chỉ máy chủ — và mất cơ chế tự lấy lại thẻ khi hết hạn.</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:38%">Nơi gọi thẳng</th><th>Hệ quả</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">components/CreateRfqModal.tsx</td><td>Tự khai <code>API_URL</code>; có gọi <code>ensureCsrfToken</code> nên vẫn đúng, nhưng không có cơ chế thử lại khi 403</td></tr>
+        <tr><td class="mono">components/ImportRfqBatchModal.tsx</td><td>Như trên</td></tr>
+        <tr><td class="mono">components/EnterVendorQuoteModal.tsx</td><td>Như trên</td></tr>
+        <tr><td class="mono">components/bid/SelectionModeChooser.tsx</td><td>Đổi chế độ chọn thầu — thao tác ghi, không có thử lại khi thẻ CSRF cũ</td></tr>
+        <tr><td class="mono">components/bid/BidRowActions.tsx</td><td>Tự khai <code>API_URL</code></td></tr>
+        <tr><td class="mono">app/alerts/page.tsx · MarkResolvedButton.tsx</td><td>Cả trang cảnh báo nằm ngoài lớp hàm gọi</td></tr>
+        <tr><td class="mono">app/duyet/page.tsx:299</td><td>Nút tải tệp gốc — lệnh đọc nên không cần CSRF, nhưng vẫn là chỗ sót của luật R-13</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần năm</span>
+    <h2>Luật nghiệp vụ viết trùng ở hai tầng</h2>
+    <p class="sub">Chỗ nguy hiểm nhất không phải chỗ thiếu, mà chỗ hai tầng cùng giữ một luật. Sửa một bên quên bên kia là hai tầng lệch nhau âm thầm.</p>
+  </div>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th style="width:20%">Luật</th><th style="width:38%">Viết ở đâu</th><th>Rủi ro</th></tr></thead>
+      <tbody>
+        <tr class="gap">
+          <td><b>“Báo giá hợp lệ” là gì</b></td>
+          <td class="mono">FE bid-compare.ts:38 → <code>unitPrice &gt; 0</code><br>BE autoSelect:261 → <code>scope='V' AND &gt;0 AND cùng tiền</code><br>BE createPo:1648 → <code>unitPrice &gt; 0</code></td>
+          <td class="n"><b>Ba nơi, ba định nghĩa khác nhau.</b> Bảng so sánh và cửa tạo đơn hàng coi báo giá ghi “không chào” mà vẫn có giá là hợp lệ; chế độ chọn tự động thì loại ra. Toàn kho có <b>32 báo giá</b> rơi đúng vào khe này — chúng tranh được ngôi rẻ nhất và đi thẳng vào đơn hàng thật.</td>
+        </tr>
+        <tr class="warn">
+          <td><b>Trọng số chấm điểm</b></td>
+          <td class="mono">BE bidSelectionMode:353 → <code>{0.5, 0.3, 0.2}</code><br>FE duyet/page.tsx:1105 → nhãn <code>(50%) (30%) (20%)</code></td>
+          <td>Backend tôn trọng <code>bid.weightingCriteria</code> nếu gói có đặt riêng, nhưng nhãn ở giao diện viết cứng. Gói nào đặt trọng số khác sẽ hiện nhãn sai mà điểm vẫn đúng.</td>
+        </tr>
+        <tr class="warn">
+          <td><b>Thuế suất mặc định</b></td>
+          <td class="mono">Dữ liệu → <code>vatRate Float @default(10)</code><br>BE bidAnalysis:1716 → <code>total * 1.1</code></td>
+          <td>Con số 10 nằm ở hai nơi, và chỗ thứ hai <b>bỏ qua hoàn toàn</b> giá trị thật trong cột. Đổi thuế suất trong dữ liệu không làm đơn hàng mới tính khác đi.</td>
+        </tr>
+        <tr class="warn">
+          <td><b>Danh sách 5 chế độ chọn thầu</b></td>
+          <td class="mono">BE bidSelectionMode:14 <code>VALID_MODES</code><br>FE lib/bid-status.ts:60 <code>SELECTION_MODES</code></td>
+          <td>Hai danh sách độc lập. Thêm chế độ thứ sáu ở backend mà quên frontend thì giao diện không hiện; ngược lại thì bấm vào sẽ 400.</td>
+        </tr>
+        <tr class="warn">
+          <td><b>Chuỗi chuyển trạng thái PR</b></td>
+          <td class="mono">FE hooks/usePRData.ts:21 <code>STATUS_TRANSITIONS</code><br>BE — không có bảng tương ứng</td>
+          <td>Luật chuyển trạng thái chỉ tồn tại ở frontend, trong một hook mồ côi. Backend nhận bất kỳ trạng thái nào gửi lên.</td>
+        </tr>
+        <tr>
+          <td><b>Mã nhóm vật tư</b></td>
+          <td class="mono">BE lib/materialGroup.js:19 — nguồn duy nhất<br>FE bid-compare.ts:86 — đọc <code>groupCode</code> backend gắn</td>
+          <td class="y"><b>Đã gộp về một nơi ngày 13/08.</b> Trước đó frontend tự cắt chuỗi mã vật tư để đoán nhóm. Đây là mẫu nên áp cho bốn luật phía trên.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="shead"><span class="eyebrow">Phần sáu</span><h2>Chỗ em chưa kiểm được</h2></div>
+  <div class="note" style="--tone:var(--faint); --tone-soft:var(--surface-2)">
+    <span><b>Một —</b> Ma trận trên đo bằng đường import tĩnh và tìm chuỗi trong mã nguồn. Nếu có chỗ nào nạp mô-đun động lúc chạy thì em không thấy. Em đã soi và không tìm ra chỗ nào như vậy, nhưng không loại trừ tuyệt đối được.<br>
+    <b>Hai —</b> Chín chức năng em đánh “đứt ở tầng màn hình” là kết luận từ mã nguồn, <b>chưa xác nhận bằng cách bấm thử</b> — vì thao tác ghi hiện vẫn bị 403 cho tới khi backend khởi động lại.<br>
+    <b>Ba —</b> Em chưa đo hiệu năng, chưa đo độ phủ của bộ kiểm thử theo từng tầng, và chưa rà phân quyền theo vai trò ngoài việc ghi nhận chỉ bốn cửa dùng tới <code>restrictTo</code> trong khi toàn hệ thống hiện có đúng một người dùng mang vai trò ADMIN.</span>
+  </div>
+</section>
+
+<footer>
+  <span>Dựng 14/08/2026. Bốn tầng trích tự động: schema Prisma, bảng định tuyến có gắn tiền tố mount, <code>lib/api.ts</code> tách theo ranh giới hàm, và duyệt đồ thị import từ mọi tệp vào của Next.js.</span>
+  <span>Tài liệu đi kèm: <b>Bản đồ nền Vật tư</b> · <b>Cấu trúc màn hình Vật tư</b>.</span>
+</footer>
+
+</div>

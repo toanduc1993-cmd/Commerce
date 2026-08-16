@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>UI Review — Trang Yêu Cầu Mua Hàng (/mua-hang)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f8; color: #1e293b; font-size: 13px; }
+
+  .page-title { background: #1B365D; color: white; padding: 18px 28px; display: flex; align-items: center; gap: 12px; }
+  .page-title h1 { font-size: 17px; font-weight: 800; }
+  .page-title .sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-amber { background: #fef3c7; color: #d97706; }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-blue { background: #dbeafe; color: #2563eb; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* Sections */
+  .section { background: white; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 16px; display: flex; align-items: center; gap-8px; gap: 8px; }
+  .section-title .icon { font-size: 16px; }
+
+  /* Current layout wireframe */
+  .wireframe { border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+  .wf-row { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid #f1f5f9; font-size: 10px; min-height: 36px; flex-wrap: wrap; }
+  .wf-row:last-child { border-bottom: none; }
+  .wf-label { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; min-width: 90px; }
+  .chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; white-space: nowrap; }
+  .chip-navy { background: #1B365D; color: white; }
+  .chip-slate { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+  .chip-green { background: #059669; color: white; }
+  .chip-blue { background: #2563eb; color: white; }
+  .chip-amber { background: #d97706; color: white; }
+  .chip-orange { background: #f97316; color: white; }
+  .chip-ghost { background: white; color: #475569; border: 1px solid #cbd5e1; }
+  .overlap-mark { background: #fef3c7; color: #92400e; border: 1px dashed #f59e0b; border-radius: 4px; padding: 1px 5px; font-size: 9px; font-weight: 700; }
+
+  /* Problems table */
+  .table { width: 100%; border-collapse: collapse; }
+  .table th { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+  .table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .table tr:last-child td { border-bottom: none; }
+  .severity { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .sev-high { background: #dc2626; }
+  .sev-med { background: #f59e0b; }
+  .sev-low { background: #22c55e; }
+
+  /* Mindmap tree */
+  .tree { padding-left: 0; }
+  .tree ul { padding-left: 22px; border-left: 2px solid #e2e8f0; margin-left: 8px; }
+  .tree li { list-style: none; padding: 3px 0; }
+  .tree li::before { content: '─ '; color: #cbd5e1; }
+  .node { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .node-root { background: #1B365D; color: white; font-size: 13px; font-weight: 800; border-radius: 6px; }
+  .node-group { background: #f1f5f9; color: #1B365D; font-weight: 700; border: 1px solid #e2e8f0; }
+  .node-feature { background: white; color: #334155; border: 1px solid #e2e8f0; }
+  .node-problem { background: #fef2f2; color: #dc2626; border: 1px dashed #fca5a5; }
+  .node-ok { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .node-dup { background: #fffbeb; color: #92400e; border: 1px dashed #fcd34d; }
+
+  /* Proposed layout */
+  .proposed { border: 2px solid #2563eb; border-radius: 8px; overflow: hidden; }
+  .proposed .wf-row { background: #f8fafc; }
+  .proposed .wf-row.highlight { background: #eff6ff; }
+  .proposed .wf-row.content-area { background: white; min-height: 200px; align-items: flex-start; padding: 12px; font-size: 10px; color: #64748b; }
+  .arrow { display: flex; align-items: center; justify-content: center; padding: 6px; color: #94a3b8; font-size: 18px; }
+
+  /* Decision matrix */
+  .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .matrix-card { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+  .matrix-card.keep { border-color: #86efac; background: #f0fdf4; }
+  .matrix-card.remove { border-color: #fca5a5; background: #fef2f2; }
+  .matrix-card.merge { border-color: #fcd34d; background: #fffbeb; }
+  .matrix-card.add { border-color: #93c5fd; background: #eff6ff; }
+  .matrix-card h3 { font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
+  .matrix-card.keep h3 { color: #16a34a; }
+  .matrix-card.remove h3 { color: #dc2626; }
+  .matrix-card.merge h3 { color: #d97706; }
+  .matrix-card.add h3 { color: #2563eb; }
+  .matrix-card ul { padding-left: 14px; }
+  .matrix-card li { font-size: 11px; margin-bottom: 4px; color: #374151; }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <div>
+    <h1>UI Review — Trang Yêu Cầu Mua Hàng</h1>
+    <div class="sub">Route: /mua-hang &nbsp;·&nbsp; Component: frontend/src/app/mua-hang/page.tsx &nbsp;·&nbsp; 2026-05-30</div>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:8px;">
+    <span class="badge badge-red">3 vấn đề nghiêm trọng</span>
+    <span class="badge badge-amber">4 cải thiện đề xuất</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ═══ SECTION 1: CẤU TRÚC HIỆN TẠI ═══ -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🗺</span> Mindmap — Cấu trúc hiện tại (3 row toolbar)</div>
+
+    <div class="wireframe">
+      <div class="wf-row" style="background:#f8fafc;">
+        <span class="wf-label">TopNav (fixed)</span>
+        <span class="chip chip-ghost">Logo</span>
+        <span class="chip chip-ghost">🔍 Tìm mã, tên, profile, nhà CC, số HĐ… (global search)</span>
+        <span class="chip chip-amber">Cấp PO Hàng Loạt</span>
+        <span class="chip chip-ghost">Chào mừng System Admin ✓</span>
+      </div>
+      <div class="wf-row">
+        <span class="wf-label">Row 1 — Nav/Action</span>
+        <span class="chip chip-navy">≡ Workflow Mua Sắm</span>
+        <span class="chip chip-ghost">⊞ Bảng Chi Tiết (PR-090)</span>
+        <span class="chip chip-slate">│</span>
+        <span class="chip chip-slate">Tất cả 442</span>
+        <span class="chip chip-slate">⏳ Chờ báo giá 69</span>
+        <span class="chip chip-slate">🤝 Đàm phán 0</span>
+        <span class="chip chip-slate">📄 Đã ký HĐ 6</span>
+        <span class="chip chip-slate">🚛 Hàng đang về</span>
+        <span class="chip chip-slate">✓ Nghiệm thu</span>
+        <span class="chip chip-slate">🏭 Nhập kho</span>
+        <span style="margin-left:auto; display:flex; gap:4px;">
+          <span class="chip chip-blue">+ Tạo RFQ mới</span>
+          <span class="chip chip-green">⇄ Cập nhật mua sắm</span>
+          <span class="chip chip-ghost">DỰ ÁN (3 HM): 25-VPI-I │ 25-BRA-I (3+) │ 25-STV-I │ 24-GAS-I</span>
+        </span>
+      </div>
+      <div class="wf-row">
+        <span class="wf-label">Row 2 — Filter</span>
+        <span class="chip chip-ghost">🔍 Tìm mã, tên, profile, mác, ghi chú… 442 &nbsp;⌘K</span>
+        <span class="overlap-mark">⚠ TRÙNG search TopNav</span>
+        <span class="chip chip-slate">Lọc cột: [Mã VT] [Tên VT] [Quy cách] [Mác thép] [ĐVT] [Nhóm VT] [Trạng thái] [Ưu tiên] [SL yêu cầu] [SL cần mua] [Ngày cần]</span>
+      </div>
+      <div class="wf-row">
+        <span class="wf-label">Row 3 — Active chips</span>
+        <span class="chip chip-ghost">(hiện khi có filter) &nbsp; VD: Nhóm VT: VTC ✕ &nbsp; Trạng thái: Chờ báo giá ✕</span>
+      </div>
+      <div class="wf-row" style="min-height:120px; align-items:flex-start; padding:12px; font-size:11px; color:#64748b; background:white;">
+        <span class="wf-label">Content Area</span>
+        <span>MasterTrackingTable / PR090DetailView — khu vực hiển thị chính</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <ul class="tree">
+        <li><span class="node node-root">📋 /mua-hang Page</span>
+          <ul>
+            <li><span class="node node-group">TopNav (fixed height 64px)</span>
+              <ul>
+                <li><span class="node node-feature">Logo IBS HI PROCUREMENT</span></li>
+                <li><span class="node node-ok">🔍 Global Search — tìm theo mã/tên/profile/NCC/số HĐ</span></li>
+                <li><span class="node node-feature">Cấp PO Hàng Loạt (button vàng)</span></li>
+                <li><span class="node node-feature">User greeting + logout</span></li>
+              </ul>
+            </li>
+            <li><span class="node node-group">Row 1 — Tab + Workflow Status + Actions (height ~40px)</span>
+              <ul>
+                <li><span class="node node-group">Tab Switcher (2 views)</span>
+                  <ul>
+                    <li><span class="node node-ok">Tab "Workflow Mua Sắm" — MasterTrackingTable</span></li>
+                    <li><span class="node node-feature">Tab "Bảng Chi Tiết (PR-090)" — PR090DetailView</span></li>
+                  </ul>
+                </li>
+                <li><span class="node node-group">Workflow Step Chips (7 chips)</span>
+                  <ul>
+                    <li><span class="node node-ok">Tất cả (442)</span></li>
+                    <li><span class="node node-ok">Chờ báo giá (69)</span></li>
+                    <li><span class="node node-feature">Đàm phán (0)</span></li>
+                    <li><span class="node node-feature">Đã ký HĐ (6)</span></li>
+                    <li><span class="node node-feature">Hàng đang về</span></li>
+                    <li><span class="node node-feature">Nghiệm thu</span></li>
+                    <li><span class="node node-feature">Nhập kho</span></li>
+                  </ul>
+                </li>
+                <li><span class="node node-group">Action Buttons</span>
+                  <ul>
+                    <li><span class="node node-ok">+ Tạo RFQ mới → mở CreateRfqModal</span></li>
+                    <li><span class="node node-ok">⇄ Cập nhật mua sắm → mở UpdateProcurementModal</span></li>
+                  </ul>
+                </li>
+                <li><span class="node node-group">Project Pills (filter)</span>
+                  <ul>
+                    <li><span class="node node-feature">25-VPI-I toggle</span></li>
+                    <li><span class="node node-feature">25-BRA-I (3+) toggle</span></li>
+                    <li><span class="node node-feature">25-STV-I toggle</span></li>
+                    <li><span class="node node-feature">24-GAS-I toggle</span></li>
+                    <li><span class="node node-feature">Badge "Demo" nếu dùng mock data</span></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li><span class="node node-group">Row 2 — Filter Toolbar (height ~40px)</span>
+              <ul>
+                <li><span class="node node-dup">🔍 TableSearch — TÌM KIẾM (TRÙNG với TopNav global search)</span></li>
+                <li><span class="node node-group">Column Filters (11 cột)</span>
+                  <ul>
+                    <li><span class="node node-feature">Mã VT (text)</span></li>
+                    <li><span class="node node-feature">Tên VT (text)</span></li>
+                    <li><span class="node node-feature">Quy cách/Profile (text)</span></li>
+                    <li><span class="node node-feature">Mác thép (text)</span></li>
+                    <li><span class="node node-feature">ĐVT (select)</span></li>
+                    <li><span class="node node-feature">Nhóm VT (multiSelect)</span></li>
+                    <li><span class="node node-feature">Trạng thái (multiSelect)</span></li>
+                    <li><span class="node node-problem">Trạng thái — TRÙNG với Workflow Step Chips bên trên</span></li>
+                    <li><span class="node node-feature">Độ ưu tiên (select)</span></li>
+                    <li><span class="node node-feature">SL yêu cầu (range)</span></li>
+                    <li><span class="node node-feature">SL cần mua (range)</span></li>
+                    <li><span class="node node-feature">Ngày cần (date range)</span></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li><span class="node node-group">Row 3 — Active Filter Chips (conditional)</span>
+              <ul>
+                <li><span class="node node-ok">Hiển thị filter đang active, có nút xóa từng filter</span></li>
+              </ul>
+            </li>
+            <li><span class="node node-group">Content Area (flex-1, overflow scroll)</span>
+              <ul>
+                <li><span class="node node-ok">MasterTrackingTable — khi tab Workflow</span></li>
+                <li><span class="node node-feature">PR090DetailView — khi tab Chi Tiết</span></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 2: VẤN ĐỀ ═══ -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⚠️</span> Vấn đề phát hiện</div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Mức độ</th>
+          <th>Vấn đề</th>
+          <th>Vị trí</th>
+          <th>Tác động</th>
+          <th>Đề xuất xử lý</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="severity sev-high"></span><strong>Cao</strong></td>
+          <td><strong>Trùng lặp: 2 ô tìm kiếm</strong><br>TopNav có global search + Row 2 có TableSearch — cùng chức năng, khác scope nhỏ</td>
+          <td>TopNav ↔ Row 2</td>
+          <td>User không biết dùng cái nào. Tốn ~40px chiều cao dư. State sync không hoàn hảo (searchQuery sync qua useEffect)</td>
+          <td><strong>Xóa TableSearch ở Row 2.</strong> Giữ TopNav search làm duy nhất, style nhất quán với các page khác</td>
+        </tr>
+        <tr>
+          <td><span class="severity sev-high"></span><strong>Cao</strong></td>
+          <td><strong>Trùng lặp: Filter Trạng thái + Workflow Step Chips</strong><br>Step chips (Row 1) filter theo statusFlag. Column filter "Trạng thái" (Row 2) cũng filter theo statusFlag</td>
+          <td>Row 1 ↔ Row 2</td>
+          <td>Dùng đồng thời 2 filter trạng thái có thể ra kết quả 0 mà user không hiểu tại sao. Tốn không gian UI</td>
+          <td><strong>Xóa cột "Trạng thái" khỏi Column Filters.</strong> Step Chips đã đủ, rõ ràng hơn nhiều</td>
+        </tr>
+        <tr>
+          <td><span class="severity sev-med"></span><strong>Trung bình</strong></td>
+          <td><strong>Row 1 quá nhồi nhét</strong><br>Tab switcher + 7 step chips + 2 action buttons + project pills + label "Dự án (3 HM):" → wrap/overflow ở màn nhỏ</td>
+          <td>Row 1</td>
+          <td>Trên 1280px: ổn. Dưới 1280px: các nút bị cắt hoặc overflow scroll không thể hiện hết</td>
+          <td>Tách Project Pills ra ngoài vùng overflow; hoặc gộp vào một Popover "Dự án & Bộ lọc"</td>
+        </tr>
+        <tr>
+          <td><span class="severity sev-med"></span><strong>Trung bình</strong></td>
+          <td><strong>Label "Cấp PO Hàng Loạt" không phải chức năng trang PR</strong><br>Button này ở TopNav nhưng logic thuộc trang Mua sắm/PO, không phải trang PR tracking</td>
+          <td>TopNav</td>
+          <td>Gây nhầm lẫn về phạm vi tính năng trang PR</td>
+          <td>Di chuyển sang trang PO hoặc ẩn khi không ở context PO</td>
+        </tr>
+        <tr>
+          <td><span class="severity sev-low"></span><strong>Thấp</strong></td>
+          <td><strong>11 column filters quá nhiều, hiển thị cùng lúc</strong><br>Hiển thị inline label + button cho 11 cột làm Row 2 rất dài, wrap xuống nhiều dòng</td>
+          <td>Row 2</td>
+          <td>Tốn height toolbar. User scan khó</td>
+          <td>Nhóm lại vào 1 dropdown "Bộ lọc nâng cao ▾" chỉ mở khi cần</td>
+        </tr>
+        <tr>
+          <td><span class="severity sev-low"></span><strong>Thấp</strong></td>
+          <td><strong>Tab "Bảng Chi Tiết (PR-090)" — tên không rõ</strong><br>"PR-090" là tên file nội bộ, user mới không hiểu</td>
+          <td>Tab switcher</td>
+          <td>UX clarity thấp</td>
+          <td>Đổi tên thành "Chi Tiết Kỹ Thuật" hoặc "Bảng Vật Tư"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ SECTION 3: PHÂN LOẠI GIỮ/XÓA/GỘP ═══ -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎯</span> Quyết định từng tính năng</div>
+    <div class="matrix">
+      <div class="matrix-card keep">
+        <h3>✅ Giữ nguyên</h3>
+        <ul>
+          <li>Tab switcher (Workflow / Chi Tiết)</li>
+          <li>Workflow Step Chips (7 trạng thái + count)</li>
+          <li>Button "+ Tạo RFQ mới"</li>
+          <li>Button "⇄ Cập nhật mua sắm"</li>
+          <li>Project Pills (filter theo dự án)</li>
+          <li>Active Filter Chips (xóa nhanh filter)</li>
+          <li>Column filters: Mã VT, Tên VT, Quy cách, Mác thép, ĐVT, Nhóm VT, Ưu tiên, SL, Ngày</li>
+        </ul>
+      </div>
+      <div class="matrix-card remove">
+        <h3>❌ Xóa (duplicate/không cần)</h3>
+        <ul>
+          <li>TableSearch (Row 2) — trùng với TopNav search</li>
+          <li>Column filter "Trạng thái" — trùng với Step Chips</li>
+          <li>Label "Lọc cột:" inline — thay bằng header ngắn hơn</li>
+        </ul>
+      </div>
+      <div class="matrix-card merge">
+        <h3>🔀 Gộp / Tái tổ chức</h3>
+        <ul>
+          <li>11 column filters → gộp vào "Bộ lọc ▾" popover (mở khi click, đóng khi click ngoài)</li>
+          <li>Row 1 tách làm 2 sub-row: Tab+Steps ở trên, Actions+Projects ở dưới (hoặc inline tools)</li>
+          <li>Tab "Bảng Chi Tiết (PR-090)" → đổi tên "Chi Tiết Vật Tư"</li>
+        </ul>
+      </div>
+      <div class="matrix-card add">
+        <h3>➕ Thêm mới (đề xuất)</h3>
+        <ul>
+          <li>KPI bar nhỏ (inline): Tổng mã | Chờ báo giá | Đang xử lý | Trễ hạn</li>
+          <li>Upload PR button gộp vào menu "⋯ Thêm" thay vì ẩn trong modal qua TopNav</li>
+          <li>Breadcrumb nhỏ: Mua hàng > PR Tracking khi xem Chi Tiết</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 4: BỐ CỤC ĐỀ XUẤT ═══ -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📐</span> Bố cục đề xuất — tiết kiệm ~40-60px toolbar</div>
+
+    <div style="font-size:11px; color:#64748b; margin-bottom:12px;">
+      Mục tiêu: <strong>2 row toolbar thay vì 3 row</strong> → nội dung chiếm nhiều hơn ~40-60px.
+    </div>
+
+    <div class="proposed">
+      <div class="wf-row highlight">
+        <span class="wf-label" style="color:#2563eb; font-weight:800;">TopNav (giữ)</span>
+        <span class="chip chip-ghost">Logo</span>
+        <span class="chip chip-ghost">🔍 Search duy nhất (xóa TableSearch khỏi Row 2)</span>
+        <span style="margin-left:auto; display:flex; gap:4px;">
+          <span class="chip chip-ghost">⋯ Thêm ▾  (Upload PR, Export)</span>
+          <span class="chip chip-amber">Cấp PO Hàng Loạt (chuyển sang trang PO)</span>
+          <span class="chip chip-ghost">User ✓</span>
+        </span>
+      </div>
+
+      <div class="wf-row highlight" style="background:#eff6ff; border-left:3px solid #2563eb;">
+        <span class="wf-label" style="color:#2563eb; font-weight:800;">Row 1 — Tab + Steps</span>
+        <span class="chip chip-navy">≡ Workflow</span>
+        <span class="chip chip-ghost">⊞ Chi Tiết Vật Tư</span>
+        <span class="chip chip-slate">│</span>
+        <span class="chip chip-slate">Tất cả 442</span>
+        <span class="chip chip-slate">⏳ Chờ BG 69</span>
+        <span class="chip chip-slate">🤝 ĐP 0</span>
+        <span class="chip chip-slate">📄 Ký HĐ 6</span>
+        <span class="chip chip-slate">🚛 Đang về</span>
+        <span class="chip chip-slate">✓ Nghiệm thu</span>
+        <span class="chip chip-slate">🏭 Kho</span>
+      </div>
+
+      <div class="wf-row" style="background:#f0fdf4; border-left:3px solid #16a34a;">
+        <span class="wf-label" style="color:#16a34a; font-weight:800;">Row 2 — Actions + Filter</span>
+        <span class="chip chip-blue">+ Tạo RFQ</span>
+        <span class="chip chip-green">⇄ Cập nhật</span>
+        <span class="chip chip-slate">│</span>
+        <span class="chip chip-ghost">🔽 Bộ lọc nâng cao ▾ (9 cột, ẩn trong popover)</span>
+        <span class="chip chip-ghost">[Active Filter Chips nếu có]</span>
+        <span style="margin-left:auto; display:flex; gap:4px; align-items:center;">
+          <span class="chip chip-ghost">25-VPI-I</span>
+          <span class="chip chip-navy">25-BRA-I ✦</span>
+          <span class="chip chip-ghost">25-STV-I</span>
+          <span class="chip chip-ghost">24-GAS-I</span>
+        </span>
+      </div>
+
+      <div class="wf-row content-area">
+        <div>
+          <strong>Content Area — nhiều hơn ~40-60px</strong><br><br>
+          MasterTrackingTable hoặc PR090DetailView (Chi Tiết Vật Tư)<br><br>
+          <span style="color:#94a3b8; font-size:10px;">← Tiết kiệm được 1 row toolbar = ~40px nội dung hiển thị thêm (~2-3 dòng table)</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; padding:12px; background:#fffbeb; border-radius:8px; border:1px solid #fcd34d; font-size:11px;">
+      <strong>⚠️ Lưu ý implementation:</strong> Khi xóa TableSearch (Row 2), cần đảm bảo TopNav search vẫn sync đúng vào <code>tableFilters.setSearch()</code>.
+      Logic hiện tại đã có <code>useEffect(() => tableFilters.setSearch(searchQuery), [searchQuery])</code> → chỉ cần xóa TableSearch component và bỏ state <code>searchQuery</code> riêng, thay bằng truyền trực tiếp.
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 5: TÓM TẮT THAY ĐỔI ═══ -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📝</span> Tóm tắt thay đổi cần làm</div>
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Thay đổi</th><th>File</th><th>Ưu tiên</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Xóa <code>TableSearch</code> + state <code>searchQuery</code> riêng khỏi Row 2. TopNav onSearch → trực tiếp <code>tableFilters.setSearch()</code></td>
+          <td>mua-hang/page.tsx</td>
+          <td><span class="badge badge-red">P0</span></td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Xóa column filter <code>statusFlag</code> khỏi danh sách <code>useTableFilters</code> columns</td>
+          <td>mua-hang/page.tsx</td>
+          <td><span class="badge badge-red">P0</span></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Gộp 11 column filters vào 1 button "Bộ lọc ▾" → popover dropdown. Row 2 chỉ hiện actions + filter button + project pills</td>
+          <td>mua-hang/page.tsx + ColumnFilter component</td>
+          <td><span class="badge badge-amber">P1</span></td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Đổi tên tab "Bảng Chi Tiết (PR-090)" → "Chi Tiết Vật Tư"</td>
+          <td>mua-hang/page.tsx</td>
+          <td><span class="badge badge-amber">P1</span></td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Di chuyển Row 2 Actions + Project Pills xuống cùng hàng, Row 1 chỉ giữ Tab + Steps</td>
+          <td>mua-hang/page.tsx</td>
+          <td><span class="badge badge-amber">P1</span></td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Upload PR button: gộp vào menu "⋯ Thêm" dropdown ở TopNav thay vì ẩn hoàn toàn</td>
+          <td>TopNav.tsx hoặc mua-hang/page.tsx</td>
+          <td><span class="badge badge-blue">P2</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top:16px; display:flex; gap:12px;">
+      <div style="flex:1; padding:12px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0;">
+        <div style="font-size:11px; font-weight:800; color:#16a34a; margin-bottom:6px;">✅ Sau khi sửa (P0 + P1)</div>
+        <ul style="font-size:11px; padding-left:14px; color:#374151;">
+          <li>Toolbar: 2 rows thay vì 3 rows → nội dung nhiều hơn ~40-60px</li>
+          <li>Không còn trùng lặp search / filter trạng thái</li>
+          <li>Row 1: Tab + Steps (focus điều hướng)</li>
+          <li>Row 2: Actions + Filter popover + Projects (focus hành động)</li>
+        </ul>
+      </div>
+      <div style="flex:1; padding:12px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
+        <div style="font-size:11px; font-weight:800; color:#2563eb; margin-bottom:6px;">📏 Không gian tiết kiệm</div>
+        <ul style="font-size:11px; padding-left:14px; color:#374151;">
+          <li>Xóa TableSearch row: ~36px</li>
+          <li>Column filter label inline → popover: ~8px</li>
+          <li>Tổng: <strong>~44px nội dung thêm</strong> ≈ 3-4 dòng table</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

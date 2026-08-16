@@ -5,6 +5,53 @@
 
 ---
 
+## 🔴 MỚI 2026-08-14 — phát hiện khi nghiệm thu giao diện
+
+> Kiểm bằng đĩa + truy vấn cơ sở dữ liệu thật, không chép từ tài liệu. Chi tiết: `docs/BAN-DO-NEN-VAT-TU-20260814.html`.
+
+### [P0] Chưa từng có bản sao lưu cơ sở dữ liệu nào
+- **ID:** B-CPVT-020 · **Anh Hưng 14/08: ghi nhận, quay lại sau**
+- `scripts/backup_pg.sh` chạy được nhưng không có lịch trong launchd lẫn cron; thư mục `backups/` chưa từng tồn tại.
+- Đang phơi: 2.994 ContractDetail · 4.440 Material · 1.559 BidQuoteOffer · 2.188 BidQuoteItem trên một ổ đĩa duy nhất.
+- **Việc cần làm:** viết plist launchd chạy 02:00 hằng ngày, chạy tay một lần để xác nhận, kiểm tra khôi phục thử.
+
+### [P0] VAT — cột `vatRate` đang chứa hai đơn vị khác nhau, dữ liệu hỏng diện rộng
+- **ID:** B-CPVT-021
+- 1.619 dòng ghi `10` (phần trăm) nhưng ~900 dòng ghi `0.1` và các biến thể nhiễu dấu phẩy động (`0.10000000000000013`…). Cùng một cột, hai thang đo.
+- Rác thật sự: `109900.9`, `233.3`, `49`, `27.3`, `-92`, `-37.2`, `-9.1`.
+- 1.120/1.619 dòng `vatRate=10` không khớp công thức `totalWithVAT = totalNoVAT × (1 + vatRate/100)`.
+- 252 dòng khai VAT 10% nhưng `totalWithVAT = totalNoVAT` (không hề cộng).
+- `bidAnalysisController.js:1716` cứng hoá `total * 1.1`, bỏ qua hoàn toàn cột `vatRate`.
+- `BidQuoteOffer` **không có trường VAT nào** ⇒ không thể biết NCC báo giá đã gồm thuế hay chưa.
+- **Việc cần làm:** (a) chuẩn hoá thang đo cột `vatRate`; (b) thêm `vatIncluded`/`vatRate` vào `BidQuoteOffer`; (c) thay `* 1.1` bằng tính theo trường thật; (d) cảnh báo khi các NCC trong cùng gói khai VAT khác nhau.
+
+### [P1] Đơn vị tính — không ai kiểm, 58% để trống
+- **ID:** B-CPVT-022
+- `BidQuoteItem.uom` rỗng ở 1.265/2.188 dòng. Chuỗi chưa chuẩn hoá: `Cái`/`CÁI`/`cái`, `M`/`m`, `PSC` (nhiều khả năng gõ nhầm `PCS`).
+- 131 cặp cùng mã vật tư nhưng đơn vị ở PR khác đơn vị ở báo giá.
+- `BidQuoteOffer` không có trường đơn vị ⇒ NCC báo theo cây trong khi NCC khác báo theo ký thì hệ thống không ghi nhận, không cảnh báo, vẫn xếp hạng rẻ nhất như thường.
+- **Việc cần làm:** chuẩn hoá bảng đơn vị, thêm đơn vị vào báo giá, chặn so sánh khi lệch đơn vị.
+
+### [P1] Nửa cuối quy trình có mã nhưng không có màn hình
+- **ID:** B-CPVT-023
+- Backend đủ: `receiveMaterial` tạo GRN + GRNLineItem + cập nhật Inventory; `allocateStock` tạo HardPegging; `confirmQC` xác nhận chất lượng. Hàm gọi trong `lib/api.ts` cũng đủ.
+- Nhưng **không màn hình nào gọi chúng**: `receiveGoods` · `confirmQC` · `pegStock` · `generatePO` đều là hàm chết.
+- Trang `/warehouse` chạy trên nhánh `arrivals` (đọc ContractDetail + ghi InspectionRecord) — một nhánh song song, không nối với GRN.
+- **Cần anh Hưng quyết:** nối GRN vào `/warehouse`, hay bỏ nhánh GRN và mở rộng `arrivals`? Hai đường không thể cùng tồn tại.
+
+### [P2] Menu có lối vào hỏng
+- **ID:** B-CPVT-024
+- `/support` nằm trong thanh điều hướng nhưng **không có trang** ⇒ bấm vào là 404.
+- `/alerts` có trang nhưng **không có trong menu** ⇒ không ai vào được nếu không gõ tay địa chỉ.
+- Thanh điều hướng đánh số bước 1·1·1·2·3·6·7·8 — **thiếu hẳn bước 4 và 5**, người dùng không hiểu quy trình đứt ở đâu.
+
+### [P2] 11 hàm API viết xong không ai gọi
+- **ID:** B-CPVT-025
+- `resetCsrfToken` · `importPRFile` · `updateStatusFlag` · `receiveGoods` · `confirmQC` · `pegStock` · `generatePO` · `fetchInventory` · `fetchGroupSelections` · `updateInspectionRecord` · `fetchTechThread`.
+- Đúng dạng lỗi R-17: mã chưa từng chạy qua đường thật thì coi như chưa tồn tại.
+
+---
+
 ## ✅ DONE — Sprint M4: Scale tạo RFQ + Import Excel (Hưng approve 2026-05-27, ship 2026-05-27)
 
 Đã ship 4/4 task A+B+D+E. Detail entry: [CHANGES_LOG.md § 2026-05-27 12:00](CHANGES_LOG.md).
@@ -34,76 +81,87 @@
 
 ### Sprint S1 — Observability + Tests (24h)
 
-#### S1-1 Pino structured logging
+#### ✅ DONE S1-1 Pino structured logging
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `backend/src/lib/logger.js` + `src/middleware/correlationId.js` đã có
 - **Risk:** C4 — debug production blind
 - **Estimate:** 6h
 - **Description:** Replace 19 console.log/error → Pino logger với correlationId per request. Logrotate launchd weekly. Levels: trace/debug/info/warn/error.
 - **Files:** NEW `src/lib/logger.js`, NEW `src/middleware/correlationId.js`; UPDATE all controllers + `app.js` error handler
-- **Status:** 🟠 IN_PROGRESS (CPVT session 2026-05-25 20:00)
 
-#### S1-2 Vitest + Supertest 15 smoke tests
+#### ✅ DONE S1-2 Vitest + Supertest 15 smoke tests
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `backend/vitest.config.mjs` + `tests/` đã có · npm test 20/20 xanh
 - **Risk:** C2 — zero test coverage
 - **Estimate:** 10h
 - **Description:** Tests cho golden paths: login, change-password, role auth (5 endpoints), PR import, BID upload, PO gen, GRN receive, peg, payment update, vendor enrich (consumer)
 - **Files:** NEW `tests/` dir, `vitest.config.ts`, `package.json` add test script
 
-#### S1-3 Health checks enhanced + /metrics
+#### ✅ DONE S1-3 Health checks enhanced + /metrics
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `/health/detail` và `/metrics` đã mount trong `app.js`
 - **Risk:** H8 + early warning
 - **Estimate:** 4h
 - **Description:** `/health/detail` trả DB pool count + disk free + uptime + memory; `/metrics` Prometheus format cho future scrape
 - **Files:** UPDATE `app.js`; NEW `src/middleware/metrics.js`
 
-#### S1-4 Frontend error boundaries + self-hosted logger
+#### ✅ DONE S1-4 Frontend error boundaries + self-hosted logger
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `components/ErrorBoundary.tsx` + `clientErrorsController.js` đã có
 - **Estimate:** 4h
 - **Description:** React ErrorBoundary wrap mỗi page; POST errors vào backend `/api/v1/client-errors` → write file `errors/client_YYYYMMDD.jsonl`
 - **Files:** NEW `frontend/src/components/ErrorBoundary.tsx`; NEW backend `clientErrorsController.js`
 
 ### Sprint S2 — Security Hardening (16h)
 
-#### S2-1 HttpOnly cookie + CSRF migration
+#### 🟡 XONG MỘT NỬA S2-1 HttpOnly cookie + CSRF migration
+- **Status:** 🟡 XONG MỘT NỬA — kiểm bằng đĩa 2026-08-14: Lớp CSRF đã xong (`csrfProtection.js`) — **nhưng JWT vẫn nằm ở `localStorage`**, chưa chuyển sang cookie HttpOnly
 - **Risk:** C3, H10
 - **Estimate:** 8h
 - **Description:** JWT từ localStorage → HttpOnly Secure cookie + csrf-csrf middleware. Frontend api.ts dùng `credentials: 'include'`. Add CSRF header.
 - **Files:** UPDATE `authController.js`, `authMiddleware.js`, `app.js`; ALL `frontend/src/lib/api.ts` calls
 
-#### S2-2 Zod validation middleware
+#### ✅ DONE S2-2 Zod validation middleware
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `src/lib/schemas/` + `src/middleware/validate.js` đã có
 - **Risk:** H9
 - **Estimate:** 6h
 - **Description:** Define Zod schemas per route; middleware `validate(schema)` apply 38 endpoints. Convert 500 errors → 400 with field-level messages.
 - **Files:** NEW `src/lib/schemas/*.js`, `src/middleware/validate.js`; UPDATE all route files
 
-#### S2-3 Health pool leak fix
+#### ✅ DONE S2-3 Health pool leak fix
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `healthPool` là singleton khai báo đầu `app.js:35`, không còn `new Pool()` mỗi request
 - **Risk:** H8
 - **Estimate:** 1h
 - **Description:** `app.js:165` create singleton pool top-of-file, reuse in `/health`. No more `new Pool()` per request.
 - **Files:** UPDATE `app.js`
 
-#### S2-4 Audit log retention cron
+#### 🟡 XONG MỘT NỬA S2-4 Audit log retention cron
+- **Status:** 🟡 XONG MỘT NỬA — kiểm bằng đĩa 2026-08-14: `scripts/audit_log_cleanup.sh` đã viết — **nhưng chưa có lịch chạy** trong launchd/cron
 - **Estimate:** 1h
 - **Description:** `scripts/audit_log_cleanup.sh` delete AuditLog WHERE createdAt < NOW() - 90 days. Schedule launchd weekly.
 - **Files:** NEW `scripts/audit_log_cleanup.sh` + launchd plist
 
 ### Sprint S3 — Ops + Backup (20h)
 
-#### S3-1 docker-compose.dev.yml
+#### ✅ DONE S3-1 docker-compose.dev.yml
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `docker-compose.dev.yml` đã có ở gốc dự án
 - **Risk:** H6
 - **Estimate:** 6h
 - **Description:** 1 command bring up postgres:18 + backend + frontend with hot-reload. Volumes for pg_data persist, uploads/ persist.
 - **Files:** NEW `docker-compose.dev.yml`, `Dockerfile.backend`, `Dockerfile.frontend`
 
-#### S3-2 Automated daily pg_dump + retention
+#### 🟡 XONG MỘT NỬA S3-2 Automated daily pg_dump + retention
+- **Status:** 🟡 XONG MỘT NỬA — kiểm bằng đĩa 2026-08-14: `scripts/backup_pg.sh` đã viết — **nhưng chưa có lịch chạy, và thư mục `backups/` chưa từng tồn tại**
 - **Risk:** H7
 - **Estimate:** 4h
 - **Description:** Daily 02:00 launchd → pg_dump → `backups/YYYYMMDD_HHMM.sql.gz`. Retention 30 days local + sync 7 days to NAS via rsync.
 - **Files:** NEW `scripts/backup_pg.sh` + launchd plist
 
-#### S3-3 uploads/ archival + disk quota
+#### 🟡 XONG MỘT NỬA S3-3 uploads/ archival + disk quota
+- **Status:** 🟡 XONG MỘT NỬA — kiểm bằng đĩa 2026-08-14: `scripts/uploads_archive.sh` đã viết — **nhưng chưa có lịch chạy**
 - **Risk:** M13
 - **Estimate:** 3h
 - **Description:** Cron monthly → files >6 months from uploads/ → archive/. Disk quota alert if uploads/ > 5GB (send notify).
 - **Files:** NEW `scripts/uploads_archive.sh` + launchd plist
 
-#### S3-4 Add 3 missing FK indexes
+#### ✅ DONE S3-4 Add 3 missing FK indexes
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `@@index([purchaseOrderId])` + `@@index([prId])` + `@@index([prDetailId])` đã có trong schema
 - **Risk:** M11
 - **Estimate:** 1h
 - **Description:** Add `@@index([purchaseOrderId])` to ContractDetail, `@@index([prId])` + `@@index([prDetailId])` to BidAnalysis. Apply via `prisma migrate diff > psql`.
@@ -115,7 +173,8 @@
 - **Description:** `prisma migrate resolve --applied <baseline>` mark current state; future schema changes via `migrate dev --create-only` then manual apply per Rule #6. Document procedure in DEVOPS_NOTES.
 - **Files:** NEW `prisma/migrations/` initial baseline; UPDATE DEVOPS_NOTES.md
 
-#### S3-6 PM2 process manager
+#### ✅ DONE S3-6 PM2 process manager
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: `ecosystem.config.js` đã có ở gốc dự án
 - **Risk:** H6
 - **Estimate:** 2h
 - **Description:** PM2 ecosystem.config.js cho backend; auto-restart on crash; log file rotation. Document alternative: launchd plist for production.
@@ -146,7 +205,8 @@
 - **Estimate:** 2h
 - **Description:** NEW `UPGRADE_STRATEGY.md` — quarterly review schedule; pin until stable ecosystem (e.g., Next 17 GA before upgrade Next 16); test matrix per upgrade.
 
-#### S4-5 CI pipeline GitHub Actions
+#### ✅ DONE S4-5 CI pipeline GitHub Actions
+- **Status:** ✅ DONE — kiểm bằng đĩa 2026-08-14: .github/workflows/ đã có tệp CI
 - **Estimate:** 6h
 - **Description:** `.github/workflows/ci.yml` — typecheck + lint + tests on PR + main. Required status check for merge. Cache node_modules + Prisma client.
 
@@ -165,7 +225,7 @@
 ### Sprint UI-2 Workflow visualization (20h)
 - **UI-2-1** Per-PR progress timeline component — 6h
 - **UI-2-2** Dashboard "My actions" zone — 6h
-- **UI-2-3** Consolidate BID 3 pages → 1 page 3 tabs (redirect old URLs) — 8h
+- **UI-2-3** ✅ DONE — đã gộp, `/duyet` nay có 2 tab (So sánh báo giá · Duyệt + PO). Kiểm 2026-08-14.
 
 ### Sprint UI-3 Polish (12h)
 - **UI-3-1** Responsive sidebar collapse — 4h

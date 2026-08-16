@@ -22,6 +22,771 @@
 
 ---
 
+## 2026-08-16
+
+### 2026-08-16 | feature: lưới phân bổ chế tạo — phần chính của phương án B
+
+Dòng = vật tư của dự án · cột = hạng mục của **chính dự án đó** · ô = số lượng · khối lượng ·
+**ngày cần vật tư tại công trường** (anh Hưng chốt: tiến độ đo bằng NGÀY, mốc là ngày cần tại
+công trường). Tiến độ so mốc này với `ContractDetail.arrivedDate`.
+
+**Ba lỗ hổng vá kèm — cột `ngayCanTaiCongTruong` thêm hôm 15/08 nhưng KHÔNG đầu nào đọc hay ghi:**
+- `getFabAllocations` và `getFabAllocationsForDetail` không trả ngày → nay trả.
+- `saveFabAllocations` không ghi ngày → nay ghi, và kiểm ngày **trước khi mở giao dịch**.
+- `saveFabAllocations` cũ xoá ô chỉ cần `qty = 0`, nên ô có khối lượng mà chưa điền số lượng bị
+  mất trắng. Nay phải rỗng **cả ba** (số lượng, khối lượng, ngày) mới xoá. Không rủi ro dữ liệu:
+  lúc sửa toàn hệ thống có 0 dòng phân bổ.
+
+**Files:**
+  - `backend/src/controllers/fabAllocationController.js` — thêm `soThuc` / `docNgay` / `oRong`;
+    vá 3 hàm cũ; thêm `getProjectFabAllocations` (dữ liệu dựng lưới) và
+    `saveProjectFabAllocationsBulk` (lưu hàng loạt, một giao dịch, tất-cả-hoặc-không-gì).
+  - `backend/src/routes/procurementRoutes.js` — `GET /projects/:projectId/fab-allocations`
+    (chỉ cần đăng nhập) và `POST /projects/:projectId/fab-allocations/bulk`
+    (`restrictTo` KY_THUAT / MUA_HANG / ADMIN).
+  - `frontend/src/lib/api.ts` — `fetchLuoiPhanBo` (chờ 20 giây) · `luuLuoiPhanBo` (chờ 30 giây)
+    + các kiểu `CotHangMuc` · `OPhanBo` · `DongPhanBo` · `LuoiPhanBo` · `OGuiLen` · `KetQuaLuuPhanBo`.
+  - `frontend/src/app/phan-bo-che-tao/page.tsx` — **màn mới**.
+  - `frontend/src/components/layout/Sidebar.tsx` — thêm mục "Phân bổ chế tạo".
+  - `frontend/src/app/hang-muc-che-tao/page.tsx` — nút "Lưới phân bổ" đi sang màn mới.
+
+**Chốt chặn ở đầu ghi hàng loạt** (đã thử bằng curl, cả 6 đều chặn đúng, HTTP 400, **không ghi gì**):
+  1. vật tư không thuộc dự án trên URL → chặn ghi chéo dự án
+  2. hạng mục không thuộc dự án trên URL
+  3. cùng một ô gửi trùng hai lần
+  4. số lượng / khối lượng âm
+  5. ngày không đọc được
+  6. tổng phân bổ vượt số lượng yêu cầu mua — gộp ô gửi lên với ô đã có sẵn trong CSDL, chỉ cộng
+     ô cũ **không bị lần lưu này ghi đè**
+  Trần 2.000 ô một lần lưu. `reqQty = 0` (13/507 vật tư của VPI-095) **không chặn** — không có
+  trần để đối chiếu thì chặn là không nhập được gì, im lặng là giấu mất; nên trả `canhBao`.
+
+**Verify — trình duyệt, dự án thật 25-VPI-I-095:**
+  - 507 vật tư × 14 hạng mục; bất biến cột **22 tiêu đề = 22 ô mỗi dòng** (7 + 14 + 1)
+  - BRA-090 → 3 cột đúng của nó (KCTC · KCDK · PK), 11 = 7 + 3 + 1; IBS-078 → trạng thái rỗng
+    "Dự án này chưa được phân bổ theo hạng mục thi công" + nút sang màn khai hạng mục
+  - cuộn ngang 2.666px: hai cột ghim đo được `l=256/348`, `r=348/504` — **không đè nhau**, nền
+    đục `rgb(255,255,255)`; tiêu đề ghim khớp đúng toạ độ thân bảng, z-index 2 > 1
+  - cuộn dọc: tiêu đề dính `top` khung, nền đục; vẽ dần 100 → 200 dòng
+  - sửa ô → tổng dòng và cột Tiến độ cập nhật ngay theo bản nháp; nền hổ phách đánh dấu ô chưa lưu
+  - Tiến độ: ngày cần 20/09/2026 → "Còn 35 ngày"; 10/08/2026 → "Quá hạn 6 ngày" (hôm nay 16/08) ✓
+  - vượt trần: 4 + 8 > 10 → Còn lại **-2** đỏ, chip "1 vật tư vượt trần", bấm Lưu bị **chặn tại chỗ**
+  - lưu thật 2 ô → CSDL đúng `4 / 250.5 / 2026-09-20` và `6 / 0 / 2026-08-10`, AuditLog ghi
+    `UPDATE_FAB_ALLOCATION_BULK`; xoá 2 ô qua giao diện → CSDL **về đúng 0 dòng phân bổ**
+  - bộ lọc: 1 đã phân bổ + 506 chưa = 507 ✓ · tìm "A003" → 4 dòng ✓
+  - `npx tsc --noEmit` 0 lỗi · `npm test` 20/20
+
+**Dọn sau khi thử:** phân bổ = 0 · hạng mục = 17 · PrDetail = 1.816 · ContractDetail = 2.994 —
+đúng mốc trước phiên. Dòng AuditLog của phiên thử **giữ nguyên**, không xoá.
+
+**Sửa kèm:** đổi dự án mà vẫn giữ chữ trong ô tìm thì lưới trông như rỗng dù dự án có hàng trăm
+vật tư — nay xoá ô tìm khi đổi dự án.
+
+**Rollback:** `git checkout frontend/src/app/phan-bo-che-tao frontend/src/lib/api.ts
+frontend/src/components/layout/Sidebar.tsx frontend/src/app/hang-muc-che-tao/page.tsx
+backend/src/controllers/fabAllocationController.js backend/src/routes/procurementRoutes.js`
+(không có DDL trong đợt này — cột `ngayCanTaiCongTruong` đã có từ 15/08).
+
+**Còn lại:** đầu đọc `/api/v1/prs` vẫn trả 3,66 MB gồm dữ liệu hợp đồng mà module PR không còn
+hiển thị · `/bao-gia` chưa nhận `?bid=`, `/mua-hang` chưa nhận `?prId=` · `PR090DetailView` vẫn
+ghi cứng 9 vòng REV, trái câu 16 ("co duỗi theo từng dự án") · đợt 4 dọn màn PR.
+
+---
+
+### 2026-08-16 | infra: IP LAN chết, frontend gọi API vào hư không
+
+Máy đã sang mạng khác: `.env.local` trỏ `http://192.168.0.26:5005`, IP đó **curl timeout**
+(HTTP 000 sau 5 giây). IP hiện tại là **192.168.1.8**. Mọi lời gọi API từ trình duyệt đều hỏng —
+không riêng màn mới. Chính `.env.local` đã ghi sẵn cảnh báo DHCP đổi IP theo ngày.
+
+**Files:**
+  - `frontend/.env.local` — `NEXT_PUBLIC_API_URL` → `http://localhost:5005`
+    (bản cũ ở `frontend/.env.local.bak_20260816`)
+  - `backend/.env` — `ALLOWED_ORIGINS` thêm `http://192.168.1.8:3000` và `:3001`
+    (bản cũ ở `backend/.env.bak_20260816`)
+
+**Vì sao để `localhost` chứ không phải IP LAN:** trỏ API vào IP LAN mà lại mở web bằng
+`localhost:3000` thì cookie CSRF thành cookie **khác site**, trình duyệt không gửi, mọi thao tác
+**GHI** trả 403 — đã dựng lại đúng lỗi này trong lúc thử. Muốn máy khác trong LAN xem thì đổi
+`NEXT_PUBLIC_API_URL` sang `http://192.168.1.8:5005`, **và phải mở web bằng
+`http://192.168.1.8:3000`**, rồi khởi động lại cả hai dịch vụ. Đã ghi chú thẳng vào `.env.local`.
+
+**Rollback:** `cp frontend/.env.local.bak_20260816 frontend/.env.local` ·
+`cp backend/.env.bak_20260816 backend/.env`
+
+---
+
+## 2026-08-15
+
+### 2026-08-15 | feature: Hạng mục chế tạo — nền dữ liệu, API, màn quản lý, gỡ 18 cột ghi cứng
+
+Anh Hưng chốt **phương án B**: hạng mục và phân bổ tách khỏi PR-090, mỗi dự án một bộ riêng.
+Kèm hai chỉ đạo: dựng màn quản lý danh mục có nhập Excel; tiến độ tính theo
+**ngày cần vật tư TẠI CÔNG TRƯỜNG**.
+
+**Vì sao phải làm — đo được trước khi sửa:**
+  · 18 cột phân bổ trong PR-090 ghi cứng, là hạng mục của ĐÚNG MỘT dự án (hệ SCR của
+    VPI-095, đuôi `-U1`).
+  · CSDL: VPI-095 có **14** hạng mục · BRA-090 có **3** hạng mục hoàn toàn khác
+    (KCTC, KCDK, PK) · **10 dự án còn lại có 0**.
+  · Mã ghi cứng KHÔNG trùng mã trong CSDL (`BOX1-U1` vs `BOX-1`, `STACK-U1` vs `STACK`).
+    Bảng ghép phân bổ theo mã ⇒ **dù nhập liệu cũng không bao giờ hiện ra**. Đây mới là
+    lý do thật khiến `PrDetailFabAllocation` có 0 dòng.
+  · `activeFabCats` được tính trong trang cha nhưng chưa bao giờ truyền xuống PR-090.
+
+**A. Lược đồ** — `backend/scripts/fab_category_20260815.sql` (MỚI)
+  - `PrDetailFabAllocation` + `ngayCanTaiCongTruong TIMESTAMP(3)`.
+  - `FabricationCategory` + `ghiChu TEXT`, và chốt duy nhất `(projectId, code)` —
+    Prisma đã khai `@@unique` nhưng CSDL chưa hề có ràng buộc này (lệch lược đồ).
+  - Ảnh chụp cả hai bảng trước khi đụng · khối `DO $$` chốt số dòng · áp tay bằng psql
+    theo RULE CỨNG #6, KHÔNG chạy `prisma migrate dev`.
+
+**B. API** — `fabAllocationController.js` + `procurementRoutes.js`
+  - `POST /projects/:projectId/fab-categories` — thêm một hạng mục
+  - `PATCH /fab-categories/:id` — sửa
+  - `DELETE /fab-categories/:id` — xoá, **từ chối** nếu hạng mục đang có phân bổ
+  - `POST /projects/:projectId/fab-categories/import` — nhập hàng loạt, upsert theo
+    `(projectId, code)`, tối đa 500 dòng, trả về từng dòng lỗi kèm **số dòng trong file Excel**
+  - Cả bốn đều `restrictTo('KY_THUAT','MUA_HANG','ADMIN')`
+
+**C. Màn quản lý** — `app/hang-muc-che-tao/page.tsx` (MỚI), mục con của 1a trên menu
+  - Chọn dự án → danh sách hạng mục của chính dự án đó; thêm · sửa · xoá tại chỗ
+  - **Tệp mẫu Excel tải về** và **nhập từ Excel**, định dạng hiện ngay trên màn:
+    `Mã hạng mục | Tên hạng mục | Thứ tự | Ghi chú`
+  - Trạng thái rỗng đúng lời anh Hưng: *"Dự án này chưa được phân bổ theo hạng mục thi công"*
+
+**D. PR-090** — `PR090DetailView.tsx`: gỡ hằng `FAB_AREAS`, gỡ state `showFabCols`,
+  gỡ **5 khối** dựng cột phân bổ (tiêu đề nhóm · tiêu đề cột · dòng tổng nhóm · dòng dữ liệu ·
+  dòng tổng cộng). Nút bật/tắt thay bằng liên kết sang màn Hạng mục chế tạo.
+
+**Verify:**
+  - API thử bằng curl trên dự án 25-IBS-I-078 (0 hạng mục): nhập 4 dòng → **2 nhập, 2 bỏ qua**
+    kèm lý do đúng dòng ("dòng 4 thiếu mã", "dòng 5 mã lặp trong chính file") ·
+    nhập lại cùng mã → **cập nhật, không đẻ dòng mới** · thêm trùng mã → **từ chối** ·
+    xoá 2 hạng mục thử → CSDL **về đúng 17**, không để lại rác.
+  - Màn quản lý trên trình duyệt: 56 dự án trong ô chọn · VPI-095 → **14** · BRA-090 → **3** ·
+    IBS-078 → **0 + đúng câu trạng thái rỗng** · không lỗi console.
+  - PR-090 sau khi gỡ: bất biến cột **6 + 11 = 17** ✓ · bề ngang bảng **5.560 → 2.506 px**
+    (giảm 55%) · không còn dấu vết `INLET-U1` / `BOX1-U1` · có nút sang màn hạng mục ·
+    không lỗi console.
+  - `npx tsc --noEmit` **0 lỗi** · `npm test` backend **20/20**.
+
+**Rollback:** SQL có sẵn câu gỡ cột ở cuối tệp · `/tmp/fabctl.bak`, `/tmp/proutes.bak`,
+`/tmp/api.bak`, `/tmp/pr090b.bak` · xoá `app/hang-muc-che-tao/` và mục menu.
+
+**Còn lại:** lưới phân bổ (dòng = vật tư, cột = hạng mục của dự án, ô = số lượng · khối lượng ·
+ngày cần tại công trường) CHƯA làm — đó là phần chính của phương án B, làm tiếp ngay sau.
+
+### 2026-08-15 | feature: tách module — đợt 3, nối liên kết sang các module khác
+
+**Chỗ nghẽn đã gỡ:** ba module Hợp đồng · Hàng về & QC · Thanh toán **không nhận tham số nào**
+trên đường dẫn, nên nút "xem hợp đồng" trên một dòng vật tư chỉ mở được danh sách chung.
+Anh Hưng chốt 15a: thêm ngay.
+
+**A. Ba trang đích nhận `?contractNo=`**
+
+Cả ba đều có sẵn trường `contractNo` nên dùng chung một tham số:
+`ContractRow.contractNo` · `ArrivalRow.contractNo` · `PaymentScheduleRow.contractDetail.contractNo`.
+
+  - `app/hop-dong/page.tsx` · `app/warehouse/page.tsx` · `app/thanh-toan/page.tsx` —
+    đọc `useSearchParams`, thêm state `loHopDong`, lọc danh sách qua biến `hienThi`,
+    và một băng thông báo "Đang lọc theo hợp đồng X — đến từ màn Theo dõi mua hàng"
+    kèm nút **Bỏ lọc, xem tất cả**.
+
+**B. Nút nhảy trên bảng theo dõi**
+
+  - `MasterTrackingTable.tsx` — thêm component `NutHopDong`: ba biểu tượng 14px
+    (hợp đồng · hàng về & QC · thanh toán) đặt cạnh số hợp đồng, ở **cả hai** ô
+    Số HĐ trong nước và nhập khẩu. Dòng không có hợp đồng thì không hiện nút.
+
+**Verify:**
+
+| | |
+|---|---|
+| Nút trên bảng (300 dòng mẻ đầu) | **129** hợp đồng · **129** hàng về · **129** thanh toán |
+| Nút sang 1b / 1c (từ đợt trước) | **300** · **300** |
+| `/hop-dong?contractNo=280625/HN-IBS` | băng báo hiện · **2 dòng** · có nút Bỏ lọc |
+| `/warehouse?contractNo=…` | băng báo hiện · **1 dòng** |
+| `/thanh-toan?contractNo=…` | băng báo hiện · **1 dòng** |
+| Bấm "Bỏ lọc" | quay lại **31 dòng** |
+| `tsc` · `npm test` | **0 lỗi** · **20/20** |
+
+**Một lỗi tự gây rồi tự sửa:** lần chèn đầu, băng thông báo rơi vào ngay sau
+`<div className="flex min-h-screen">` — tức thành một cột của hàng ngang, đẩy nội dung
+sang phải và hiện ra như một hộp rỗng cao ngồng. Đã chuyển vào trong cột nội dung
+(`flex-1 ml-64 …`) và bỏ lề thừa. Ảnh chụp trước/sau xác nhận.
+
+**Rollback:** khôi phục ba trang từ `/tmp/hop-dong.bak`, `/tmp/warehouse.bak`,
+`/tmp/thanh-toan.bak`, và `MasterTrackingTable.tsx` từ `/tmp/mtt6.bak`.
+
+**Còn lại:** đợt 4 dọn màn PR · backend chưa tách lượt gọi 3,66 MB ·
+`/bao-gia` chưa nhận `bid`, `/mua-hang` chưa nhận `prId` (hai đích còn lại trong bản đồ liên kết).
+
+### 2026-08-15 | feature: tách module — đợt 2, cắt cột
+
+**A. Bảng theo dõi: gỡ cả nhóm "Dự trù lần 0 → n", thay bằng một cột "Ký theo REV"**
+
+Nhóm cũ chiếm 10 cột khi thu gọn, 32 khi mở hết — và hiển thị **toàn dấu `—`** vì chưa
+từng có dữ liệu đổ vào. Nó cũng giả định mọi phiếu có cùng số lần dự trù, đánh số liên tục
+từ 0, trong khi thực tế `A260-2025` có các lần 2, 4, 5, 7, 8, 9, 10, 11, 12 (nhảy cóc).
+
+Thay bằng một cột duy nhất đọc `pr.revNo` — trường thật đã chuẩn hoá ở backend sáng nay.
+Hiển thị `gốc` / `R2` / `R11` / `—` (phiếu nhập hàng loạt).
+
+  - `MasterTrackingTable.tsx` — gỡ nhóm `revs` ở cả ba nơi (hàng tên nhóm, hàng tên cột,
+    thân bảng); gỡ `REV_COUNT`, `maxRevCols`, `getRevIndices`, `EMPTY_REV_SEL` và hai prop
+    `showAllRevs` / `selectedRevByProject`. Thêm cột gộp hai hàng "Ký theo REV" + nút lọc.
+  - `TrangVatTu.tsx` — gỡ ô chọn REV trên thanh công cụ (nó chỉ phục vụ nhóm cột vừa gỡ);
+    thêm bộ lọc `revNo` với accessor `r => r.pr?.revNo`.
+  - `types/procurement.ts` — `PRDetail.pr` thêm `docNo?: string | null` và `revNo?: number | null`.
+
+**B. Màn PR khoá về bảng chi tiết**
+
+  - `app/mua-hang/page.tsx` — `<TrangVatTu khoaCheDo="detail" />`. Toàn bộ cột mua sắm
+    (hợp đồng trong nước, nhập khẩu, đã mua, QC, so sánh) rời khỏi màn này, sang hẳn
+    `/theo-doi-mua-hang`.
+  - `TrangVatTu.tsx` — ẩn mục "Chế độ xem" trong dropdown khi trang cha đã khoá; nó không
+    còn ý nghĩa ở cả hai trang.
+
+**Verify:**
+
+| | Bảng theo dõi | Màn PR |
+|---|---|---|
+| Bất biến cột (ô hàng 2 + cột gộp = tổng cột) | **44 + 11 = 55** ✓ | — |
+| Đè cột dính | **0 px** | — |
+| Còn nhóm "Dự trù lần" | **không** | — |
+| Có cột "Ký theo REV" | **có** — R2 · R11 · R9 · R5 · R4 trên 5 dòng đầu | — |
+| Nút REV trên thanh công cụ | **đã gỡ** | — |
+| Còn cột hợp đồng | có (đúng chỗ) | **không** |
+| Ô chọn chế độ xem | — | **đã ẩn** |
+| Lỗi console | **không** | **không** |
+
+  - `npx tsc --noEmit` → **0 lỗi** · `npm test` backend **20/20**.
+  - Giá trị cột REV là dữ liệu thật: mã `195-VTC01-001` xuất hiện 5 lần với R9 · R5 · R4 ·
+    R11 · R2 — đúng là 5 phiên bản khác nhau của cùng một mã, chuyện mà bảng cũ không
+    cho thấy được.
+
+**Rollback:** khôi phục `MasterTrackingTable.tsx` từ `/tmp/mtt5.bak`, `TrangVatTu.tsx` từ
+`/tmp/trangvattu.bak`, và đổi `app/mua-hang/page.tsx` về `<TrangVatTu />`.
+
+**Còn lại:** đợt 3 nối liên kết (cần thêm tham số cho ba module 4·5·6) · đợt 4 dọn màn PR ·
+backend chưa tách lượt gọi 3,66 MB · PR-090 vẫn ghi cứng 9 lần dự trù và 18 vùng chế tạo,
+chưa khớp với "REV co duỗi theo dự án".
+
+### 2026-08-15 | feature: tách module Theo dõi mua hàng (đợt 1) + mục 19 bổ sung bộ lọc
+
+**A. Tách module — đợt 1: dựng khung, CHƯA cắt cột nào**
+
+Theo kế hoạch anh Hưng duyệt. Đợt 1 cố ý để hai trang chạy song song trên cùng một thân,
+đối chiếu được với nhau; đợt 2 mới gỡ cột.
+
+  - `frontend/src/components/mua-hang/TrangVatTu.tsx` (MỚI, 957 dòng) — thân dùng chung,
+    chuyển từ `app/mua-hang/page.tsx`. Thêm prop `khoaCheDo?: ViewMode` để trang cha khoá
+    cứng chế độ xem.
+  - `frontend/src/app/mua-hang/page.tsx` — rút còn 9 dòng, chỉ render `<TrangVatTu />`.
+  - `frontend/src/app/theo-doi-mua-hang/page.tsx` (MỚI) — `<TrangVatTu khoaCheDo="workflow" />`.
+  - `frontend/src/components/layout/Sidebar.tsx` — thêm mục "Theo dõi mua hàng",
+    **không đánh số** (anh Hưng chốt 14a: nó cắt ngang cả sáu bước, nhét vào dãy 1→6 là sai logic).
+
+**B. Mục 19 — bộ lọc: từ 13 lên 32 cột, và sửa ba chỗ trỏ sai**
+
+Rà ra ba lỗi chứ không chỉ thiếu bộ lọc:
+
+  1. `contractNo` và `vendorName` **không tồn tại ở cấp dòng** — chúng nằm trong mảng
+     `contracts`. Bộ lọc cũ đọc `row.contractNo` nên luôn `undefined`.
+     Đo trên dữ liệu thật: cách cũ khớp **0 dòng**, cách mới khớp **174 dòng** với "HN-IBS".
+     Nghĩa là hai bộ lọc này chưa từng lọc được gì kể từ khi có.
+  2. Trong nước và nhập khẩu **dùng chung một khoá lọc** — hai nút bấm nhưng một bộ lọc.
+     Nay tách thành `domContractNo`/`impContractNo`, `domVendor`/`impVendor`…
+  3. Nút lọc dưới "Khối lượng phải mua sắm › Q.Ty" trỏ vào `reqQty`, trong khi cột đó
+     hiển thị `toBuyQty`. Lọc một đằng, hiện một nẻo. Đã trỏ lại đúng, và `reqQty`
+     chuyển về nhóm "Total Ordered" nơi nó thuộc về.
+
+  - `frontend/src/components/mua-hang/TrangVatTu.tsx` — thêm hai hàm `hopDong()` / `soHopDong()`
+    moi dữ liệu từ mảng hợp đồng theo loại; khai thêm 22 bộ lọc (tổng 35).
+  - `frontend/src/components/mua-hang/MasterTrackingTable.tsx` — gắn nút lọc cho 32 cột
+    (trước 13), gồm cả hai cột gộp hai hàng Remarks và Material Available Date.
+
+**Verify:**
+  - `npx tsc --noEmit` → **0 lỗi**. `npm test` backend **20/20**.
+  - Đối chiếu chéo: 32 nút lọc, **không nút nào** trỏ vào khoá chưa khai báo.
+    Ba khoá khai mà chưa có nút — `materialGroupCode`, `statusFlag`, `urgency` — là cố ý:
+    chúng phục vụ dòng tiêu đề nhóm và ô chọn trên thanh công cụ, không phải cột.
+  - Thử trên giao diện: bấm lọc "Số HĐ" của nhóm trong nước → hộp ghi đúng
+    **"Lọc: Trong nước › Số HĐ"**; gõ `280625/HN-IBS` → **1 VT**, khớp đúng con số
+    tính được từ dữ liệu thật.
+  - `/theo-doi-mua-hang` trả 200, khoá đúng ở bảng theo dõi, không lỗi console.
+
+**Rollback:** xoá `app/theo-doi-mua-hang/`, khôi phục `app/mua-hang/page.tsx` từ
+`/tmp/muahang2.bak`, xoá `components/mua-hang/TrangVatTu.tsx`, khôi phục
+`MasterTrackingTable.tsx` từ `/tmp/mtt4.bak`, gỡ mục menu.
+
+**Còn lại của việc tách:** đợt 2 gỡ cột PR khỏi bảng theo dõi và ngược lại · đợt 3 nối liên kết
+(cần thêm tham số cho ba module 4·5·6) · đợt 4 dọn màn PR. Backend chưa tách lượt gọi 3,66 MB.
+
+### 2026-08-15 | bugfix: đóng 9 mục sổ lỗi Module 1 + hai mục dữ liệu (anh Hưng duyệt 1–11, 17, 18)
+
+**What:** Toàn bộ Module 1 (bước Yêu cầu mua sắm) được đưa về cùng một khuôn với các trang còn lại,
+cộng hai chỉnh sửa dữ liệu về danh sách dự án.
+
+| Mục | Việc | Cách sửa |
+|---|---|---|
+| M-01 | 1b và 1c mất sạch thanh menu | dựng `<Sidebar />` + khung `ml-64 flex flex-col h-screen overflow-hidden` như `/duyet` |
+| M-05 | hai họ trang cuộn hai kiểu | đầu trang `shrink-0`, chỉ vùng nội dung `flex-1 overflow-auto min-h-0` cuộn |
+| M-03 | 1b tiêu đề bảng không dính | bỏ khung cuộn riêng `overflow-x-auto` của bảng để `sticky top-0` bám vào vùng cuộn của trang |
+| M-04 | 1c thanh lọc cuộn mất | tiêu đề + thẻ đếm + thanh lọc nằm ngoài vùng cuộn |
+| M-06 | 1b tràn ngang ở màn 1280 | đệm `px-3 → px-2`, tiêu đề được xuống dòng, ba cột chữ dài chặn bề rộng + `title` |
+| M-07 | 1c thẻ xếp một cột | `grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3`, bỏ `max-w-3xl` |
+| M-08 | nhánh giao diện không chạy được | khối "Nhập tồn kho thành công" bị kẹt trong bọc `importStatus !== 'confirmed'` — đưa ra ngoài |
+| M-09 | số hiệu bước vênh | `NavItem.step` đổi từ `number` sang `string`; menu ghi `1a · 1b · 1c` khớp dải chỉ đường |
+| M-02 | không có lối vào 1b/1c | hai nút nhảy trên **từng dòng** trong cột Item/STT, kèm sẵn `?prId=` |
+| 17 | PKG-* là dự án thật | tên lấy từ API (bảng Project đã có tên thật cho cả 12 mã), hằng số chỉ còn dự phòng |
+| 18 | hai dự án rỗng | giữ lại, xếp cuối kèm số 0 |
+
+**Files:**
+  - `frontend/src/app/kiem-tra-ton-kho/page.tsx` — khung chuẩn · thead dính · thu bảng · M-08
+  - `frontend/src/app/lam-ro-ky-thuat/page.tsx` — khung chuẩn · lưới thẻ nhiều cột
+  - `frontend/src/components/layout/Sidebar.tsx` — `step?: string`, đánh số 1a/1b/1c
+  - `frontend/src/components/mua-hang/MasterTrackingTable.tsx` — hai nút nhảy trong ô Item/STT;
+    `STICKY_W.item` 88 → **128** để chứa nút mà không cắt mã hàng, `STICKY_LEFT.desc` theo đó thành 224
+  - `frontend/src/app/mua-hang/page.tsx` — tên dự án lấy từ API, giữ dự án rỗng
+
+**Verify (đo bằng Chrome không giao diện sau khi khởi động lại):**
+
+| | Trước | Sau |
+|---|---|---|
+| 1b · thanh menu | không có · 0 liên kết | **có · 15 liên kết** |
+| 1b · chiều cao trang | 23.349 px | **900 px** (khung trong cuộn 23.468) |
+| 1b · cuộn 4.000px | mất tiêu đề, mất nút Lưu | **tiêu đề ở mốc 0 · nút Lưu còn thấy** |
+| 1b · màn 1280 | bảng 1.288 / khung 1.024 | **bảng 958 / khung 1.024 — vừa khít** |
+| 1c · thanh menu | không có | **có · 16 liên kết** |
+| 1c · chiều cao trang | 51.949 px | **900 px** (khung trong 26.885 — giảm 48%) |
+| 1c · cuộn 6.000px | mất thanh lọc | **thanh lọc và nút Tạo RFQ vẫn thấy** |
+| 1c · số cột thẻ | 1 | **2** ở 1512 · 3 ở ≥1536 |
+| Menu | 1 · 1 · 1 · 2…6 | **1a · 1b · 1c · 2…6** |
+| Nút nhảy sang 1b/1c | không có | **300 + 300** (một cặp mỗi dòng đã dựng) |
+| Danh sách dự án | 12, mã lạ không tên | **14** — 12 có tên thật + 2 dự án rỗng giữ lại |
+| Lỗi TypeScript toàn dự án | 1 (có sẵn) | **0** |
+| Lỗi console | — | **không có** |
+| Cột dính hai bảng | — | **vẫn sạch**: đè 0px ở cả bảng Theo dõi lẫn PR-090 |
+| `npm test` backend | 20/20 | **20/20** |
+
+**Rollback:** `git checkout` bốn tệp frontend ở trên. Bản trước ở `/tmp/tonkho.bak`,
+`/tmp/tonkho2.bak`, `/tmp/kythuat.bak`, `/tmp/muahang.bak`, `/tmp/mtt3.bak` trong phiên này.
+
+**Còn treo:** mục 19 (thêm bộ lọc cho 33 cột chưa có) chưa làm trong đợt này.
+
+### 2026-08-15 | schema: chuẩn hoá REV — tách prRef thành mã phiếu gốc + lần dự trù
+
+**What:** Anh Hưng chốt *"một lần dự trù là một PHIÊN BẢN MỚI của cùng một phiếu"*. Trước đó REV chỉ
+tồn tại dưới dạng chữ trong `prRef` và trong `remarks`, viết **tám kiểu khác nhau**
+(`REV01` · `REV3` · `Rev 01` · `REV 02` · `Rev 05` · `REV2` · `REV 04` · `Rev 12`), không có trường
+cấu trúc nào. Không gom nhóm được ⇒ không dựng được module Yêu cầu mua hàng theo phiên bản.
+
+**Files:**
+  - `backend/scripts/rev_normalize_20260815.sql` (MỚI) — ảnh chụp bảng, thêm 2 cột, 51 câu lệnh nạp
+    tường minh (không dùng regex trong SQL, để bản phân tách đã trình anh Hưng và bản chạy thật
+    không thể hiểu khác nhau), chỉ mục, và khối `DO $$` chốt số liệu — lệch là không commit.
+  - `backend/prisma/schema.prisma` — thêm `docNo String?` và `revNo Int?` vào `PurchaseRequisition`,
+    thêm `@@index([projectId, docNo, revNo])`. DDL áp tay bằng psql theo RULE CỨNG #6,
+    **KHÔNG chạy `prisma migrate dev`**.
+  - `QUYET_DINH_15-08-2026.md` (MỚI) — 23 quyết định anh Hưng chốt trong phiên.
+
+**Quy ước cột mới:**
+  - `docNo` — mã phiếu gốc đã bỏ phần REV. Ví dụ `A260-2025 Rev 07` → `A260-2025`.
+  - `revNo` — `0` = bản gốc · `1..n` = phiên bản sau · `NULL` = phiếu nhập hàng loạt.
+  - `prRef` **giữ nguyên**, không sửa một ký tự — vẫn là bản gốc để đối chiếu.
+
+**Verify:**
+  - Chốt trong script: 51 phiếu → **41 mã phiếu gốc** · không phiếu nào thiếu `docNo`.
+  - Ảnh chụp `_backup_PurchaseRequisition_20260815` giữ đủ 51 dòng.
+  - Đối chiếu `prRef` trước/sau: **0 dòng lệch**.
+  - Prisma đọc được cột mới: `A260-2025` trả đúng 10 phiên bản (0, 2, 4, 5, 7, 8, 9, 10, 11, 12)
+    từ 8 cách viết khác nhau.
+  - `npx prisma validate` hợp lệ · `prisma generate` xong · backend khởi động lại
+    (`launchctl kickstart -k`, cổng 5005 trả 200) · `npm test` **20/20**.
+
+**Hiện trạng dữ liệu — cần biết trước khi dựng giao diện:**
+  | | |
+  |---|---|
+  | Mã phiếu **thật sự có nhiều phiên bản** | **2** — `A260-2025` (10 lần) và `A085-2026` (2 lần) |
+  | Mã một bản, không ghi Rev | 29 mã · 66 dòng |
+  | Mã **chỉ có bản sửa đổi, thiếu bản gốc** | 5 mã · 333 dòng — bản trước chưa từng được nhập |
+  | Phiếu nhập hàng loạt, không có khái niệm lần | 5 phiếu · **1.351 dòng = 74%** |
+
+  Nghĩa là lưới cột cố định "Dự trù lần 0→8" (PR-090) và "0→15" (bảng Theo dõi) đều SAI HÌNH DẠNG:
+  chúng giả định mọi phiếu có cùng số lần, đánh số liên tục từ 0. Thực tế `A260-2025` nhảy cóc
+  (thiếu 1, 3, 6) và 96% số dòng chỉ có đúng một bản.
+
+**Rollback:** `ALTER TABLE "PurchaseRequisition" DROP COLUMN "docNo", DROP COLUMN "revNo";`
+rồi hoàn `schema.prisma`. Bảng `_backup_PurchaseRequisition_20260815` **không xoá**.
+
+### 2026-08-15 | bugfix: đóng nốt 5 mục còn lại của sổ lỗi /mua-hang (anh Hưng duyệt cả 11)
+
+**What:** Đ-03 bộ lọc dự án · Đ-05 nhãn nhóm không dính · Đ-06 dựng hết 1.816 dòng ·
+Đ-08 thiếu khoá định danh · Đ-09 nhãn hộp lọc sai tên cột.
+
+**Đ-03 — bộ lọc dự án đọc từ dữ liệu thay vì hằng số**
+  - `frontend/src/app/mua-hang/page.tsx` — thêm `projectOptions` (useMemo trên `prs`):
+    đếm số dòng theo `pr.pr.project.code`, lấy tên đầy đủ từ `PROJECTS` khi có, xếp giảm dần.
+  - Thay 3 chỗ dùng `PROJECTS`: options của bộ lọc cột · danh sách trong dropdown "Theo dự án" ·
+    danh sách REV theo dự án. GIỮ `PROJECTS` ở 3 chỗ cần bản ghi dự án thật (chọn dự án khi
+    upload, `UpdateProcurementModal`, `allProjectIds` cho fab categories).
+  - Mã không có trong danh mục hiện chú thích "chưa có trong danh mục dự án" thay vì để trống.
+  - **Hệ quả anh Hưng cần biết:** danh sách nay dựng từ dữ liệu nên 2 dự án rỗng
+    (`25-STV-I-082`, `24-GAS-I-071`) KHÔNG còn hiện. Đó là trả lời cho câu (b) theo hướng "bỏ".
+    Muốn giữ thì nói, em thêm lại kèm số 0.
+
+**Đ-05 — nhãn nhóm phải dính ở LỚP CON, không phải ở ô**
+  - `MasterTrackingTable.tsx` — ô tiêu đề nhóm rộng bằng cả bảng (4.009px) nên `sticky left-0`
+    trên chính nó vô tác dụng. Chuyển `sticky left-0` xuống một `<div>` con `inline-block`.
+
+**Đ-06 — dựng dòng theo mẻ 300**
+  - `MasterTrackingTable.tsx` — thêm `BUOC_DONG = 300`, state `soDongHien`, `nhomHienThi`
+    (cắt bớt nhưng giữ tổng thật của từng nhóm để dòng tiêu đề nhóm vẫn đếm đúng),
+    `onScroll` nạp thêm khi còn cách đáy 800px, và một dòng chân báo "Đang hiện X / Y dòng".
+  - Bộ lọc và ô tìm chạy TRƯỚC khi cắt mẻ nên vẫn tìm trong toàn bộ dữ liệu.
+
+**Đ-08 — khoá định danh phải đặt ở phần tử ngoài cùng**
+  - `PR090DetailView.tsx` — hai vòng lặp (REV và fab area) trả về `<>…</>` với `key` đặt ở `<td>`
+    bên trong. React chỉ nhìn phần tử ngoài cùng ⇒ đổi sang `<Fragment key={…}>`.
+    Thêm `Fragment` vào import.
+
+**Đ-09 — nhãn hộp lọc trùng tên cột**
+  - `mua-hang/page.tsx` — `Mã VT→Item/STT` · `Tên VT→Description/Chi tiết` ·
+    `Quy cách→Profile/Vật tư` · `Mác thép→Grade/Mác` · `Đơn vị→Unit/ĐVT` · `Nhà CC→NCC`.
+    Hai cột cùng tên "Q.Ty" khác nhóm nên ghi kèm nhóm:
+    `Net Quantity › Q.Ty` và `Khối lượng phải mua sắm › Q.Ty`.
+
+**Verify (đo bằng Chrome không giao diện, dữ liệu thật 1.816 dòng):**
+
+| | Trước | Sau |
+|---|---|---|
+| Nút DOM lúc mở trang | 125.673 | **21.064** (−83%) |
+| Chi phí mỗi nhịp cuộn | 23 ms | **0,1 ms** |
+| Dòng dựng ban đầu | 1.816 | **300** + nạp thêm khi cuộn |
+| Nhãn nhóm ở mốc cuộn 1.500 | x = −1.499 (mất) | **x = 0 (còn thấy)** |
+| Dự án lọc được | 4 (2 rỗng) | **12** · tổng đếm 1.816 = đủ 100% |
+| Nhãn lọc cột Description | "Lọc: Tên VT" | **"Lọc: Description/Chi tiết"** |
+| Cảnh báo thiếu key | có | **không còn** |
+| Lỗi console khác | — | **không có** |
+
+  - Kiểm nạp thêm: cuộn đáy 3 lần → 300 → 1.200 dòng, dòng chân cập nhật đúng.
+  - `npx tsc --noEmit` → vẫn đúng 1 lỗi có sẵn `kiem-tra-ton-kho/page.tsx:463` (mục M-08 của
+    sổ lỗi Module 1, chưa nằm trong đợt này).
+
+**Đánh đổi của Đ-06 phải nói rõ:** cuộn hết 1.816 dòng thì DOM lại dâng lên (~83.000 nút ở mốc
+1.200 dòng) vì mẻ đã dựng không bị thu hồi. Cách triệt để là chỉ dựng đúng phần đang nhìn thấy,
+nhưng bảng này có cột dính, dòng nhóm và tiêu đề hai tầng nên rủi ro cao — em để dành, chưa làm.
+Tìm bằng `Cmd+F` của trình duyệt chỉ thấy phần đã dựng; ô tìm trong thanh công cụ vẫn quét toàn bộ.
+
+**Rollback:** `git checkout frontend/src/app/mua-hang/page.tsx
+frontend/src/components/mua-hang/MasterTrackingTable.tsx
+frontend/src/components/mua-hang/PR090DetailView.tsx`
+(bản trước ở `/tmp/muahang.bak`, `/tmp/mtt3.bak` trong phiên này)
+
+### 2026-08-15 | bugfix: hàng tiêu đề phụ trượt cột — số của cột này nằm dưới tên của cột kia
+
+**What:** Anh Hưng phát hiện khi xem bảng Theo dõi: dữ liệu hiện dưới sai tên cột. Đo lại bằng cách
+chiếu từng ô dữ liệu lên đúng ô tiêu đề nằm trên nó (theo toạ độ, không theo chỉ số) thì thấy
+**cả hàng tiêu đề phụ bị trượt sang trái**.
+
+Nguyên nhân: bảng có 13 nhóm cột đóng/mở được. Khi một nhóm bị thu gọn:
+  · HÀNG 1 (tên nhóm) sinh 1 ô đệm `TH_COLLAPSED` để bấm mở lại — chiếm 1 cột
+  · THÂN BẢNG   sinh 1 ô đệm `TD_PLACEHOLDER`                  — chiếm 1 cột
+  · HÀNG 2 (tên cột) dùng `{colGroupVis.X && (...)}` ⇒ **không sinh gì cả** — thiếu 1 cột
+
+Mặc định có 4 nhóm thu gọn (`revs`, `remain`, `domQC`, `impQC`) nên hàng 2 thiếu đúng 4 ô, và mọi
+nhãn phía sau trượt trái dần: sau nhóm thu gọn thứ nhất lệch 1 cột, thứ hai lệch 2, … thứ tư lệch 4.
+
+Hậu quả đọc sai thực tế đo được ở dòng `I78-C-1`:
+| Nhãn hiện trên màn | Giá trị hiện ra | Giá trị đó thật ra là |
+|---|---|---|
+| NCC | `280625/HN-IBS` | Số hợp đồng |
+| Spec HĐ | `Hùng Nguyên` | Tên nhà cung cấp |
+| KL theo HĐ | `Thép U100x46x4.5x6000` | Quy cách |
+| Ngày ký | `155` | Khối lượng theo HĐ |
+| Handover Q.Ty | `27/06/25` | Ngày ký |
+
+**Files:**
+  - `frontend/src/components/mua-hang/MasterTrackingTable.tsx` — thêm hằng `TH2_COLLAPSED`
+    (rộng bằng `TH_COLLAPSED` của hàng 1).
+  - cùng tệp, vùng `ROW 2: Sub-headers` — đổi **cả 13 nhóm** từ
+    `{colGroupVis.X && (<>…</>)}` sang `{colGroupVis.X ? (<>…</>) : (<th className={TH2_COLLAPSED} />)}`.
+
+**Verify:** đo bằng Chrome không giao diện, chiếu ô dữ liệu lên tiêu đề theo toạ độ:
+  - Trước: hàng 2 có **41** ô / 55 cột · nhãn `Số HĐ` `NCC` rơi vào nhóm "Khối lượng phải mua sắm".
+  - Sau:   hàng 2 có **45** ô / 55 cột · 11 nhãn của nhóm VẬT TƯ TRONG NƯỚC đúng thứ tự
+    `Số HĐ · NCC · Spec HĐ · KL theo HĐ · Ngày ký · Handover Q.Ty · Handover Weight ·
+    Đơn giá NoVAT · Tổng NoVAT · %VAT · Handover Date`.
+  - Bất biến kiểm được ở cả hai trạng thái: `số ô hàng 2 + số cột gộp 2 hàng == tổng số cột`
+    → thu gọn mặc định 45+10=55 ✓ · mở hết mọi nhóm 64+10=74 ✓.
+  - Đọc lại dòng `I78-C-1`: mọi giá trị nằm đúng nhãn (xem bảng trên).
+  - `npx tsc --noEmit` → vẫn đúng 1 lỗi có sẵn, không phát sinh mới.
+
+**Mức nghiêm trọng:** cao. Đây là bảng theo dõi hợp đồng và tiền. Bất kỳ ai đọc bảng ở trạng thái
+mặc định từ trước tới nay đều đang đọc sai cột. Không mất dữ liệu — chỉ hiển thị sai — nhưng mọi
+kết luận rút ra từ màn hình này trước 15/08 cần soát lại.
+
+**Rollback:** `git checkout frontend/src/components/mua-hang/MasterTrackingTable.tsx`
+(bản trước khi sửa còn ở `/tmp/mtt2.bak` trong phiên này)
+
+### 2026-08-15 | bugfix: hết đè hiển thị khi cuộn ngang ở cả hai bảng của /mua-hang
+
+**What:** Quét toàn bộ 13 trang ở hai khổ màn (1512, 1280) tìm hiện tượng cột dính đè nhau khi cuộn
+ngang. Toàn hệ chỉ có `/mua-hang` là có khung cuộn ngang, và cả hai bảng của nó đều đè. Ba lỗi, một
+nguyên nhân chung: **mốc `left` ghi cứng nhưng bề rộng cột lại do trình duyệt tự nới theo nội dung.**
+
+  · Bảng Theo dõi   — đè 9px (tiêu đề lẫn thân). Mốc giả định cột Item rộng 80px, thực tế 89px.
+  · Bảng PR-090     — đè 64px và 213px. Mốc 0/80/176, bề rộng thật 144/309/480.
+  · Bảng Theo dõi   — ba ô dính ở dòng lẻ dùng nền `bg-slate-50/40` (đục 40%) nên nội dung cuộn
+                      phía sau xuyên qua ⇒ chữ chồng chữ. 12/27 ô dính bị.
+
+**Files:**
+  - `frontend/src/components/mua-hang/MasterTrackingTable.tsx:89-110` — STICKY_W đổi
+    `{project:96, item:80, desc:176}` → `{project:96, item:88, desc:180}`, tính theo công thức
+    `max-w của div truncate + px-1 hai bên (8) + border (2)`. Thêm hàm `pin()` trả về
+    `{left, width, minWidth, maxWidth}` để ghim cứng bề rộng.
+  - `MasterTrackingTable.tsx:251,263,273` (th) và `:870,881,890` (td) — dùng `pin()`.
+    Gỡ luôn hai lớp chết `min-w-[${STICKY_W.item}px]` / `min-w-[${STICKY_W.desc}px]`
+    (viết bằng biến nên Tailwind không sinh CSS — chính chỗ này đẻ ra hiểu nhầm 80px).
+  - `MasterTrackingTable.tsx:842` — `bg-slate-50/40` → `bg-slate-50` (đục 100%).
+  - `frontend/src/components/mua-hang/PR090DetailView.tsx:195-217` — thêm STICKY_W
+    `{stt:96, desc:168, profile:208}`, STICKY_LEFT tính từ chính bề rộng đó, và hàm `pin()`.
+  - `PR090DetailView.tsx` th ×3, td ×3 — thay `left-0 / left-20 / left-[11rem]` + `w-20/w-48/w-36`
+    bằng `style={pin(...)}`; nội dung td bọc `<div className="truncate">` + `title` giữ đủ chữ.
+
+**Verify:** đo bằng Chrome không giao diện qua CDP, cuộn tới các mốc 0/600/1400/2400:
+  - Bảng Theo dõi: `deTieuDe: []`, `deThan: []`, số ô dính trong suốt `0` — trước là 9px/9px/12 ô.
+  - Bảng PR-090: mốc 0/96/264, bề rộng 96/168/208, mép phải 96/264/472 — khớp khít, đè `0`.
+    Khối cột dính thu từ **656px → 472px** (ở màn 1280 là từ 64% xuống 46% bề ngang).
+  - Lấy mẫu điểm ảnh vùng cột dính: không có chữ lạ xuyên qua.
+  - `npx tsc --noEmit` → vẫn đúng 1 lỗi có sẵn `kiem-tra-ton-kho/page.tsx:463`, không phát sinh mới.
+
+**Ghi chú tự sửa:** sổ lỗi bản đầu ghi PR-090 "tiêu đề dính 3 cột, thân chỉ dính 1" (mục Đ-01) —
+**SAI**. Lúc đo em lấy nhầm dòng tiêu đề nhóm (có `colSpan`) làm dòng dữ liệu. Đo lại trên dòng dữ
+liệu thật: thân cũng dính đủ 3 cột, cùng mốc với tiêu đề. Đ-01 và Đ-02 thực ra là **một lỗi**, và
+bản vá này xử lý cả hai. Triệu chứng "tiêu đề lệch dữ liệu một cột" trong ảnh chụp là do nhãn tiêu
+đề căn giữa nên bị chôn hẳn, còn dữ liệu căn trái thì ló ra ở khe hở.
+
+**Rollback:** `git checkout frontend/src/components/mua-hang/MasterTrackingTable.tsx
+frontend/src/components/mua-hang/PR090DetailView.tsx`
+(bản trước khi sửa còn ở `/tmp/mtt.bak` và `/tmp/pr090.bak` trong phiên này)
+
+---
+
+## 2026-08-14
+
+### 2026-08-14 14:50 | infra: đưa Postgres + backend + frontend lên launchd, hết phụ thuộc Terminal
+
+**What:** Anh Hưng không dùng Terminal (không nhận ra phím `control` trên bàn phím Mac), nên máy chủ
+cứ phải nhờ phiên Claude khởi động — vi phạm tinh thần RULE CỨNG #4 và chết theo phiên. Chuyển cả ba
+dịch vụ sang launchd: tự chạy khi đăng nhập, tự dựng lại khi chết, không cần cửa sổ nào.
+
+**Files:**
+  - `~/Library/LaunchAgents/com.ibshi.vattu.postgres.plist` — MỚI
+  - `~/Library/LaunchAgents/com.ibshi.vattu.backend.plist` — MỚI
+  - `~/Library/LaunchAgents/com.ibshi.vattu.frontend.plist` — MỚI
+  - Nhật ký: `~/Library/Logs/ibshi-vattu/{postgres,backend,frontend}.log`
+  - `archive/launchd_postgres.sh.khong-dung` — kịch bản bọc bằng bash, bỏ vì macOS chặn (xem R-19)
+
+**Hai lỗi gặp khi làm, đã ghi thành R-19:** launchd không đọc được tệp trong `~/Desktop` (chặn TCC)
+nên phải gọi thẳng tệp thực thi; và PostgreSQL 18 chết với `postmaster became multithreaded` nếu
+thiếu `LC_ALL` trong môi trường.
+
+**Verify:** Postgres 54321 mở · `/health`, `/health/detail`, `/metrics` đều 200 · không token → 401 ·
+cookie giữ `SameSite=Lax` · `/login` và `/duyet` đều 200 · dữ liệu nguyên vẹn (PO 0 · hợp đồng 2.994 ·
+đã duyệt 508 · vật tư 4.440). Cơ chế tự dựng lại đã kiểm chứng thật: giết Postgres → launchd dựng lại.
+
+**Rollback:** `launchctl bootout gui/$(id -u)/com.ibshi.vattu.{postgres,backend,frontend}` rồi xoá 3 tệp plist.
+
+---
+
+### 2026-08-14 14:16 | bugfix: đổi chế độ chọn thầu luôn trả 401 — thiếu header Authorization
+
+**What:** Phát hiện khi nghiệm thu B3 bằng Chrome thật. `SelectionModeChooser` tự gọi `fetch` thay vì đi
+qua `apiRequest`, và **quên hẳn header `Authorization: Bearer`**. Thẻ đăng nhập nằm ở `localStorage`
+chứ không phải cookie (chú thích `api.ts:55` nói rõ lý do: cookie không chạy cross-port trên HTTP local),
+nên `credentials:'include'` không mang thẻ đi. `verifyToken` không thấy ai ⇒ **401 mọi lần đổi chế độ**.
+
+Nghĩa là **giao diện chưa từng đổi được chế độ chọn thầu lần nào**. Phiên 13/08 thử 5 chế độ bằng curl
+(curl có gắn thẻ tay) nên tất cả đều xanh — đúng vết xe R-17 lần thứ ba: mã chưa chạy qua đường thật.
+Đây cũng là một trong 7 chỗ "nhảy cóc qua tầng ba" đã liệt kê ở `docs/BON-TANG-VAT-TU-20260814.html`.
+
+**Bằng chứng — nhật ký backend cùng một nút, trước và sau khi vá:**
+```
+14:13:55  PATCH .../selection-mode  401   ← trước
+14:14:41  PATCH .../selection-mode  401   ← trước
+14:16:27  PATCH .../selection-mode  200   ← sau
+```
+
+**Files:**
+  - frontend/src/lib/api.ts — thêm `setBidSelectionMode()` đi qua `apiRequest`
+    (tự gắn Authorization + X-CSRF-Token, tự lấy lại thẻ khi 403).
+  - frontend/src/components/bid/SelectionModeChooser.tsx:52 — dùng hàm đó thay cho `fetch` tay.
+    Gỡ luôn `const API_URL = …` và import `ensureCsrfToken` ⇒ bớt một chỗ vi phạm R-13.
+
+**Verify:** đổi cả 4 chế độ trên Chrome đều 200; nhật ký kiểm toán ghi đúng
+`BID_SELECTION_MODE_CHANGED {"from":…,"to":…,"resetCount":…}`.
+
+**Rollback:** `git checkout frontend/src/lib/api.ts frontend/src/components/bid/SelectionModeChooser.tsx`
+
+---
+
+### 2026-08-14 09:58 | bugfix: cookie CSRF sai chuẩn làm MỌI thao tác ghi trên trình duyệt trả 403
+
+**What:** Phát hiện khi nghiệm thu bằng mắt trang `/duyet`. Cookie `ibshi_csrf` ở chế độ phát triển
+được đặt `SameSite=None` nhưng `Secure=false`. Theo chuẩn cookie, `SameSite=None` BẮT BUỘC đi kèm
+`Secure`; thiếu Secure thì Chrome (từ bản 80) và Firefox vứt thẳng cookie. Hậu quả:
+`ibshi_csrf` không bao giờ được lưu ⇒ không bao giờ gửi lại ⇒ **mọi POST/PATCH/DELETE từ Chrome
+đều trả 403**: duyệt NCC từng dòng, đổi chế độ chọn thầu, chọn NCC theo nhóm, chạy chọn tự động,
+chấm điểm NCC, tạo PO. Nguyên văn máy chủ trả về:
+`Set-Cookie: ibshi_csrf=…; Path=/; HttpOnly; SameSite=None` (không có `Secure`).
+
+Tiền đề của bản cũ (chú thích dòng 28) sai: `SameSite=None` KHÔNG cần cho cross-port. Khác **cổng**
+(3000/3001 → 5005) vẫn là **cùng site**, nên `Lax` gửi cookie bình thường.
+
+**VÌ SAO ẨN ĐƯỢC 2,5 THÁNG — Safari cư xử khác Chrome.** Xác minh trực tiếp 14/08: Safari **vẫn nhận**
+cookie sai chuẩn này, nên anh Hưng (dùng Safari) thao tác `/duyet` bình thường — lúc 02:58 anh duyệt
+thành công 3 dòng `I109-VTC01-024/025/026` trong khi trình duyệt Chromium của Claude bị 403 với cùng
+máy chủ, cùng tài khoản, cách nhau vài giây. Bài học: **kiểm bằng một trình duyệt là chưa đủ.**
+
+**Không phải lỗi của đợt vá 13/08** — `csrfProtection.js` không nằm trong 10 file bị sửa; commit chạm
+nó gần nhất là `63500a3` (01/06). Nhưng nó chặn đúng thứ phiên 14/08 cần nghiệm thu, nên phải vá trước.
+
+Đây là **R-17 lặp lại lần hai**: mã chưa từng chạy qua đường thật. Phiên 13/08 chỉ kiểm
+"POST thiếu CSRF → 403" (đúng như mong đợi) mà chưa lần nào kiểm một POST **thành công** từ trình duyệt.
+
+**Bằng chứng phân định:**
+  - Trình duyệt → `PATCH /api/v1/bid-analyses/:id/items/:itemId/select-vendor` → **403** ×4
+    (`apiRequest` đã tự lấy lại thẻ và thử lại theo đúng thiết kế, vẫn 403)
+  - curl (không áp luật SameSite) → cùng lệnh đó → **200**, CSDL cập nhật, `selectedAt` đóng dấu
+
+**Files:**
+  - backend/src/middleware/csrfProtection.js:30 — `sameSite: isProd ? 'strict' : 'none'`
+    → `isProd ? 'strict' : 'lax'`. Nhánh production **giữ nguyên** `strict`, không hạ bảo mật.
+  - DEVOPS_NOTES.md — thêm R-18.
+
+**Verify — ĐÃ CHẠY 2026-08-14 13:50, anh Hưng cho phép phá RULE #4 một lần để nạp bản vá:**
+  - Dừng tiến trình cũ (PID 68742, bật từ 13/08 14:31), khởi động lại → PID 37377, Postgres OK.
+  - `curl -s -i /api/v1/auth/csrf-token | grep -i set-cookie` → `SameSite=Lax` ✅ (trước là `SameSite=None`)
+  - Trình duyệt Chromium, đúng lệnh trước đó trả 403 bốn lần:
+    `PATCH /api/v1/bid-analyses/:id/items/:itemId/select-vendor` → **HTTP 200** ✅
+    thân trả về `{"success":true,"selectedVendorName":"ĐÔNG NAM"}`
+  - Giao diện `/duyet` hiện đúng **Đã duyệt 1 · Chờ duyệt 38**, nút "Tạo PO / HĐ" bật sáng.
+  - ⚠️ Tiến trình backend hiện do phiên Claude sở hữu, KHÔNG phải terminal của anh Hưng.
+    Nếu nó chết thì chạy lại tay: `cd backend && npm start`.
+
+**Rollback:** `git checkout backend/src/middleware/csrfProtection.js` rồi khởi động lại backend.
+
+---
+
+## 2026-08-13
+
+### 2026-08-13 12:25 | infra: vá lớp CSRF cho bộ test (S2-1 verify end-to-end)
+
+**What:** 2 test POST của F04 Alert Center fail 403 vì bộ test chưa biết đến lớp CSRF thêm ở S2-1
+(helpers chỉ gắn `Authorization`, không có `X-CSRF-Token`). Không phải lỗi sản phẩm — CSRF chạy đúng.
+Thêm `adminAgent()` (giữ cookie `ibshi_session` + `ibshi_csrf`, login TRƯỚC rồi mới xin token vì
+session identifier bám cookie login) và `mutateHeader()`. Đây cũng là phép kiểm chứng S2-1 còn nợ
+từ directive DA 12/06.
+
+**Files:**
+- `backend/tests/helpers.js:23-60` — thêm `adminAgent()` + `mutateHeader()`, export thêm 2 hàm
+- `backend/tests/alerts.test.js:8-30,62-65,83-91` — 4 lời gọi POST chuyển sang dùng agent
+
+**Verify:** `cd backend && npm test` → 20/20 pass (trước: 18 pass / 2 fail)
+**Rollback:** `git checkout backend/tests/helpers.js backend/tests/alerts.test.js`
+
+### 2026-08-13 14:45 | REVERT: gỡ dữ liệu do phiên thử P0-3 lỡ tạo
+
+**What:** Script kiểm chứng "chặn dòng 0 đồng" chạy sang cả bước 2 (đổi sang NCC có giá) nên
+tạo THẬT `PO-260813-001` (GNEE, 548,17) + 1 dòng ContractDetail trên gói `BID-VPI095-2604-VTC-008`,
+đồng thời đẩy gói sang trạng thái CONTRACTED. Đã hoàn tác toàn bộ.
+
+**Files:**
+- `backend/scripts/revert_test_po_20260813.sql` — MỚI; sao lưu sang `_backup_test_po_20260813` rồi xoá PO + dòng HĐ, trả gói về OPEN, gỡ lựa chọn NCC của dòng thử
+
+**Verify:** đối chiếu lại với số đo đầu phiên — PurchaseOrder 0 · ContractDetail 2.994 ·
+dòng đã duyệt 508 · BidAnalysis 187 SELECTED + 64 OPEN = 251 · BidGroupSelection 0 · BidVendorScore 0. Khớp 100%.
+**Rollback:** dữ liệu gốc còn trong `_backup_test_po_20260813`.
+**Ghi chú:** GIỮ nguyên AuditLog của phiên thử — đó là bằng chứng P0-4 chạy đúng, và không xoá dấu vết.
+
+### 2026-08-13 14:30 | feature+bugfix: sửa toàn bộ P0/P1 + nối 3 chế độ chọn thầu (anh Hưng duyệt 13/08)
+
+**What:** Thi hành danh sách vá trong báo cáo rà soát, theo 4 quyết định của anh Hưng.
+
+*P0 — sai có thể dẫn tới chọn nhầm NCC hoặc sai tiền*
+- **P0-1** Ghép báo giá vào cột NCC theo `vendorId` thay cho `vendorOrder`/`vendorName`. Tách bộ hàm dùng chung `lib/bid-compare.ts` cho cả hai tab — trước đây mỗi tab ghép một kiểu nên cùng một mục hiện hai giá khác nhau.
+- **P0-2** Chống so chéo loại tiền: mọi ô giá hiện ký hiệu tiền; giá thấp nhất chấm RIÊNG trong từng loại tiền; gói trộn tiền có dải cảnh báo. (11 gói trộn VND/USD.)
+- **P0-3** `create-po` TỪ CHỐI dòng có đơn giá 0 hoặc NCC duyệt không báo giá, trả `invalidLines` để giao diện liệt kê. Bỏ hẳn `offer?.unitPrice || it.estimateUnitPrice` — chỗ âm thầm thay giá dự toán vào đơn hàng.
+- **P0-4** Ghi `AuditLog` cho mọi hành vi duyệt (`BID_ITEM_VENDOR_SELECTED` / `_CLEARED` / `BID_VENDOR_SELECTED_ALL_ITEMS`), có ghi rõ NCC cũ → NCC mới.
+
+*P1*
+- **P1-1** Bỏ nút "Chọn NCC này" ở tab So sánh — tab này thuần chỉ đọc, chỉ còn MỘT đường duyệt.
+- **P1-2** Khoá sửa NCC duyệt khi gói đã CONTRACTED (409).
+- **P1-3** Chặn tạo đơn hàng lần hai, báo kèm mã PO đã có.
+- **P1-4** Schema: `BidQuoteItem.selectedAt` + `.selectedBy`.
+- **P1-5** Đánh số lại `vendorOrder` (79 dòng) + `@@unique([bidId, vendorOrder])`.
+
+*P2*
+- **P2-4** Nối giao diện 3 chế độ chết. **Phát hiện thêm:** `setSelectionMode` và `autoSelectMinPrice` cùng trỏ vào `bidQuoteOffer.bidAnalysisItem` + `bidQuoteOffer.selectedVendorName` — **cả hai đều không tồn tại trong schema**, nên mọi lần đổi chế độ từ PER_ITEM đều ném 500. Đó là lý do thật khiến 3 chế độ chưa từng chạy được (không chỉ là chưa nối giao diện). Đã trỏ lại `bidQuoteItem`. PER_GROUP nay đổ lựa chọn xuống từng dòng (create-po chỉ đọc cấp dòng); rời PER_GROUP thì gỡ luôn ở cấp dòng.
+- **P2-1** Cột chênh lệch % so với NCC rẻ nhất · **P2-2** hiện `deliveryTerm`/`remarks` · **P2-3** bộ lọc ẩn dòng chưa có báo giá (1.325 dòng = 61%) · **P2-5** loại hợp đồng lấy theo `vendorType` thay vì suy từ loại tiền · **P2-6** số nhóm vật tư lấy từ `groupCode` backend gắn (`lib/materialGroup.js`) thay cho cắt chữ đầu tên vật tư · **P2-7** vá cảnh báo React thiếu `key` bằng `Fragment`.
+
+*Ngoài danh sách — phát hiện khi làm*
+- Nút "Tạo PO / HĐ" gọi `fetch` thẳng, **thiếu header CSRF** nên luôn bị 403, lại hardcode `localhost:5005` (vi phạm R-13). Chuyển sang `createPoFromBid()` qua `apiRequest`.
+- `apiRequest` nay đính kèm body lỗi vào Error (`err.body`) để nơi gọi hiển thị chi tiết.
+
+**Files:**
+- `backend/src/lib/materialGroup.js` — MỚI (suy mã nhóm vật tư từ mã hàng)
+- `backend/src/controllers/bidSelectionModeController.js` — sửa 3 hàm hỏng + cascade nhóm
+- `backend/src/controllers/bidAnalysisController.js` — `writeAudit`, `selectItemVendor`, `selectVendor`, `createPoFromBid`, `getBidAnalysisDetail`
+- `backend/prisma/schema.prisma` — `BidQuoteItem.selectedAt/selectedBy`, `@@unique([bidId, vendorOrder])`
+- `backend/scripts/fix_vendor_order_20260813.sql` · `backend/scripts/migration_20260813_bid_approval.sql` — MỚI
+- `frontend/src/lib/bid-compare.ts` — MỚI
+- `frontend/src/lib/api.ts` — 6 hàm API mới + kiểu dữ liệu + giữ body lỗi
+- `frontend/src/app/duyet/page.tsx` — viết lại 2 tab + 4 khung chế độ
+
+**Verify:**
+- `npm test` → 20/20 xanh · `npx tsc --noEmit` → 0 lỗi ở phần sửa (còn 1 lỗi CÓ SẴN ở `kiem-tra-ton-kho/page.tsx:463`, từ commit 63500a3, không thuộc phạm vi)
+- GET không token → 401 · POST không CSRF → 403
+- Thử thật trên `BID-VPI095-2604-VTC-008`: đổi 5 chế độ đều 200 (trước đây 500) · PER_GROUP gán đúng 22/39 dòng của nhóm VTC02 · AUTO_MIN_PRICE chọn 27, bỏ qua 12 · chấm điểm ra 73 = 80×0,5 + 70×0,3 + 60×0,2 · P0-3 chặn đúng dòng `I95-VTC01-071` (ĐÔNG NAM, phạm vi X, giá 0)
+- 5 trang chính tải HTTP 200
+
+**Rollback:**
+```bash
+git checkout backend/src/controllers/bidAnalysisController.js \
+  backend/src/controllers/bidSelectionModeController.js backend/prisma/schema.prisma \
+  frontend/src/app/duyet/page.tsx frontend/src/lib/api.ts
+rm backend/src/lib/materialGroup.js frontend/src/lib/bid-compare.ts
+psql "$DATABASE_URL" -c 'ALTER TABLE "BidQuoteItem" DROP COLUMN "selectedAt", DROP COLUMN "selectedBy";
+  DROP INDEX "BidQuoteVendor_bidId_vendorOrder_key";
+  UPDATE "BidQuoteVendor" v SET "vendorOrder"=b."vendorOrder" FROM "_backup_BidQuoteVendor_order_20260813" b WHERE v.id=b.id;'
+npx prisma generate
+```
+
+### 2026-08-13 12:30 | docs: rà soát logic so sánh giá theo mục vật tư → phê duyệt
+
+**What:** Rà soát theo yêu cầu anh Hưng. KHÔNG sửa code sản phẩm. Phát hiện 4 lỗi P0:
+(1) tab So sánh ghép báo giá vào cột NCC theo `vendorOrder` — không duy nhất, 60 gói trùng →
+22 ô giá đang hiển thị nhầm NCC trên 3 gói thật (`BID-VPI095-2605-VTC-003`, `BID-WNC097-2604-VTC-002`,
+`BID-VPI095-2604-VTC-001`), 57 gói còn lại mang lỗi tiềm ẩn; hai tab lại dùng hai khoá ghép khác nhau
+(`vendorOrder` vs `vendorName`) nên cùng một mục có thể hiện hai giá khác nhau.
+(2) không xử lý khác loại tiền — 11 gói trộn VND/USD, ô giá không hiện ký hiệu tiền, NCC báo USD
+luôn bị chấm là "rẻ nhất". (3) `create-po` dùng `||` nên báo giá 0 âm thầm bị thay bằng đơn giá
+dự toán (286 báo giá có giá 0). (4) hành vi duyệt không ghi nhật ký — 508 mục đã duyệt NCC, AuditLog
+có 0 bản ghi. Ngoài ra 3/5 chế độ chọn thầu là logic chết (backend + route có, giao diện không gọi;
+BidGroupSelection và BidVendorScore đều 0 dòng), và hai đường phê duyệt (cấp gói `isWinner` vs
+cấp dòng `selectedVendorName`) không nối với nhau — bấm "Chọn NCC này" xong không tạo được PO.
+
+**Files:**
+- `docs/RA-SOAT-LOGIC-SO-SANH-DUYET-BAO-GIA-20260813.md` — MỚI, báo cáo đầy đủ + bảng vá P0/P1/P2
+
+**Verify:** `npm test` 20/20 xanh; số liệu tự truy vấn lại từ DB cổng 54321
+**Rollback:** xoá file báo cáo (chỉ là tài liệu, không đụng code)
+
+---
+
 ## 2026-06-01
 
 ### 2026-06-01 | feature: F3+F1+F2 — Kiểm tra tồn kho, Làm rõ kỹ thuật, Lịch sử mua hàng

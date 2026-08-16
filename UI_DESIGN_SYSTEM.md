@@ -1,158 +1,134 @@
-# UI_DESIGN_SYSTEM.md — Tokens reference (UI-1-1)
+# UI_DESIGN_SYSTEM.md — Quy ước giao diện nền tảng Vật tư
 
-> **Created:** 2026-05-25 Phase C kick-off
-> **File source of truth:** [frontend/src/app/globals.css](frontend/src/app/globals.css) `@theme` block
-> **Scope:** Replace `text-[9..11px] font-black uppercase` sprawl + 6+ ad-hoc colors
-
----
-
-## Typography scale (6 levels, min 12px)
-
-| Token | Size | Use case | Tailwind utility |
-|---|---|---|---|
-| `--text-caption` | 12px | Metadata, helper hints, timestamps | `.text-caption` |
-| `--text-body` | 14px | Default body, regular table cells | `.text-body` |
-| `--text-emphasis` | 14px / 600 | Highlighted table cells, important inline | `.text-emphasis` |
-| `--text-h3` | 16px / 600 | Card title | `.text-h3` |
-| `--text-h2` | 20px / 700 | Section title | `.text-h2` |
-| `--text-h1` | 24px / 800 | Page title | `.text-h1` |
-| `--text-display` | 32px / 800 | KPI number | `.text-display` |
-
-**Anti-pattern (đang bị abuse trong codebase):**
-```jsx
-<div className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-  GROUP LABEL
-</div>
-```
-
-**Pattern mới:**
-```jsx
-<div className="label">GROUP LABEL</div>
-```
+> **Cập nhật 14/08/2026.** Tài liệu này **mô tả cách dùng**, không chứa con số.
+> Mọi giá trị nằm ở một nơi duy nhất: khối `@theme` trong
+> [`frontend/src/app/globals.css`](frontend/src/app/globals.css).
+>
+> Lý do: bản trước ghi số vào cả hai chỗ, ba tháng sau hai chỗ lệch nhau.
+> Muốn biết đúng một giá trị là bao nhiêu thì mở `globals.css`, đừng tin tài liệu.
 
 ---
 
-## Semantic colors (5 channels)
+## 1. Hiện trạng — đọc trước khi sửa bất cứ gì
 
-| Token | Color | Use case | Badge utility |
-|---|---|---|---|
-| `--color-brand` | `#1B365D` navy | Logo, primary CTA, brand identity | `.badge-brand` |
-| `--color-info` | `#0D6EFD` blue | Hyperlink, selected state, neutral info | `.badge-info` |
-| `--color-success` | `#198754` green | DONE, PAID, APPROVED, COMPLETED | `.badge-success` |
-| `--color-warning` | `#FD7E14` orange | Pending, DRAFT, IN_PROGRESS | `.badge-warning` |
-| `--color-danger` | `#DC2626` red | OVERDUE, REJECTED, CANCELLED, errors | `.badge-danger` |
+Bộ token đã đầy đủ từ 25/05, nhưng **gần như không được dùng**. Đo ngày 14/08:
 
-Mỗi channel có 3 variant: base, `-fg` (text-on-base), `-soft` (background variant).
-
-**Anti-pattern:**
-```jsx
-{ label: 'Dự án',           color: '#1B365D' }  // navy
-{ label: 'Yêu cầu mua hàng', color: '#0d6efd' }  // blue
-{ label: 'Đơn đặt hàng',     color: '#198754' }  // green
-{ label: 'Hợp đồng',         color: '#fd7e14' }  // orange  ← all KPI cards different color = no semantic meaning
-```
-
-**Pattern mới**: All KPI cards = brand color background, status badges = semantic. Visual hierarchy đến từ size + position.
-
----
-
-## Spacing scale (4px base, geometric)
-
-| Token | Value | Use case |
-|---|---|---|
-| `--space-1` | 4px | Tight inline gap |
-| `--space-2` | 8px | Inline gap |
-| `--space-3` | 12px | Compact card padding |
-| `--space-4` | 16px | Default card padding |
-| `--space-6` | 24px | Section gap |
-| `--space-8` | 32px | Page margin |
-| `--space-12` | 48px | Major separator |
-
----
-
-## Workflow step colors (7-step progress timeline UI-2-1)
-
-| State | Color | Token |
-|---|---|---|
-| Done (bước đã qua) | green | `--step-done` |
-| Active (đang ở bước này) | blue | `--step-active` |
-| Pending (chưa tới) | slate-300 | `--step-pending` |
-
-Example usage:
-```jsx
-<div className="flex gap-1">
-  {[1,2,3,4,5,6,7].map(step => (
-    <span
-      key={step}
-      className="w-2 h-2 rounded-full"
-      style={{ background:
-        step < current ? 'var(--step-done)' :
-        step === current ? 'var(--step-active)' : 'var(--step-pending)'
-      }}
-    />
-  ))}
-</div>
-```
-
----
-
-## Migration guide (current code → design system)
-
-### 1. Replace text size sprawl
-
-| Đang dùng | Đổi thành |
+| | Số lượng |
 |---|---|
-| `text-[9px] font-black uppercase tracking-widest text-slate-400` | `.label` |
-| `text-[10px] text-slate-400` | `.text-caption` |
-| `text-[11px]` for body | `.text-body` |
-| `text-2xl font-black text-[#1B365D]` | `.text-h2` |
-| `text-3xl font-black text-[#1B365D]` | `.text-display` |
+| Nơi dùng đúng lớp chuẩn (`.text-h1`, `.label`, `.badge-*`…) | **58** |
+| Nơi viết cỡ chữ tay kiểu `text-[9px]` | **786** |
+| Nơi viết mã màu tay kiểu `#1B365D` | **512** |
 
-### 2. Replace random status colors
+Vậy việc cần làm **không phải soạn quy ước mới** — mà là kéo 1.298 chỗ kia về chuẩn.
+Thêm một bộ quy ước thứ hai chỉ làm tình hình tệ hơn.
 
-| Đang dùng | Đổi thành |
-|---|---|
-| Hardcoded `#198754` cho FULLY_RECEIVED | `var(--color-success)` |
-| Hardcoded `#fd7e14` cho PARTIAL_RECEIVED | `var(--color-warning)` |
-| Hardcoded `#dc3545` cho CANCELLED | `var(--color-danger)` |
-| `bg-green-100 text-green-800` status badge | `.badge-success` |
-
-### 3. KPI cards uniform style
-
-```jsx
-// Before — 4 cards 4 màu
-<div className="bg-white border-l-4" style={{ borderLeftColor: '#1B365D' }}>...</div>
-<div className="bg-white border-l-4" style={{ borderLeftColor: '#0d6efd' }}>...</div>
-// ...
-
-// After — all brand color, semantic distinction via icon + position
-<div className="bg-white border-l-4 border-brand rounded-lg p-4 shadow-sm">
-  <span className="material-symbols-outlined text-h2" style={{ color: 'var(--color-brand)' }}>
-    folder_open
-  </span>
-  <div className="label">Dự án</div>
-  <div className="text-display">52</div>
-  <div className="text-caption">38 đang hoạt động</div>
-</div>
-```
+**Một xung đột chưa xử lý:** đầu `globals.css` còn khoảng 48 token màu kiểu Material 3
+(`--color-surface-container-lowest`, `--color-on-tertiary-fixed-variant`…) tồn tại song song
+với 5 màu ngữ nghĩa. Hai hệ màu trong một tệp. Chưa gỡ vì cần rà xem chỗ nào còn dùng —
+ghi vào backlog, không tự ý xoá.
 
 ---
 
-## Files updated for Sprint UI-1-1
+## 2. Bảy nhóm token
 
-- `frontend/src/app/globals.css` — added 50 CSS variables + 8 utility classes
-- `VẬT TƯ/UI_DESIGN_SYSTEM.md` — this doc
+Mở `globals.css` để xem giá trị. Dưới đây là **khi nào dùng cái nào**.
 
-## Sprint UI-1 dependencies (next tasks)
+| Nhóm | Tiền tố | Dùng khi |
+|---|---|---|
+| **Chữ** | `--text-*` | 7 mức: chú thích → thân → nhấn → tiêu đề thẻ → tiêu đề mục → tiêu đề trang → số liệu lớn |
+| **Màu ngữ nghĩa** | `--color-{brand,info,success,warning,danger}` | Mỗi màu có 3 biến thể: nền đậm, chữ trên nền đậm (`-fg`), nền nhạt (`-soft`) |
+| **Khoảng cách** | `--space-*` | Thang 4px. Mọi `padding`, `gap`, `margin` |
+| **Bo góc** | `--radius-*` | Nhỏ cho nhãn, vừa cho nút, lớn cho thẻ, tròn cho huy hiệu |
+| **Đổ bóng** | `--shadow-*` | Nhẹ cho thẻ tĩnh, vừa khi rê chuột, đậm cho hộp thoại |
+| **Bố cục** | `--sidebar-w`, `--topbar-h`, `--nav-item-h`, `--content-max` | Khung trang |
+| **Ô điều khiển** | `--control-{sm,md,lg}`, `--row-h*`, `--cell-*`, `--icon-*`, `--bar-*` | Nút, ô nhập, dòng bảng, biểu tượng, thanh tiến độ |
 
-- **UI-1-2** Workflow-first sidebar — uses `.label` + `.badge-*`
-- **UI-1-3** Workspace selector — uses `.text-h3` + `.badge-brand` for project chip
-- **UI-1-4** Cmd+K palette — uses `.text-body` + `.text-caption` for results
+### Quy tắc chọn màu
 
-## Verification
+Màu **mang nghĩa**, không mang thẩm mỹ. Chọn theo trạng thái nghiệp vụ:
 
-```sh
-# Frontend dev server → inspect element on any page should show new vars available
-curl -s http://localhost:3001/login | grep -o "globals.css"
-# Browser DevTools: check `:root` computed styles có `--text-display`, `--color-brand`, etc
+- `brand` — thương hiệu, nút chính, mục menu đang mở
+- `info` — liên kết, trạng thái trung tính, đang chọn
+- `success` — đã xong, đã duyệt, đã thanh toán
+- `warning` — chờ xử lý, nháp, đang chạy
+- `danger` — quá hạn, từ chối, huỷ, lỗi
+
+Bốn thẻ số liệu bốn màu khác nhau **là sai** — màu khác nhau phải vì nghĩa khác nhau.
+
+---
+
+## 3. Cách viết đúng
+
+```tsx
+// ❌ SAI — số viết tay, không ai sửa hàng loạt được
+<div className="text-[9px] font-black uppercase tracking-widest text-slate-400">NHÓM</div>
+<div style={{ color: '#1B365D' }}>Tổng</div>
+<span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">Đã duyệt</span>
+
+// ✅ ĐÚNG — dùng lớp và biến
+<div className="label">NHÓM</div>
+<div className="text-h2">Tổng</div>
+<span className="badge badge-success">Đã duyệt</span>
 ```
+
+Cần giá trị lẻ không có lớp sẵn thì dùng biến, đừng viết số:
+
+```tsx
+<div style={{ height: 'var(--row-h)', paddingInline: 'var(--cell-px)' }} />
+```
+
+**Ngưỡng cỡ chữ:** không dùng nhỏ hơn `--text-min` (12px). Giao diện hiện còn nhiều chỗ
+9–11px — đó là nợ phải trả dần, không phải chuẩn để bắt chước.
+
+---
+
+## 4. Kế hoạch kéo về chuẩn
+
+Không sửa một lượt. **Mỗi trang một đợt, mỗi đợt một commit**, xong đợt nào kiểm đợt đó.
+Số đo ngày 14/08, xếp theo mức nặng:
+
+| Thứ tự | Trang | Cỡ chữ tay | Mã màu tay | Tổng |
+|---|---|---|---|---|
+| 1 | `/mua-hang` | 69 | 68 | **137** |
+| 2 | `/duyet` | 91 | 37 | **128** |
+| 3 | `/vendors` | 45 | 32 | 77 |
+| 4 | `/warehouse` | 46 | 20 | 66 |
+| 5 | `/thanh-toan` | 38 | 20 | 58 |
+| 6 | `/dashboard` | 20 | 29 | 49 |
+| 7 | `/inventory` | 21 | 17 | 38 |
+| 8 | `/hop-dong` | 26 | 10 | 36 |
+| 9 | `/projects` | 20 | 14 | 34 |
+| 10 | `/lam-ro-ky-thuat` | 23 | 8 | 31 |
+| 11 | `/kiem-tra-ton-kho` | 18 | 7 | 25 |
+| 12 | `/lich-su-mua-hang` | 9 | 16 | 25 |
+| 13 | `/settings` | 9 | 8 | 17 |
+| 14 | `/login` | 0 | 12 | 12 |
+| 15 | `/bao-gia` | 10 | 1 | 11 |
+| 16 | `/alerts` | 1 | 0 | 1 |
+| — | `TopNav.tsx` | 13 | 12 | 25 |
+| — | `Sidebar.tsx` | 4 | 3 | 7 |
+
+**Trang mẫu đề nghị: `/dashboard`** (49 chỗ). Không phải trang nặng nhất, nhưng nó có đủ
+mọi thành phần — thẻ số liệu, biểu đồ cột, bảng, huy hiệu — nên làm xong là có mẫu cho
+tất cả trang còn lại. Nặng nhất (`/mua-hang`, `/duyet`) để sau, khi mẫu đã ổn định.
+
+**Ràng buộc mỗi đợt:** chỉ đổi hình thức, không đổi hành vi · chụp màn hình trước và sau ·
+`npm test` 20/20 · `tsc` không lỗi mới · mở Chrome xem thật.
+
+---
+
+## 5. Logo
+
+Năm tệp trong `LOGO/`. Chỉ **`Logo IBS-02.png`** dùng được trên nền sáng:
+nền trong suốt, ba cột đỏ, chữ HEAVY INDUSTRY màu tối.
+
+| Tệp | Nền | Dùng được ở thanh dọc? |
+|---|---|---|
+| `IBS-02` | trong suốt, chữ tối | ✅ **chọn tệp này** |
+| `IBS-03` | khối đỏ đặc, vuông | ❌ |
+| `IBS-04` | khối tối đặc, vuông | ❌ |
+| `IBS-05` | khối đỏ đặc, ngang | ❌ |
+| `IBS-06` | khối tối đặc, ngang | ❌ |
+
+⚠️ Chỗ chữ `WORKSPACE / Tất cả dự án` ở đầu thanh dọc **là bộ chọn dự án có menu thả xuống**,
+không phải nhãn trang trí. Thay hẳn bằng logo sẽ mất chức năng chuyển dự án.

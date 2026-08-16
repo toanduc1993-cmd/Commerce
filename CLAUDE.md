@@ -55,6 +55,22 @@ Refs: [SESSION_IDENTITY.md](SESSION_IDENTITY.md), [BACKLOG.md](BACKLOG.md), [../
 
 ---
 
+## 🔥 RULE CỨNG #0 — CẤM TỰ ĐỘNG `git push` (zero tolerance)
+
+> **Nguồn gốc:** Vi phạm lặp lại nhiều lần — 2026-06-05 Hưng catch và cấm tuyệt đối.
+
+❌ **TUYỆT ĐỐI KHÔNG** chạy `git push` sau commit, kể cả khi:
+- Vừa commit xong một chuỗi task
+- Đang làm docs/rule update
+- User nói "commit đi" hay "lưu lại" — commit ≠ push
+
+✅ **CHỈ push khi Hưng nói explicit một trong các lệnh:**
+- "push git", "push lên", "đẩy lên remote", "push origin"
+
+**Sau commit → DỪNG hoàn toàn.** Không hỏi "anh có muốn push không?" — chỉ im và chờ lệnh.
+
+---
+
 ## 🔥 RULE CỨNG #1 — Log mỗi thay đổi
 
 **MỌI** lần sửa code phải:
@@ -210,3 +226,63 @@ npx prisma generate   # bắt buộc
 ## ⚙️ Conversation compact (Claude Code side)
 
 Khi conversation dài (> ~30 turns hoặc tool outputs to), Claude **chủ động** đề nghị user gõ `/compact` để giảm context size mà giữ được history quan trọng (file edits, decisions). Đừng đợi user yêu cầu.
+
+---
+
+## 🔥 RULE CỨNG #10 — LAN start (tự động, không hỏi)
+
+Khi Hưng nói "test LAN", "chạy LAN", "sẵn sàng LAN", "start server" → Claude **tự làm hết**, không hỏi lại, trả link là xong.
+
+### Quy trình (Claude tự chạy):
+
+**Bước 1 — Lấy IP thực:**
+```sh
+ipconfig getifaddr en0
+```
+
+**Bước 2 — Cập nhật `frontend/.env.local`:**
+```
+NEXT_PUBLIC_API_URL=http://<IP>:5005
+```
+
+**Bước 3 — Cập nhật `backend/.env` (thêm IP mới vào ALLOWED_ORIGINS):**
+```
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://<IP>:3000,http://<IP>:3001,...
+```
+
+**Bước 4 — Start/restart services:**
+```sh
+# PG (nếu chưa chạy)
+/opt/homebrew/opt/postgresql@18/bin/pg_ctl -D backend/pg_data status || \
+  /opt/homebrew/opt/postgresql@18/bin/pg_ctl -D backend/pg_data start -o "-p 54321"
+
+# Backend
+pkill -f "node --watch src/app.js"; sleep 1
+cd backend && nohup npm run dev > /tmp/backend.log 2>&1 &
+
+# Frontend
+pkill -f "next dev"; sleep 1
+cd frontend && nohup env PORT=3001 npm run dev > /tmp/frontend.log 2>&1 &
+```
+
+**Bước 5 — Verify:**
+```sh
+sleep 5 && curl -s -o /dev/null -w "%{http_code}" http://localhost:5005/api/v1/auth/login \
+  -X POST -H "Content-Type: application/json" -d '{"username":"hungth","password":"123456"}'
+# Expect: 200 (bad credentials = 400/401, NOT 000)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3001  # Expect: 307 (redirect to /login)
+```
+
+**Bước 6 — Trả kết quả:**
+```
+✅ LAN ready:
+- Frontend: http://<IP>:3001
+- Backend:  http://<IP>:5005
+- Login: hungth / 123456
+```
+
+### Lưu ý:
+- IP máy Mac có thể thay đổi mỗi khi reconnect WiFi → kiểm tra lại mỗi lần
+- `NEXT_PUBLIC_*` là build-time env → frontend **phải restart** sau khi đổi `.env.local`
+- CORS `ALLOWED_ORIGINS` → backend **phải restart** sau khi đổi `.env`
+- Nếu `pg_ctl status` = running → KHÔNG start lại PG (gây conflict port)

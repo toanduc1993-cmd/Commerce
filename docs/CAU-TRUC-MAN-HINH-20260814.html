@@ -1,0 +1,507 @@
+<title>Cấu Trúc Màn Hình Vật Tư</title>
+<style>
+:root{
+  --paper:#F5F7FB; --surface:#FFFFFF; --surface-2:#EEF2F9;
+  --rule:#DFE6F1; --rule-strong:#C3D0E4;
+  --ink:#0E1A2B; --muted:#5C6B84; --faint:#8494AC;
+  --brand:#1B365D; --brand-soft:#E7EDF7; --on-brand:#FFFFFF;
+  --info:#0D6EFD; --info-soft:#E4EDFF;
+  --ok:#198754; --ok-soft:#E2F1E9;
+  --warn:#FD7E14; --warn-soft:#FFEEDF;
+  --danger:#DC2626; --danger-soft:#FCE7E7;
+  --shadow:0 1px 2px rgba(14,26,43,.06), 0 8px 24px -12px rgba(14,26,43,.18);
+  --f-head:'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-body:'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0B1420; --surface:#121E2E; --surface-2:#182739;
+    --rule:#22334A; --rule-strong:#31465F;
+    --ink:#E4EDF8; --muted:#94A7C2; --faint:#71859F;
+    --brand:#7FA8DC; --brand-soft:#17293E; --on-brand:#0B1420;
+    --info:#5B9BFF; --info-soft:#12263F;
+    --ok:#4ADE9B; --ok-soft:#10281F;
+    --warn:#FFA94D; --warn-soft:#2E2013;
+    --danger:#FF6B6B; --danger-soft:#301618;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0B1420; --surface:#121E2E; --surface-2:#182739;
+  --rule:#22334A; --rule-strong:#31465F;
+  --ink:#E4EDF8; --muted:#94A7C2; --faint:#71859F;
+  --brand:#7FA8DC; --brand-soft:#17293E; --on-brand:#0B1420;
+  --info:#5B9BFF; --info-soft:#12263F;
+  --ok:#4ADE9B; --ok-soft:#10281F;
+  --warn:#FFA94D; --warn-soft:#2E2013;
+  --danger:#FF6B6B; --danger-soft:#301618;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1160px; margin:0 auto; padding:40px 24px 96px; display:flex; flex-direction:column; gap:54px}
+h1,h2,h3,h4{font-family:var(--f-head); text-wrap:balance; margin:0; color:var(--ink)}
+h1{font-size:clamp(28px,4.4vw,42px); font-weight:800; letter-spacing:-.02em; line-height:1.1}
+h2{font-size:clamp(19px,2.4vw,24px); font-weight:700; letter-spacing:-.01em}
+h3{font-size:15px; font-weight:700}
+p{margin:0}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:.1em .38em; border-radius:3px; color:var(--ink)}
+.eyebrow{font-size:10px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); font-family:var(--f-head)}
+header{display:flex; flex-direction:column; gap:14px; padding-bottom:30px; border-bottom:2px solid var(--rule-strong)}
+.sub{color:var(--muted); max-width:66ch; font-size:15.5px}
+.meta{display:flex; flex-wrap:wrap; gap:8px 22px; font-size:12.5px; color:var(--faint); font-family:var(--f-mono)}
+section{display:flex; flex-direction:column; gap:18px}
+.shead{display:flex; flex-direction:column; gap:6px; border-left:3px solid var(--brand); padding-left:14px}
+
+/* ── sơ đồ thanh menu ── */
+.navmap{display:grid; grid-template-columns:minmax(210px,258px) 1fr; gap:0; border:1px solid var(--rule); border-radius:10px; overflow:hidden; box-shadow:var(--shadow)}
+.navcol{background:var(--surface-2); border-right:1px solid var(--rule); padding:16px 0; display:flex; flex-direction:column; gap:14px}
+.navgrp{display:flex; flex-direction:column; gap:2px}
+.navgrp>.glab{font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); font-family:var(--f-head); padding:0 16px 4px}
+.nav{display:flex; align-items:center; gap:9px; padding:6px 16px; font-size:13px; border-left:3px solid transparent}
+.nav .st{font-family:var(--f-mono); font-size:9.5px; font-weight:700; width:16px; height:16px; display:grid; place-items:center; border-radius:4px; background:var(--brand); color:var(--on-brand); flex:none}
+.nav .st.none{background:transparent; border:1px dashed var(--rule-strong); color:var(--faint)}
+.nav .rt{margin-left:auto; font-family:var(--f-mono); font-size:10.5px; color:var(--faint)}
+.nav.bad{border-left-color:var(--danger); background:var(--danger-soft)}
+.nav.bad .rt{color:var(--danger)}
+.navnote{padding:14px 18px; display:flex; flex-direction:column; gap:12px; background:var(--surface)}
+.gapline{display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:6px; font-size:13px; border-left:3px solid var(--tone)}
+.gapline.d{background:var(--danger-soft); border-left-color:var(--danger)}
+.gapline.w{background:var(--warn-soft); border-left-color:var(--warn)}
+
+/* ── thẻ trang ── */
+.pg{background:var(--surface); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow); overflow:hidden}
+.pg>summary{list-style:none; cursor:pointer; padding:13px 17px; display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+.pg>summary::-webkit-details-marker{display:none}
+.pg>summary:hover{background:var(--surface-2)}
+.pg>summary:focus-visible{outline:2px solid var(--info); outline-offset:-2px}
+.pg[open]>summary{border-bottom:1px solid var(--rule); background:var(--surface-2)}
+.route{font-family:var(--f-mono); font-weight:700; font-size:14px; color:var(--brand)}
+.pgname{font-size:13.5px; color:var(--muted); flex:1; min-width:0}
+.loc{font-family:var(--f-mono); font-size:11px; color:var(--faint)}
+.chev{width:8px; height:8px; border-right:1.8px solid var(--faint); border-bottom:1.8px solid var(--faint); transform:rotate(45deg); transition:transform .18s ease; flex:none}
+.pg[open]>summary .chev{transform:rotate(-135deg)}
+.pgbody{padding:14px 17px 17px; display:flex; flex-direction:column; gap:12px}
+.row{display:grid; grid-template-columns:112px 1fr; gap:10px; align-items:start; font-size:13.5px}
+.row>.rk{font-family:var(--f-head); font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); padding-top:3px}
+.pills{display:flex; flex-wrap:wrap; gap:5px}
+.pill{font-family:var(--f-mono); font-size:11.5px; padding:2.5px 8px; border-radius:5px; background:var(--surface-2); border:1px solid var(--rule)}
+.pill.tab{background:var(--info-soft); border-color:var(--info); color:var(--info); font-family:var(--f-body); font-size:12px; font-weight:600}
+.pill.act{background:var(--brand-soft); border-color:var(--rule-strong); font-family:var(--f-body); font-size:12px}
+.pill.api{font-size:11px}
+.pill.get{border-left:3px solid var(--ok)}
+.pill.write{border-left:3px solid var(--warn)}
+.issue{display:flex; gap:8px; font-size:13px; padding:9px 12px; border-radius:6px; background:var(--danger-soft); border-left:3px solid var(--danger)}
+.issue.w{background:var(--warn-soft); border-left-color:var(--warn)}
+.issue b{font-family:var(--f-head)}
+.tag{font-family:var(--f-head); font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:2.5px 7px; border-radius:4px; white-space:nowrap; flex:none}
+.t-d{background:var(--danger-soft); color:var(--danger)}
+.t-w{background:var(--warn-soft); color:var(--warn)}
+.t-o{background:var(--ok-soft); color:var(--ok)}
+
+/* ── chuỗi vòng đời ── */
+.chain{background:var(--surface); border:1px solid var(--rule); border-radius:10px; padding:20px 8px; box-shadow:var(--shadow); overflow-x:auto}
+.chain svg{display:block; min-width:900px; margin:0 auto}
+
+/* ── bảng ── */
+.tblwrap{overflow-x:auto; border:1px solid var(--rule); border-radius:9px; background:var(--surface); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; min-width:640px; font-size:13.5px}
+caption{text-align:left; padding:14px 16px 0; font-family:var(--f-head); font-weight:700; font-size:14px}
+th,td{text-align:left; padding:9px 14px; border-bottom:1px solid var(--rule); vertical-align:top}
+thead th{font-family:var(--f-head); font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); background:var(--surface-2); border-bottom:1px solid var(--rule-strong)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface-2)}
+td.mono{font-family:var(--f-mono); font-size:12px; font-variant-numeric:tabular-nums}
+td.num{text-align:right; font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.bad{color:var(--danger); font-weight:600}
+.note{border-left:3px solid var(--tone,var(--warn)); background:var(--tone-soft,var(--warn-soft)); padding:13px 16px; border-radius:0 7px 7px 0; font-size:13.5px; display:flex; flex-direction:column; gap:5px}
+.note b{font-family:var(--f-head)}
+.steps{display:flex; flex-direction:column; gap:9px; counter-reset:s}
+.step{display:grid; grid-template-columns:26px 1fr; gap:11px; align-items:start; font-size:14px}
+.step::before{counter-increment:s; content:counter(s); font-family:var(--f-mono); font-size:11px; font-weight:700; width:22px; height:22px; display:grid; place-items:center; border-radius:5px; background:var(--brand); color:var(--on-brand)}
+footer{border-top:1px solid var(--rule); padding-top:20px; font-size:12.5px; color:var(--faint); display:flex; flex-direction:column; gap:5px}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+@media (max-width:760px){ .navmap{grid-template-columns:1fr} .navcol{border-right:none; border-bottom:1px solid var(--rule)} .row{grid-template-columns:1fr; gap:4px} }
+@media (max-width:640px){ .wrap{padding:28px 15px 64px; gap:40px} }
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">IBS Heavy Industry · Nền tảng Vật tư</span>
+  <h1>Cấu trúc màn hình Vật tư</h1>
+  <p class="sub">Toàn bộ thanh điều hướng dọc, từng trang, từng tab ngang, từng nút và cửa API đứng sau nó — kèm đường dẫn tệp để anh mở đúng chỗ mà sửa. Cuối trang là hai câu trả lời: điều kiện để quy trình chạy hết vòng, và mức độ hỏng thật sự của thuế và đơn vị tính.</p>
+  <div class="meta">
+    <span>14/08/2026</span><span>16 trang</span><span>86 cửa API</span><span>58 hàm gọi API</span>
+  </div>
+</header>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần một</span>
+    <h2>Thanh điều hướng dọc</h2>
+    <p class="sub">Định nghĩa tại <code>frontend/src/components/layout/Sidebar.tsx:33-64</code>. Ba nhóm, mười ba mục, cộng hai mục cuối thanh.</p>
+  </div>
+
+  <div class="navmap">
+    <div class="navcol">
+      <div class="navgrp">
+        <span class="glab">Tổng Quan</span>
+        <div class="nav"><span class="st none">·</span>Bảng Điều Khiển<span class="rt">/dashboard</span></div>
+        <div class="nav"><span class="st none">·</span>Thông Tin Dự Án<span class="rt">/projects</span></div>
+      </div>
+      <div class="navgrp">
+        <span class="glab">Quy Trình Mua Sắm</span>
+        <div class="nav"><span class="st">1</span>Yêu cầu mua (PR)<span class="rt">/mua-hang</span></div>
+        <div class="nav"><span class="st">1</span>Kiểm tra tồn kho<span class="rt">/kiem-tra-ton-kho</span></div>
+        <div class="nav"><span class="st">1</span>Làm rõ kỹ thuật<span class="rt">/lam-ro-ky-thuat</span></div>
+        <div class="nav"><span class="st">2</span>Yêu cầu &amp; Báo giá<span class="rt">/bao-gia</span></div>
+        <div class="nav"><span class="st">3</span>So sánh &amp; Duyệt<span class="rt">/duyet</span></div>
+        <div class="nav"><span class="st">6</span>Hợp đồng<span class="rt">/hop-dong</span></div>
+        <div class="nav"><span class="st">7</span>Hàng về &amp; QC<span class="rt">/warehouse</span></div>
+        <div class="nav"><span class="st">8</span>Thanh toán<span class="rt">/thanh-toan</span></div>
+      </div>
+      <div class="navgrp">
+        <span class="glab">Dữ Liệu Chủ</span>
+        <div class="nav"><span class="st none">·</span>Nhà Cung Cấp<span class="rt">/vendors</span></div>
+        <div class="nav"><span class="st none">·</span>Danh Mục Vật Tư<span class="rt">/inventory</span></div>
+        <div class="nav"><span class="st none">·</span>Lịch Sử Mua Hàng<span class="rt">/lich-su-mua-hang</span></div>
+      </div>
+      <div class="navgrp">
+        <span class="glab">Cuối thanh</span>
+        <div class="nav"><span class="st none">·</span>Cài Đặt<span class="rt">/settings</span></div>
+        <div class="nav bad"><span class="st none">·</span>Hỗ Trợ<span class="rt">404</span></div>
+      </div>
+    </div>
+    <div class="navnote">
+      <h3>Ba chỗ hỏng ngay ở thanh điều hướng</h3>
+      <div class="gapline d"><span class="tag t-d">Link chết</span><span><b>Hỗ Trợ</b> trỏ tới <code>/support</code> nhưng thư mục <code>app/support/</code> không tồn tại — bấm vào là trang 404.</span></div>
+      <div class="gapline d"><span class="tag t-d">Không lối vào</span><span>Trang <code>/alerts</code> (Alert Center) có thật, 142 dòng, gọi <code>/api/v1/alerts</code> — nhưng <b>không có trong menu</b>. Chỉ vào được bằng cách gõ tay địa chỉ.</span></div>
+      <div class="gapline w"><span class="tag t-w">Đứt số</span><span>Bước đánh số <b>1 · 1 · 1 · 2 · 3 · 6 · 7 · 8</b> — <b>thiếu hẳn bước 4 và 5</b>. Người dùng nhìn thấy quy trình nhảy từ “So sánh &amp; Duyệt” sang thẳng “Hợp đồng” mà không hiểu hai bước giữa đi đâu. Việc tạo đơn hàng hiện nằm lẫn bên trong trang bước 3.</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần hai</span>
+    <h2>Từng trang một</h2>
+    <p class="sub">Bấm để mở. Mỗi trang ghi rõ tab ngang, nút bấm, cửa API đứng sau, và tệp cần mở khi sửa.</p>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px">
+
+    <details class="pg">
+      <summary><span class="route">/dashboard</span><span class="pgname">Bảng Điều Khiển</span><span class="loc">376 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/dashboard/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab ngang</span><span class="pills"><span class="pill">không có</span></span></div>
+        <div class="row"><span class="rk">Khối</span><span class="pills"><span class="pill act">4 thẻ KPI</span><span class="pill act">PO theo trạng thái</span><span class="pill act">Top 5 nhà cung cấp</span><span class="pill act">Phân bổ theo nhóm vật tư</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /dashboard/stats</span></span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/projects</span><span class="pgname">Thông Tin Dự Án</span><span class="loc">283 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/projects/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab ngang</span><span class="pills"><span class="pill">không có</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /projects</span></span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/mua-hang</span><span class="pgname">Bước 1 — Yêu cầu mua (PR)</span><span class="loc">897 dòng</span><span class="tag t-d">Tab giả</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/mua-hang/page.tsx</code> · <code>components/mua-hang/ProcurementWorkflowPanel.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab ngang</span><span class="pills">
+          <span class="pill tab">Tất cả</span><span class="pill tab">Chờ báo giá</span><span class="pill tab">Đàm phán</span><span class="pill tab">Đã ký HĐ</span><span class="pill tab">Hàng đang về</span><span class="pill tab">Nghiệm thu</span><span class="pill tab">Đã nhập kho</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /prs</span><span class="pill api write">POST /prs/import</span></span></div>
+        <div class="issue"><span class="tag t-d">Lỗi</span><span><b>Bốn tab cuối chỉ là nhãn lọc, không chạy nghiệp vụ.</b> Toàn bộ logic chuyển trạng thái — nhận hàng, ghim tồn kho, tạo đơn hàng — nằm trong <code>hooks/usePRData.ts</code>, nhưng <b>không trang nào import hook đó</b>. Trang này tự viết lại phần đọc danh sách và bỏ hẳn phần hành động.</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/kiem-tra-ton-kho</span><span class="pgname">Bước 1 — Kiểm tra tồn kho</span><span class="loc">584 dòng</span><span class="tag t-w">Mã chết</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/kiem-tra-ton-kho/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab ngang</span><span class="pills"><span class="pill tab">Nhập tồn kho</span><span class="pill tab">Đối chiếu</span></span></div>
+        <div class="row"><span class="rk">Nút</span><span class="pills"><span class="pill act">Xem trước dữ liệu</span><span class="pill act">Xác nhận &amp; áp dụng</span><span class="pill act">Huỷ</span><span class="pill act">Xem bảng đối chiếu →</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /inventory/check</span><span class="pill api write">POST /inventory/import-stock</span><span class="pill api write">PATCH /inventory/pr-details/remain</span></span></div>
+        <div class="issue w"><span class="tag t-w">Lỗi</span><span><b>Khối “Nhập tồn kho thành công” không bao giờ hiện.</b> Điều kiện ngoài ở dòng 352 loại bỏ đúng trạng thái mà điều kiện trong ở dòng 463 đòi hỏi. Người dùng chỉ thấy thông báo chớp nhoáng, mất luôn liên kết “Xem bảng đối chiếu”. Đây cũng là lỗi TypeScript duy nhất còn lại của dự án.</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/lam-ro-ky-thuat</span><span class="pgname">Bước 1 — Làm rõ kỹ thuật</span><span class="loc">542 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/lam-ro-ky-thuat/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab ngang</span><span class="pills"><span class="pill">không có</span></span></div>
+        <div class="row"><span class="rk">Nút</span><span class="pills"><span class="pill act">Duyệt</span><span class="pill act">Từ chối</span><span class="pill act">Bỏ chuyển trạng thái</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /tech-comments</span><span class="pill api write">POST /tech-comments/:prDetailId</span><span class="pill api write">PATCH /tech-comments/:prDetailId/status</span></span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/bao-gia</span><span class="pgname">Bước 2 — Yêu cầu &amp; Báo giá</span><span class="loc">486 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/bao-gia/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab ngang</span><span class="pills"><span class="pill tab">Yêu cầu gửi đi <code>requests</code></span><span class="pill tab">Báo giá nhận về <code>received</code></span></span></div>
+        <div class="row"><span class="rk">Nút</span><span class="pills"><span class="pill act">Import batch</span><span class="pill act">Tạo RFQ mới</span><span class="pill act">Upload Báo Giá</span></span></div>
+        <div class="row"><span class="rk">Hộp thoại</span><span class="pills"><span class="pill">CreateRfqModal</span><span class="pill">ImportRfqBatchModal</span><span class="pill">EnterVendorQuoteModal</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /bid-analyses</span><span class="pill api write">POST /bid-analyses/:bidId/quotes</span><span class="pill api write">POST /rfq/generate</span></span></div>
+        <div class="issue w"><span class="tag t-w">R-13</span><span>Cả ba hộp thoại đều tự khai báo lại <code>API_URL</code> thay vì dùng chung từ <code>lib/api.ts</code> — nằm trong nhóm 11 tệp chưa thoả điều khoản grep của luật R-13.</span></div>
+      </div>
+    </details>
+
+    <details class="pg" open>
+      <summary><span class="route">/duyet</span><span class="pgname">Bước 3 — So sánh &amp; Duyệt · trang đang nghiệm thu</span><span class="loc">1.183 dòng</span><span class="tag t-o">Vừa vá</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/duyet/page.tsx</code> · <code>lib/bid-compare.ts</code> · <code>components/bid/SelectionModeChooser.tsx</code> · <code>components/bid/BidRowActions.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab ngang</span><span class="pills"><span class="pill tab">⚖️ So sánh báo giá <code>compare</code></span><span class="pill tab">✓ Duyệt + PO <code>approve</code></span></span></div>
+        <div class="row"><span class="rk">Khung chế độ</span><span class="pills"><span class="pill">PER_BID</span><span class="pill">PER_ITEM</span><span class="pill">PER_GROUP</span><span class="pill">AUTO_MIN_PRICE</span><span class="pill">MANUAL_WEIGHTED</span></span></div>
+        <div class="row"><span class="rk">Nút</span><span class="pills"><span class="pill act">Tạo PO / HĐ</span><span class="pill act">Giao cả gói cho NCC này</span><span class="pill act">Chạy chọn tự động</span><span class="pill act">Lưu điểm</span><span class="pill act">Tải file gốc</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills">
+          <span class="pill api get">GET /bid-analyses/:id</span><span class="pill api get">GET :id/approval-summary</span><span class="pill api get">GET :id/vendor-scores</span>
+          <span class="pill api write">PATCH :bidId/items/:itemId/select-vendor</span><span class="pill api write">POST :id/select-vendor</span><span class="pill api write">PATCH :id/selection-mode</span><span class="pill api write">POST :id/group-selection</span><span class="pill api write">POST :id/auto-select-min-price</span><span class="pill api write">POST :id/vendor-scores</span><span class="pill api write">POST :id/create-po</span></span></div>
+        <div class="issue w"><span class="tag t-w">Còn lại</span><span>Thẻ tổng nhà cung cấp đọc cột <code>totalQuote</code> lưu sẵn nên mâu thuẫn với bảng bên dưới (dòng 418) · dòng 299 còn tự khai <code>localhost:5005</code> · rời chế độ PER_BID không dọn dữ liệu.</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/hop-dong</span><span class="pgname">Bước 6 — Hợp đồng</span><span class="loc">424 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/hop-dong/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab lọc</span><span class="pills"><span class="pill tab">Tất cả</span><span class="pill tab">Trong nước</span><span class="pill tab">Nhập khẩu</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /contracts</span><span class="pill api get">GET /contracts/:contractNo</span></span></div>
+        <div class="row"><span class="rk">Dữ liệu</span><span>2.994 dòng — bảng đông dữ liệu nhất hệ thống</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/warehouse</span><span class="pgname">Bước 7 — Hàng về &amp; QC</span><span class="loc">678 dòng</span><span class="tag t-d">Nhánh song song</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/warehouse/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab lọc</span><span class="pills"><span class="pill tab">Tất cả</span><span class="pill tab">Trong nước</span><span class="pill tab">Nhập khẩu</span><span class="pill">+ lọc theo trạng thái QC</span></span></div>
+        <div class="row"><span class="rk">Nút</span><span class="pills"><span class="pill act">Thêm QC</span><span class="pill act">Lưu QC</span><span class="pill act">Huỷ</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /arrivals</span><span class="pill api get">GET /arrivals/stats</span><span class="pill api write">PATCH /arrivals/:id</span><span class="pill api write">POST /arrivals/:id/inspections</span><span class="pill api write">DELETE /arrivals/inspections/:id</span></span></div>
+        <div class="issue"><span class="tag t-d">Kiến trúc</span><span><b>Trang này không nối với phiếu nhập kho.</b> Nó chạy trên nhánh <code>arrivals</code> — đọc <code>ContractDetail</code> và ghi <code>InspectionRecord</code>. Nhánh phiếu nhập kho (<code>GoodsReceivedNote</code> → <code>GRNLineItem</code> → <code>Inventory</code>) tồn tại song song ở backend, đầy đủ chức năng, nhưng không màn hình nào gọi tới. Hai thiết kế nhận hàng cùng lúc — phải chọn một.</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/thanh-toan</span><span class="pgname">Bước 8 — Thanh toán</span><span class="loc">531 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/thanh-toan/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Khối</span><span class="pills"><span class="pill act">Kế Hoạch Thanh Toán</span><span class="pill act">Tổng quan theo tháng</span></span></div>
+        <div class="row"><span class="rk">Nút</span><span class="pills"><span class="pill act">Upload</span><span class="pill act">Hủy</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /payment-schedules</span><span class="pill api write">PATCH /payment-schedules/:id</span></span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/vendors</span><span class="pgname">Dữ liệu chủ — Nhà Cung Cấp</span><span class="loc">874 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/vendors/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Tab lọc</span><span class="pills"><span class="pill tab">Tất cả</span><span class="pill tab">Trong nước</span><span class="pill tab">Nhập khẩu</span><span class="pill tab">Hỗn hợp</span></span></div>
+        <div class="row"><span class="rk">Nút</span><span class="pills"><span class="pill act">Thêm NCC</span><span class="pill act">Chỉnh sửa</span><span class="pill act">Seed từ lịch sử</span><span class="pill act">Huỷ</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /vendor-master</span><span class="pill api get">GET /vendor-master/:id</span><span class="pill api write">POST /vendor-master</span><span class="pill api write">PATCH /vendor-master/:id</span><span class="pill api write">DELETE /vendor-master/:id</span><span class="pill api write">POST /vendor-master/seed</span></span></div>
+        <div class="row"><span class="rk">Dữ liệu</span><span>189 nhà cung cấp · 134 chưa có mã số thuế</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/inventory</span><span class="pgname">Dữ liệu chủ — Danh Mục Vật Tư</span><span class="loc">275 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/inventory/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /material-catalog</span></span></div>
+        <div class="issue w"><span class="tag t-w">Nhầm tên</span><span>Đường dẫn là <code>/inventory</code> nhưng trang hiển thị <b>danh mục vật tư</b>, không phải tồn kho. Hai hàm <code>fetchInventory</code> và <code>fetchInventoryList</code> — đúng nghĩa tồn kho — không nơi nào dùng. Bảng <code>Inventory</code> hiện 0 dòng.</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/lich-su-mua-hang</span><span class="pgname">Dữ liệu chủ — Lịch Sử Mua Hàng</span><span class="loc">393 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/lich-su-mua-hang/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /purchase-history</span><span class="pill api get">GET /purchase-history/summary</span></span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/settings</span><span class="pgname">Cài Đặt</span><span class="loc">250 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/settings/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Khối</span><span class="pills"><span class="pill act">Cài Đặt Tài Khoản</span><span class="pill act">Đổi mật khẩu</span></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api write">POST /auth/change-password</span><span class="pill api write">POST /auth/logout</span></span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/alerts</span><span class="pgname">Alert Center — không có trong menu</span><span class="loc">142 dòng</span><span class="tag t-d">Ẩn</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/alerts/page.tsx</code> · <code>app/alerts/_components/MarkResolvedButton.tsx</code></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api get">GET /api/v1/alerts</span><span class="pill api write">POST /api/v1/alerts/:id/resolve</span></span></div>
+        <div class="issue"><span class="tag t-d">Không lối vào</span><span>Trang chạy được, có bộ kiểm thử riêng (<code>backend/tests/alerts.test.js</code>), nhưng thiếu mục trong <code>Sidebar.tsx</code> nên thực tế không ai dùng.</span></div>
+      </div>
+    </details>
+
+    <details class="pg">
+      <summary><span class="route">/login</span><span class="pgname">Đăng nhập</span><span class="loc">125 dòng</span><span class="chev"></span></summary>
+      <div class="pgbody">
+        <div class="row"><span class="rk">Tệp</span><span><code>app/login/page.tsx</code></span></div>
+        <div class="row"><span class="rk">Cửa API</span><span class="pills"><span class="pill api write">POST /auth/login</span><span class="pill api get">GET /auth/csrf-token</span></span></div>
+        <div class="row"><span class="rk">Tài khoản</span><span>Toàn hệ thống hiện có <b>đúng một</b> người dùng: <code>hungth</code> · vai trò <code>ADMIN</code></span></div>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần ba · trả lời câu hỏi 3</span>
+    <h2>Điều kiện để quy trình chạy hết vòng</h2>
+    <p class="sub">Câu trả lời ngắn: <b>backend đã đủ, thiếu đúng một màn hình.</b> Không phải thiếu chức năng, không phải thiếu dữ liệu — thiếu chỗ bấm.</p>
+  </div>
+
+  <div class="chain">
+    <svg viewBox="0 0 920 150" role="img" aria-label="Chuỗi từ tạo đơn hàng đến nhận hàng, kiểm chất lượng và ghim tồn kho, đứt ở khâu nhận hàng">
+      <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <style>#a2 path{fill:var(--rule-strong)}</style>
+      <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5">
+        <g stroke="var(--rule-strong)" stroke-width="1.5" fill="none" marker-end="url(#a2)">
+          <line x1="186" y1="62" x2="222" y2="62"/><line x1="474" y1="62" x2="510" y2="62"/><line x1="666" y1="62" x2="702" y2="62"/>
+        </g>
+        <line x1="360" y1="30" x2="360" y2="96" stroke="var(--danger)" stroke-width="2.5" stroke-dasharray="5 4"/>
+        <text x="360" y="22" text-anchor="middle" fill="var(--danger)" font-size="10" font-weight="700">ĐỨT Ở ĐÂY</text>
+
+        <rect x="8" y="40" width="178" height="44" rx="6" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.3"/>
+        <text x="97" y="58" text-anchor="middle" fill="var(--ok)" font-weight="700">1 · Tạo đơn hàng</text>
+        <text x="97" y="73" text-anchor="middle" fill="var(--muted)">/duyet → Tạo PO / HĐ ✓</text>
+
+        <rect x="222" y="40" width="252" height="44" rx="6" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.6"/>
+        <text x="348" y="58" text-anchor="middle" fill="var(--danger)" font-weight="700">2 · Nhận hàng vào kho</text>
+        <text x="348" y="73" text-anchor="middle" fill="var(--danger)">backend có · KHÔNG CÓ MÀN HÌNH</text>
+
+        <rect x="510" y="40" width="156" height="44" rx="6" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-width="1.2"/>
+        <text x="588" y="58" text-anchor="middle" fill="var(--ink)" font-weight="700">3 · Xác nhận QC</text>
+        <text x="588" y="73" text-anchor="middle" fill="var(--muted)">confirmQC</text>
+
+        <rect x="702" y="40" width="180" height="44" rx="6" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-width="1.2"/>
+        <text x="792" y="58" text-anchor="middle" fill="var(--ink)" font-weight="700">4 · Ghim tồn kho</text>
+        <text x="792" y="73" text-anchor="middle" fill="var(--muted)">allocateStock</text>
+
+        <text x="8" y="120" fill="var(--faint)" font-size="10">Cả ba bước 2·3·4 đều đã có hàm backend chạy được và hàm gọi trong lib/api.ts. Không bước nào có nút bấm.</text>
+        <text x="8" y="137" fill="var(--faint)" font-size="10">Hook hooks/usePRData.ts nối sẵn cả chuỗi — nhưng 0 trang import nó.</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Từng mắt xích: có gì rồi, thiếu gì</caption>
+      <thead><tr><th style="width:19%">Mắt xích</th><th style="width:19%">Backend</th><th style="width:20%">Hàm gọi</th><th style="width:16%">Màn hình</th><th>Kết luận</th></tr></thead>
+      <tbody>
+        <tr><td><b>Tạo đơn hàng</b></td><td class="mono">createPoFromBid ✓</td><td class="mono">createPoFromBid ✓</td><td>/duyet ✓</td><td>Chạy được. Đang bị chốt an toàn khoá tạm.</td></tr>
+        <tr><td><b>Nhận hàng</b></td><td class="mono">receiveMaterial ✓<br><span style="font-size:11px">tạo GRN + dòng + cập nhật tồn</span></td><td class="mono">receiveGoods ✓</td><td class="bad">không có</td><td class="bad">Đứt. Chỉ hook mồ côi gọi tới.</td></tr>
+        <tr><td><b>Xác nhận QC</b></td><td class="mono">confirmQC ✓</td><td class="mono">confirmQC ✓</td><td class="bad">không có</td><td class="bad">Đứt.</td></tr>
+        <tr><td><b>Ghim tồn kho</b></td><td class="mono">allocateStock ✓</td><td class="mono">pegStock ✓</td><td class="bad">không có</td><td class="bad">Đứt.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note" style="--tone:var(--danger); --tone-soft:var(--danger-soft)">
+    <b>Một cái bẫy nằm sẵn trong hook mồ côi</b>
+    <span><code>hooks/usePRData.ts:105</code> dựng mã đơn hàng giả: <code>poNumber: `PO-AUTO-${pr.itemCode}`</code>. Nếu ai đó nối hook này vào trang mà không sửa dòng đó, mọi lần nhận hàng sẽ trả 404 “Không tìm thấy PO”, vì mã đó không bao giờ tồn tại. Phải truyền mã đơn hàng thật từ bảng đơn hàng.</span>
+  </div>
+
+  <h3 style="margin-top:6px">Anh cần làm gì — bốn việc, theo thứ tự</h3>
+  <div class="steps">
+    <div class="step"><span><b>Mở khoá đường tạo đơn hàng.</b> Khởi động lại backend để nạp bản vá CSRF, chạy nốt nghiệm thu, rồi gỡ chốt an toàn. Sau đó tạo <b>một</b> đơn hàng thật từ một gói đã duyệt — đây là hạt giống cho cả vòng, vì không có đơn hàng thì không nhận hàng vào đâu được.</span></div>
+    <div class="step"><span><b>Quyết một trong hai kiến trúc nhận hàng.</b> Hoặc nối nhánh phiếu nhập kho vào trang <code>/warehouse</code>, hoặc bỏ nhánh đó và mở rộng nhánh <code>arrivals</code> đang dùng. Đây là quyết định của anh, không phải việc kỹ thuật — hai nhánh cùng tồn tại thì số liệu tồn kho sẽ mâu thuẫn.</span></div>
+    <div class="step"><span><b>Dựng màn hình nhận hàng.</b> Một biểu mẫu chọn đơn hàng thật, liệt kê các dòng của nó, nhập số lượng nhận và số lượng loại, rồi gọi <code>receiveGoods()</code>. Hàm đã sẵn, chỉ cần chỗ bấm — và nhớ truyền mã đơn hàng thật thay cho <code>PO-AUTO-</code>.</span></div>
+    <div class="step"><span><b>Nối tiếp QC và ghim tồn.</b> Thêm nút xác nhận chất lượng trên phiếu nhập kho, và nút ghim tồn kho cho dòng yêu cầu mua. Vai trò không phải rào cản: tài khoản <code>hungth</code> là ADMIN, qua được cả ba cửa.</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần bốn · trả lời câu hỏi 4</span>
+    <h2>Thuế và đơn vị tính</h2>
+    <p class="sub">Anh bảo đánh kỹ, nên em đo trên toàn bộ 2.994 dòng hợp đồng và 2.188 dòng báo giá. Kết quả nặng hơn dự đoán ban đầu: đây không chỉ là “thiếu một trường”, mà là <b>cột dữ liệu đang chứa hai đơn vị đo khác nhau</b>.</p>
+  </div>
+
+  <h3>4a · Thuế giá trị gia tăng</h3>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Cột <code>vatRate</code> trên 2.994 dòng hợp đồng — phân bố thật</caption>
+      <thead><tr><th>Nhóm giá trị</th><th class="num">Số dòng</th><th>Nghĩa là gì</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">1 → 30 (vd 10 · 8 · 5.3)</td><td class="num">1.834</td><td>Ghi theo <b>phần trăm</b> — đúng như chú thích trong schema</td></tr>
+        <tr><td class="mono">0.1 · 0.08</td><td class="num bad">655</td><td class="bad">Ghi theo <b>phân số</b> — cùng một cột, khác thang đo</td></tr>
+        <tr><td class="mono">0.10000000000000013 …</td><td class="num bad">468</td><td class="bad">Phân số kèm nhiễu dấu phẩy động, sinh ra từ phép chia ngược khi nhập liệu</td></tr>
+        <tr><td class="mono">0</td><td class="num">31</td><td>Không chịu thuế — có thể đúng, cần rà tay</td></tr>
+        <tr><td class="mono">109900.9 · 233.3 · 49</td><td class="num bad">3</td><td class="bad">Rác — không phải thuế suất nào cả</td></tr>
+        <tr><td class="mono">−92 · −37.2 · −9.1</td><td class="num bad">3</td><td class="bad">Thuế suất <b>âm</b></td></tr>
+        <tr><td colspan="3" style="background:var(--surface-2)"><b>Cộng lại:</b> 1.123 dòng ghi phân số so với 1.834 dòng ghi phần trăm — <b>hai thang đo song song trong cùng một cột</b>, không có cách nào phân biệt bằng máy ngoài việc đoán theo độ lớn.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Hệ quả: số tiền có khớp công thức không</caption>
+      <thead><tr><th>Phép kiểm</th><th class="num">Số dòng</th><th>Ý nghĩa</th></tr></thead>
+      <tbody>
+        <tr><td><code>totalWithVAT</code> ≠ <code>totalNoVAT × (1 + vatRate/100)</code></td><td class="num bad">2.275 / 2.994</td><td class="bad"><b>76%</b> số dòng hợp đồng có tổng tiền không khớp thuế suất ghi ngay bên cạnh</td></tr>
+        <tr><td>Khai thuế 10% nhưng <code>totalWithVAT = totalNoVAT</code></td><td class="num bad">252</td><td>Khai có thuế mà không hề cộng vào</td></tr>
+        <tr><td>Toàn bộ hợp đồng nhập khẩu</td><td class="num">220</td><td>Đều ghi <code>vatRate=10</code> nhưng không cộng — tệp nhập khẩu không tách thuế, đây là hành vi <em>cố ý</em> (<code>procurementUpdater.js:567</code>)</td></tr>
+        <tr><td>Thuế suất trung bình nhóm hoá đơn</td><td class="num bad">87,1</td><td class="bad">Con số vô nghĩa — bằng chứng rõ nhất rằng hai thang đo đang trộn lẫn</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note" style="--tone:var(--danger); --tone-soft:var(--danger-soft)">
+    <b>Ba lỗ hổng riêng biệt, phải vá riêng</b>
+    <span><b>Một —</b> <code>BidQuoteOffer</code> không có bất kỳ trường thuế nào. Không thể biết nhà cung cấp báo giá đã gồm thuế hay chưa, nên khi so hai báo giá, một bên gồm thuế và một bên chưa, hệ thống lệch thẳng 10% mà không cảnh báo.<br>
+    <b>Hai —</b> <code>bidAnalysisController.js:1716</code> viết cứng <code>totalWithVAT: total * 1.1</code>. Nó bỏ qua hoàn toàn cột <code>vatRate</code>, nên mọi đơn hàng tạo từ báo giá đều bị gán 10% bất kể thực tế là 8%, 0% hay đã gồm thuế.<br>
+    <b>Ba —</b> cột <code>vatRate</code> phải chuẩn hoá về một thang đo trước khi làm gì khác. Sửa công thức mà chưa dọn dữ liệu thì chỉ đổi một loại sai này lấy một loại sai khác.</span>
+  </div>
+
+  <h3 style="margin-top:10px">4b · Đơn vị tính</h3>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Cột <code>uom</code> trên 2.188 dòng báo giá</caption>
+      <thead><tr><th>Phép kiểm</th><th class="num">Số dòng</th><th>Ý nghĩa</th></tr></thead>
+      <tbody>
+        <tr><td>Bỏ trống hoàn toàn</td><td class="num bad">1.265</td><td class="bad">58% số dòng không ghi đơn vị nào</td></tr>
+        <tr><td>Cùng mã vật tư, đơn vị ở PR khác đơn vị ở báo giá</td><td class="num bad">131</td><td class="bad">Mỗi cặp là một phép so giá có khả năng sai</td></tr>
+        <tr><td>Biến thể viết hoa thường của cùng một đơn vị</td><td class="num bad">≥ 3 cụm</td><td><code>Cái</code>/<code>CÁI</code>/<code>cái</code> · <code>M</code>/<code>m</code> · <code>PSC</code> (gần như chắc chắn gõ nhầm <code>PCS</code>)</td></tr>
+        <tr><td>Trường đơn vị trên bản thân báo giá</td><td class="num bad">không có</td><td class="bad"><code>BidQuoteOffer</code> không có cột đơn vị — nhà cung cấp báo theo cây trong khi bên kia báo theo ký thì hệ thống không có chỗ nào ghi nhận</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note" style="--tone:var(--warn); --tone-soft:var(--warn-soft)">
+    <b>Vì sao lỗi này nguy hiểm hơn lỗi thuế</b>
+    <span>Sai thuế làm lệch 8–10%, nhìn kỹ vào tổng tiền là thấy. Sai đơn vị làm lệch <b>hàng chục lần</b> — một cây thép sáu mét nặng khoảng 130 ký, nên giá “theo cây” và giá “theo ký” chênh nhau hai bậc độ lớn. Bảng so sánh sẽ tô vàng bên rẻ hơn một cách hoàn toàn tự tin, và chế độ chọn tự động sẽ chọn đúng bên sai. Với 58% số dòng bỏ trống đơn vị, hệ thống hiện <b>không có cách nào</b> phát hiện chuyện đó.</span>
+  </div>
+
+  <h3 style="margin-top:10px">Thứ tự vá em đề nghị</h3>
+  <div class="steps">
+    <div class="step"><span><b>Chuẩn hoá cột <code>vatRate</code> về phần trăm</b> bằng một script một lần: giá trị nhỏ hơn 1 thì nhân 100, giá trị âm hoặc trên 100 thì đưa về rỗng và đánh dấu để rà tay. Chụp bảng sao lưu trước khi chạy.</span></div>
+    <div class="step"><span><b>Thêm hai trường vào <code>BidQuoteOffer</code></b>: đã-gồm-thuế và đơn-vị-tính. Đây là gốc của cả hai lỗi — không có chỗ ghi thì không có gì để kiểm.</span></div>
+    <div class="step"><span><b>Thay <code>total * 1.1</code></b> bằng phép tính đọc từ trường thật, và ghi rõ trong đơn hàng là giá đã gồm hay chưa gồm thuế.</span></div>
+    <div class="step"><span><b>Chặn ở tầng so sánh:</b> khi các nhà cung cấp trong cùng một gói khai đơn vị khác nhau hoặc khai thuế khác nhau, hiện dải cảnh báo và không chấm “rẻ nhất” — giống hệt cách đã làm cho gói trộn nhiều loại tiền. Cơ chế đó đã chạy tốt, chỉ cần mở rộng thêm hai chiều.</span></div>
+  </div>
+</section>
+
+<footer>
+  <span>Dựng 14/08/2026. Cấu trúc trang trích tự động từ mã nguồn <code>frontend/src</code>; số liệu thuế và đơn vị tính truy vấn trực tiếp trên cơ sở dữ liệu <code>vpi_procurement</code>.</span>
+  <span>Tài liệu đi kèm: <b>Bản đồ nền Vật tư</b> — cây việc còn treo và luật dữ liệu.</span>
+</footer>
+
+</div>

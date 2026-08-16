@@ -1,0 +1,19 @@
+#!/bin/bash
+# Khởi động Postgres cho launchd. Chạy ở NỀN TRƯỚC (không dùng pg_ctl) để launchd
+# theo dõi được tiến trình và tự dựng lại khi nó chết.
+DATA="/Users/trinhhuuhung/Desktop/HUNGAI/HUNGTH OBSIDIAN V/HUNGTH OBSIDIAN/VẬT TƯ/backend/pg_data"
+BIN="/opt/homebrew/opt/postgresql@18/bin/postgres"
+
+# Tệp pid mồ côi sau khi mất điện sẽ chặn Postgres khởi động. Chỉ xoá khi
+# tiến trình ghi trong đó thật sự đã chết — tránh chạy hai bản cùng lúc.
+if [ -f "$DATA/postmaster.pid" ]; then
+  OLD=$(head -1 "$DATA/postmaster.pid" 2>/dev/null)
+  if [ -n "$OLD" ] && kill -0 "$OLD" 2>/dev/null; then
+    echo "$(date '+%F %T') Postgres đã chạy sẵn (pid $OLD) — không làm gì."
+    sleep 3600; exit 0
+  fi
+  echo "$(date '+%F %T') Dọn postmaster.pid mồ côi (pid cũ $OLD)."
+  rm -f "$DATA/postmaster.pid"
+fi
+
+exec "$BIN" -D "$DATA" -p 54321

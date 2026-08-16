@@ -639,3 +639,102 @@ cd frontend && npx tsc --noEmit
 ```
 
 Nếu tsc báo error mới → fix trước khi báo done.
+
+---
+
+### R-16 — Prisma `migrate diff` đòi DROP các bảng sao lưu thủ công
+
+**Issue (13/08/2026):** Sau khi tạo bảng sao lưu `_backup_BidQuoteVendor_order_20260813` bằng
+psql, lệnh `prisma migrate diff` sinh kèm `DROP TABLE "_backup_..."` vì bảng đó không có trong
+`schema.prisma`. Áp nguyên bản migration là **mất luôn đường lùi**.
+
+**Rule:** luôn ĐỌC file SQL do `migrate diff` sinh ra trước khi chạy; bỏ tay mọi câu `DROP TABLE`
+đụng bảng `_backup_*`. Lưu bản đã lọc vào `backend/scripts/migration_<ngày>_<việc>.sql` để truy vết.
+
+```sh
+npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script > /tmp/m.sql
+grep -n "DROP TABLE" /tmp/m.sql   # soi trước khi áp
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f backend/scripts/migration_....sql
+npx prisma generate && (kill backend; npm start)
+```
+
+---
+
+### R-17 — Ghi cột không tồn tại trong schema = 500 âm thầm, không ai biết
+
+**Issue (13/08/2026):** `bidSelectionModeController` ghi vào `bidQuoteOffer.selectedVendorName`
+qua quan hệ `bidQuoteOffer.bidAnalysisItem`. **Cả hai đều không có trong schema** — lựa chọn NCC
+thật ra nằm ở `bidQuoteItem.selectedVendorName`. Hậu quả: mọi lần đổi chế độ chọn thầu từ
+PER_ITEM đều ném 500, làm chết 3/5 chế độ suốt 2,5 tháng mà không ai phát hiện, vì giao diện
+cũng chưa gọi tới các API đó nên không có ai chạm vào để lộ lỗi.
+
+**Rule:**
+1. Endpoint viết xong mà **giao diện chưa gọi** thì phải có ít nhất một lần gọi thử bằng curl/script
+   trước khi coi là xong — code không chạy lần nào = code chưa tồn tại.
+2. Khi sửa controller, đối chiếu tên trường với `schema.prisma` (Prisma chỉ báo lỗi lúc chạy,
+   không bắt lúc biên dịch vì backend là JavaScript thuần).
+
+```sh
+awk '/^model BidQuoteOffer/,/^}/' backend/prisma/schema.prisma   # soi trường thật trước khi viết
+```
+
+### R-18 — `SameSite=None` mà thiếu `Secure` = trình duyệt vứt cookie, mọi lệnh ghi trả 403
+
+**Issue (14/08/2026):** cookie CSRF `ibshi_csrf` ở chế độ phát triển đặt `sameSite: 'none'` kèm
+`secure: false`. Theo chuẩn cookie, `SameSite=None` **bắt buộc** đi kèm `Secure`; thiếu `Secure` thì
+Chrome (từ bản 80), Firefox và Safari **vứt thẳng** cookie, không lưu. Hậu quả: cookie không bao giờ
+được gửi lại ⇒ **mọi POST/PATCH/DELETE từ trình duyệt đều 403**, trong khi curl vẫn 200 vì curl không
+áp luật SameSite. Cả trang `/duyet` (duyệt NCC, đổi chế độ, chọn theo nhóm, chọn tự động, chấm điểm,
+tạo PO) không dùng được, suốt 2,5 tháng không ai phát hiện.
+
+**Tiền đề sai cần nhớ:** `SameSite=None` KHÔNG cần cho cross-port. SameSite tính theo **site**
+(tên miền đăng ký được), không theo origin — `localhost:3000` và `localhost:5005` là **cùng site**,
+nên `Lax` gửi cookie bình thường. Khác cổng chỉ khác **origin** (việc của CORS), không khác site.
+
+**Rule:**
+1. Dev dùng `sameSite: 'lax'`. Chỉ dùng `'none'` khi đồng thời đặt `secure: true` và chạy HTTPS thật.
+2. Kiểm bằng header thật, đừng tin cấu hình:
+   ```sh
+   curl -s -i http://localhost:5005/api/v1/auth/csrf-token | grep -i set-cookie
+   # thấy "SameSite=None" mà KHÔNG có "Secure" ⇒ hỏng, trình duyệt sẽ vứt cookie
+   ```
+3. **Trình duyệt cư xử KHÁC NHAU — đây là lý do lỗi ẩn được 2,5 tháng.** Xác minh 14/08/2026:
+   Safari **vẫn nhận** cookie `SameSite=None` thiếu `Secure` nên người dùng Safari thao tác bình thường;
+   Chrome/Chromium **vứt sạch** nên 403 toàn bộ. Anh Hưng dùng Safari ⇒ với anh trang chạy tốt, trong
+   khi mọi máy dùng Chrome đều không duyệt được NCC. **Kiểm bằng một trình duyệt là chưa đủ** — tối
+   thiểu phải thử Chrome, vì đó là trình duyệt phổ biến nhất của người dùng cuối.
+4. **Hệ quả của R-17, mức nặng hơn:** kiểm "thiếu thẻ → 403" mới chỉ chứng minh lớp chặn hoạt động.
+   Phải kiểm thêm **một lệnh ghi THÀNH CÔNG từ trình duyệt thật**, không phải từ curl. curl bỏ qua
+   SameSite nên nó xanh trong khi người dùng đỏ. Một cặp kiểm mới đủ: 403 khi thiếu, **200 khi đủ**.
+
+### R-19 — Đưa dịch vụ lên launchd: hai cái bẫy trên macOS
+
+**Bối cảnh (14/08/2026):** anh Hưng không dùng Terminal, nên chuyển Postgres + backend + frontend
+sang launchd để tự chạy khi đăng nhập. Gặp hai lỗi liên tiếp, cả hai đều không hiện ở terminal thường.
+
+**Bẫy 1 — launchd không đọc được tệp trong `~/Desktop`.** macOS bảo vệ Desktop/Documents/Downloads
+(cơ chế TCC). Tiến trình do launchd sinh ra không thừa hưởng quyền của Terminal, nên:
+```
+/bin/bash: …/VẬT TƯ/scripts/launchd_postgres.sh: Operation not permitted
+```
+**Cách tránh:** đừng bọc bằng kịch bản shell đặt trong Desktop. Gọi **thẳng tệp thực thi**
+(`/opt/homebrew/opt/postgresql@18/bin/postgres`, `/opt/homebrew/bin/node`) và đưa tham số qua
+`ProgramArguments`. Kỳ lạ là `node` và `npm` đọc được mã nguồn trong Desktop bình thường —
+chỉ `bash` đọc kịch bản mới bị chặn.
+
+**Bẫy 2 — PostgreSQL 18 chết ngay khi khởi động nếu thiếu biến ngôn ngữ.**
+```
+FATAL:  postmaster became multithreaded during startup
+HINT:   Set the LC_ALL environment variable to a valid locale.
+```
+Chạy từ terminal thì không gặp vì shell đã có sẵn `LANG`/`LC_ALL`; launchd khởi động với môi trường
+gần như rỗng. **Cách tránh:** khai `LC_ALL` và `LANG` trong `EnvironmentVariables` của plist.
+Kho `vpi_procurement` dùng bảng đối chiếu `C` nên đặt `C`.
+
+**Khuôn plist đã chạy được** — xem `~/Library/LaunchAgents/com.ibshi.vattu.{postgres,backend,frontend}.plist`:
+`RunAtLoad=true` + `KeepAlive=true` + `ThrottleInterval` 10–15s, nhật ký đổ vào
+`~/Library/Logs/ibshi-vattu/`. Đã kiểm chứng cơ chế tự dựng lại: giết tiến trình Postgres bằng tay,
+launchd dựng lại sau vài giây với PID mới.
+
+**Quan hệ với RULE CỨNG #4:** #4 cấm Claude tự chạy máy chủ qua harness vì tiến trình bị giết
+cross-turn. launchd **thay thế** nhu cầu đó — máy chủ không còn thuộc phiên làm việc nào cả.

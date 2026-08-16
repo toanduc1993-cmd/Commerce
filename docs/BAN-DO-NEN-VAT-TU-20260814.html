@@ -1,0 +1,655 @@
+<title>Bản Đồ Nền Vật Tư</title>
+<style>
+:root{
+  --paper:#F5F7FB; --surface:#FFFFFF; --surface-2:#EEF2F9;
+  --rule:#DFE6F1; --rule-strong:#C3D0E4;
+  --ink:#0E1A2B; --muted:#5C6B84; --faint:#8494AC;
+  --brand:#1B365D; --brand-soft:#E7EDF7; --on-brand:#FFFFFF;
+  --info:#0D6EFD; --info-soft:#E4EDFF;
+  --ok:#198754; --ok-soft:#E2F1E9;
+  --warn:#FD7E14; --warn-soft:#FFEEDF;
+  --danger:#DC2626; --danger-soft:#FCE7E7;
+  --shadow:0 1px 2px rgba(14,26,43,.06), 0 8px 24px -12px rgba(14,26,43,.18);
+  --f-head:'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-body:'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0B1420; --surface:#121E2E; --surface-2:#182739;
+    --rule:#22334A; --rule-strong:#31465F;
+    --ink:#E4EDF8; --muted:#94A7C2; --faint:#71859F;
+    --brand:#7FA8DC; --brand-soft:#17293E; --on-brand:#0B1420;
+    --info:#5B9BFF; --info-soft:#12263F;
+    --ok:#4ADE9B; --ok-soft:#10281F;
+    --warn:#FFA94D; --warn-soft:#2E2013;
+    --danger:#FF6B6B; --danger-soft:#301618;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0B1420; --surface:#121E2E; --surface-2:#182739;
+  --rule:#22334A; --rule-strong:#31465F;
+  --ink:#E4EDF8; --muted:#94A7C2; --faint:#71859F;
+  --brand:#7FA8DC; --brand-soft:#17293E; --on-brand:#0B1420;
+  --info:#5B9BFF; --info-soft:#12263F;
+  --ok:#4ADE9B; --ok-soft:#10281F;
+  --warn:#FFA94D; --warn-soft:#2E2013;
+  --danger:#FF6B6B; --danger-soft:#301618;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:15px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:40px 24px 96px; display:flex; flex-direction:column; gap:56px}
+h1,h2,h3,h4{font-family:var(--f-head); text-wrap:balance; margin:0; color:var(--ink)}
+h1{font-size:clamp(28px,4.4vw,42px); font-weight:800; letter-spacing:-.02em; line-height:1.1}
+h2{font-size:clamp(19px,2.4vw,24px); font-weight:700; letter-spacing:-.01em}
+h3{font-size:16px; font-weight:700}
+p{margin:0}
+a{color:var(--info)}
+code,.mono{font-family:var(--f-mono); font-size:.86em; font-variant-numeric:tabular-nums}
+code{background:var(--surface-2); padding:.1em .38em; border-radius:3px; color:var(--ink)}
+.eyebrow{font-size:10px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); font-family:var(--f-head)}
+
+/* ── header ── */
+header{display:flex; flex-direction:column; gap:14px; padding-bottom:32px; border-bottom:2px solid var(--rule-strong)}
+.sub{color:var(--muted); max-width:64ch; font-size:15.5px}
+.meta{display:flex; flex-wrap:wrap; gap:8px 22px; font-size:12.5px; color:var(--faint); font-family:var(--f-mono)}
+
+/* ── status strip ── */
+.strip{display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden}
+.cell{background:var(--surface); padding:14px 16px; display:flex; flex-direction:column; gap:3px}
+.cell .n{font-family:var(--f-head); font-size:24px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.15}
+.cell .k{font-size:11px; color:var(--muted); line-height:1.35}
+.n.is-danger{color:var(--danger)} .n.is-warn{color:var(--warn)} .n.is-ok{color:var(--ok)} .n.is-brand{color:var(--brand)}
+
+/* ── section ── */
+section{display:flex; flex-direction:column; gap:20px}
+.shead{display:flex; flex-direction:column; gap:6px; border-left:3px solid var(--brand); padding-left:14px}
+
+/* ── mindmap tree ── */
+.tree{display:flex; flex-direction:column; gap:14px}
+.branch{background:var(--surface); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow); overflow:hidden}
+.branch>summary{
+  list-style:none; cursor:pointer; padding:14px 18px; display:flex; align-items:center; gap:12px;
+  border-left:4px solid var(--tone,var(--brand)); background:var(--surface);
+}
+.branch>summary::-webkit-details-marker{display:none}
+.branch>summary:hover{background:var(--surface-2)}
+.branch>summary:focus-visible{outline:2px solid var(--info); outline-offset:-2px}
+.bnum{font-family:var(--f-mono); font-size:11px; font-weight:700; color:var(--tone,var(--brand)); background:var(--tone-soft,var(--brand-soft)); padding:3px 7px; border-radius:4px; flex:none}
+.btitle{font-family:var(--f-head); font-weight:700; font-size:15.5px; flex:1; min-width:0}
+.bcount{font-family:var(--f-mono); font-size:12px; color:var(--muted); flex:none}
+.chev{width:9px; height:9px; border-right:1.8px solid var(--faint); border-bottom:1.8px solid var(--faint); transform:rotate(45deg); transition:transform .18s ease; flex:none; margin-left:2px}
+.branch[open]>summary .chev{transform:rotate(-135deg)}
+.branch[open]>summary{border-bottom:1px solid var(--rule)}
+
+.leaves{padding:6px 18px 16px 34px; display:flex; flex-direction:column}
+.leaf{position:relative; padding:13px 0 13px 22px; border-bottom:1px dashed var(--rule)}
+.leaf:last-child{border-bottom:none}
+.leaf::before{content:""; position:absolute; left:0; top:0; bottom:0; width:1px; background:var(--rule-strong)}
+.leaf:first-child::before{top:22px}
+.leaf:last-child::before{bottom:calc(100% - 22px)}
+.leaf::after{content:""; position:absolute; left:0; top:22px; width:13px; height:1px; background:var(--rule-strong)}
+.ltop{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap}
+.lid{font-family:var(--f-mono); font-size:11px; color:var(--faint); flex:none}
+.ltitle{font-weight:600; font-size:14.5px}
+.lbody{margin-top:5px; font-size:13.5px; color:var(--muted); max-width:78ch}
+.lsrc{margin-top:6px; font-family:var(--f-mono); font-size:11.5px; color:var(--faint); word-break:break-all}
+
+.tag{font-family:var(--f-head); font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:2.5px 7px; border-radius:4px; flex:none; white-space:nowrap}
+.t-block{background:var(--danger-soft); color:var(--danger)}
+.t-bug{background:var(--warn-soft); color:var(--warn)}
+.t-risk{background:var(--danger-soft); color:var(--danger)}
+.t-debt{background:var(--brand-soft); color:var(--brand)}
+.t-done{background:var(--ok-soft); color:var(--ok)}
+.t-info{background:var(--info-soft); color:var(--info)}
+
+/* ── data spine ── */
+.spine{background:var(--surface); border:1px solid var(--rule); border-radius:10px; padding:20px 8px; box-shadow:var(--shadow); overflow-x:auto}
+.spine svg{display:block; min-width:940px; margin:0 auto}
+
+/* ── stage grid ── */
+.stages{display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:14px}
+.stage{background:var(--surface); border:1px solid var(--rule); border-radius:9px; padding:15px 16px; display:flex; flex-direction:column; gap:11px; box-shadow:var(--shadow)}
+.stage-h{display:flex; align-items:center; gap:9px}
+.snum{font-family:var(--f-mono); font-size:11px; font-weight:700; width:21px; height:21px; display:grid; place-items:center; border-radius:5px; background:var(--brand); color:var(--on-brand); flex:none}
+#ar path{fill:var(--rule-strong)}
+.stage-h h3{font-size:14px}
+.ents{display:flex; flex-direction:column; gap:5px}
+.ent{display:flex; align-items:center; gap:8px; font-family:var(--f-mono); font-size:12px; padding:4px 8px; border-radius:5px; background:var(--surface-2); border:1px solid transparent}
+.ent.core{border-color:var(--rule-strong); font-weight:600}
+.ent .cnt{margin-left:auto; color:var(--faint); font-size:11px}
+.ent .cnt.zero{color:var(--danger)}
+
+/* ── tables ── */
+.tblwrap{overflow-x:auto; border:1px solid var(--rule); border-radius:9px; background:var(--surface); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; min-width:660px; font-size:13.5px}
+caption{text-align:left; padding:14px 16px 0; font-family:var(--f-head); font-weight:700; font-size:14px; color:var(--ink)}
+th,td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--rule); vertical-align:top}
+thead th{font-family:var(--f-head); font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); background:var(--surface-2); border-bottom:1px solid var(--rule-strong); position:sticky; top:0}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface-2)}
+td.mono,th.mono{font-family:var(--f-mono); font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.num{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--f-mono)}
+
+/* ── callout ── */
+.note{border-left:3px solid var(--tone,var(--warn)); background:var(--tone-soft,var(--warn-soft)); padding:13px 16px; border-radius:0 7px 7px 0; font-size:13.5px; display:flex; flex-direction:column; gap:5px}
+.note b{font-family:var(--f-head)}
+
+footer{border-top:1px solid var(--rule); padding-top:20px; font-size:12.5px; color:var(--faint); display:flex; flex-direction:column; gap:5px}
+@media (prefers-reduced-motion:reduce){*{transition:none !important; animation:none !important}}
+@media (max-width:640px){
+  .wrap{padding:28px 15px 64px; gap:42px}
+  .leaves{padding-left:20px}
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">IBS Heavy Industry · Nền tảng Vật tư</span>
+  <h1>Bản đồ nền Vật tư</h1>
+  <p class="sub">Hai thứ trong một trang: cây việc còn treo tính đến hôm nay, và bộ luật chi phối dữ liệu chạy qua bảy bước mua sắm. Mọi con số dưới đây đo trực tiếp từ cơ sở dữ liệu và mã nguồn, không chép lại từ tài liệu cũ.</p>
+  <div class="meta">
+    <span>Cập nhật 14/08/2026</span>
+    <span>30 bảng dữ liệu</span>
+    <span>Nhánh <code>main</code> · 11 file sửa + 10 file mới, chưa commit</span>
+  </div>
+</header>
+
+<section>
+  <div class="strip">
+    <div class="cell"><span class="n is-danger">4</span><span class="k">việc đang chặn, phải xử trước</span></div>
+    <div class="cell"><span class="n is-warn">6</span><span class="k">lỗi đã tìm ra, chưa vá</span></div>
+    <div class="cell"><span class="n is-danger">6</span><span class="k">rủi ro vận hành</span></div>
+    <div class="cell"><span class="n is-brand">6</span><span class="k">nợ kỹ thuật còn thật</span></div>
+    <div class="cell"><span class="n is-ok">15</span><span class="k">mục backlog đã gạch xong 14/08</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần một</span>
+    <h2>Cây việc còn treo</h2>
+    <p class="sub">Bốn nhánh xếp theo thứ tự phải làm, không theo thứ tự phát hiện. Bấm vào nhánh để mở. Mỗi lá có nguồn dẫn để kiểm lại.</p>
+  </div>
+
+  <div class="tree">
+
+    <details class="branch" open style="--tone:var(--danger); --tone-soft:var(--danger-soft)">
+      <summary>
+        <span class="bnum">N1</span>
+        <span class="btitle">Đang chặn — không đi tiếp được nếu chưa xong</span>
+        <span class="bcount">4 việc</span><span class="chev"></span>
+      </summary>
+      <div class="leaves">
+        <div class="leaf">
+          <div class="ltop"><span class="lid">1.1</span><span class="ltitle">Khởi động lại backend để nạp bản vá CSRF</span><span class="tag t-block">Chặn</span></div>
+          <p class="lbody">Bản vá đã nằm trên đĩa nhưng tiến trình đang chạy vẫn là bản cũ — PID 68742 khởi động từ 13/08 14:31, không có <code>--watch</code> nên không tự nạp lại. Chừng nào chưa khởi động lại, mọi thao tác ghi trên trang Duyệt vẫn trả 403 với Chrome.</p>
+          <p class="lsrc">backend/src/middleware/csrfProtection.js:35 · lệnh: cd backend &amp;&amp; npm start</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">1.2</span><span class="ltitle">Chốt an toàn đang khoá toàn bộ việc tạo đơn hàng</span><span class="tag t-block">Chặn</span></div>
+          <p class="lbody">Ràng buộc <code>_guard_no_po_20260814</code> đặt trên bảng PurchaseOrder chặn mọi lệnh tạo đơn hàng trên <em>toàn hệ thống</em>, không riêng hai gói đang thử. Đây là lớp bảo vệ cố ý cho phiên nghiệm thu, nhưng phải gỡ ngay khi xong — hoặc gỡ sớm nếu cần làm việc thật với đơn hàng.</p>
+          <p class="lsrc">gỡ bằng: backend/scripts/restore_ui_test_20260814.sql (bước 6)</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">1.3</span><span class="ltitle">Dữ liệu đang ở giữa chừng — 512 dòng đã duyệt thay vì 508</span><span class="tag t-block">Chặn</span></div>
+          <p class="lbody">Thừa 4 dòng: ba dòng <code>I109-VTC01-024/025/026</code> bấm thử trên Safari lúc 02:58 và một dòng <code>I95-VTC01-071</code> duyệt qua curl khi truy lỗi. Cả bốn đã nằm trong ảnh chụp 53 dòng, script khôi phục sẽ đưa về đúng mốc.</p>
+          <p class="lsrc">mốc chuẩn: PO 0 · hợp đồng 2.994 · đã duyệt 508 · SELECTED 187 · OPEN 64 · isWinner 68</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">1.4</span><span class="ltitle">Nghiệm thu B3 → B7 chưa chạy, và chưa commit</span><span class="tag t-block">Chặn</span></div>
+          <p class="lbody">Năm chế độ chọn thầu, chặn dòng 0 đồng, nhật ký kiểm toán, khôi phục mốc, chạy lại bộ kiểm tra máy — tất cả chờ bước 1.1. Khi commit thì để hai file <code>docs/master-table-review-20260530.html</code> và <code>docs/pr-page-ui-review.html</code> ở ngoài: chúng có từ tháng 7, không liên quan đợt này.</p>
+          <p class="lsrc">đã đạt: B2 (9 dòng × 4 cột khớp tuyệt đối) · B2b (giá rẻ nhất chấm riêng từng loại tiền)</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="branch" style="--tone:var(--warn); --tone-soft:var(--warn-soft)">
+      <summary>
+        <span class="bnum">N2</span>
+        <span class="btitle">Lỗi đã tìm ra, chưa vá</span>
+        <span class="bcount">6 lỗi</span><span class="chev"></span>
+      </summary>
+      <div class="leaves">
+        <div class="leaf">
+          <div class="ltop"><span class="lid">2.1</span><span class="ltitle">Thẻ tổng nhà cung cấp mâu thuẫn với bảng ngay bên dưới</span><span class="tag t-bug">Lỗi</span></div>
+          <p class="lbody">Thẻ đọc cột <code>totalQuote</code> lưu sẵn trong cơ sở dữ liệu. Gói VTC-003 lưu 0 cho Hùng Nguyên, trong khi cộng cột Thành tiền của chính nhà cung cấp đó ra 36.171.711 ₫. Hai con số đá nhau trên cùng một màn hình. Hàm tính đúng đã có sẵn nhưng thẻ không dùng.</p>
+          <p class="lsrc">frontend/src/app/duyet/page.tsx:418 → nên dùng totalForVendor() ở frontend/src/lib/bid-compare.ts:105</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">2.2</span><span class="ltitle">Báo giá ghi “không chào” nhưng vẫn có giá thì lọt qua cửa chặn</span><span class="tag t-bug">Lỗi</span></div>
+          <p class="lbody">Toàn kho có 32 báo giá mang phạm vi <code>X</code> (nhà cung cấp không chào) nhưng đơn giá vẫn lớn hơn 0. Cửa chặn P0-3 chỉ hỏi “giá có lớn hơn 0 không”, nên loại này đi thẳng vào đơn hàng thật. Đúng mặt trái của lỗi mà P0-3 sinh ra để vá. Bảng so sánh còn cho chúng tranh ngôi rẻ nhất, trong khi chế độ chọn tự động lại loại chúng ra — ba nơi hiểu khác nhau về cùng một dữ liệu.</p>
+          <p class="lsrc">backend/src/controllers/bidAnalysisController.js:1648 · đối chiếu bidSelectionModeController yêu cầu scope='V'</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">2.3</span><span class="ltitle">Rời chế độ PER_BID không dọn dẹp</span><span class="tag t-bug">Lỗi</span></div>
+          <p class="lbody">Bốn chế độ kia đều tự dọn khi rời đi. Riêng PER_BID chỉ xoá cờ nhà cung cấp trúng, để nguyên các dòng đã duyệt và không trả trạng thái gói về OPEN. Hậu quả: nút Tạo PO vẫn sống sau khi đã đổi sang chế độ khác, và không thao tác nào trên giao diện gỡ được đống tồn đó.</p>
+          <p class="lsrc">backend/src/controllers/bidSelectionModeController.js:64-70</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">2.4</span><span class="ltitle">Bốn cửa API thiếu khoá khi gói đã lên hợp đồng</span><span class="tag t-bug">Lỗi</span></div>
+          <p class="lbody">Chỉ <code>select-vendor</code> và cửa duyệt từng dòng trả 409 khi gói đã CONTRACTED. Bốn cửa còn lại — đổi chế độ, chọn theo nhóm, chọn tự động, chấm điểm — vẫn ghi được, nên lựa chọn nhà cung cấp có thể đổi bên dưới một đơn hàng đã phát hành.</p>
+          <p class="lsrc">selection-mode · group-selection · auto-select-min-price · vendor-scores</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">2.5</span><span class="ltitle">Khối “Nhập tồn kho thành công” là mã chết</span><span class="tag t-debt">Nợ cũ</span></div>
+          <p class="lbody">Điều kiện ngoài loại bỏ đúng trạng thái mà điều kiện trong đòi hỏi, nên khối này không bao giờ hiện. Người dùng chỉ thấy thông báo chớp nhoáng, không thấy bảng đối chiếu. Có từ commit <code>63500a3</code> ngày 01/06, cũng là lỗi TypeScript duy nhất còn lại.</p>
+          <p class="lsrc">frontend/src/app/kiem-tra-ton-kho/page.tsx:463 (nằm trong khối mở ở dòng 352)</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">2.6</span><span class="ltitle">Điều khoản grep của luật R-13 chưa đạt</span><span class="tag t-info">Nhẹ</span></div>
+          <p class="lbody">Có 11 file chứa chuỗi <code>localhost:5005</code>, nhưng tất cả đều theo đúng mẫu <code>process.env.NEXT_PUBLIC_API_URL || '…'</code> mà chính R-13 gọi là ĐÚNG. Vậy đây không phải lỗi chức năng — chỉ là điều khoản “grep phải ra 0 kết quả” chưa thoả. Cách sửa gọn: các file import chung hằng số từ <code>lib/api.ts</code> thay vì mỗi nơi khai báo lại.</p>
+          <p class="lsrc">9 file thành phần + duyet/page.tsx:299 + lib/api.ts:10 (nơi khai báo hợp lệ duy nhất)</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="branch" style="--tone:var(--danger); --tone-soft:var(--danger-soft)">
+      <summary>
+        <span class="bnum">N3</span>
+        <span class="btitle">Rủi ro vận hành</span>
+        <span class="bcount">6 việc</span><span class="chev"></span>
+      </summary>
+      <div class="leaves">
+        <div class="leaf">
+          <div class="ltop"><span class="lid">3.1</span><span class="ltitle">Chưa từng có một bản sao lưu cơ sở dữ liệu nào</span><span class="tag t-risk">Nặng nhất</span></div>
+          <p class="lbody">Script <code>scripts/backup_pg.sh</code> viết xong và chạy được, nhưng <em>không có lịch chạy nào</em> trong launchd hay cron, và thư mục <code>backups/</code> chưa từng tồn tại. Nghĩa là 2.994 dòng hợp đồng, 4.440 vật tư, 1.559 báo giá hiện chỉ nằm ở một bản duy nhất trên một ổ đĩa. Đây là rủi ro lớn nhất trong toàn bộ danh sách này — lớn hơn mọi lỗi giao diện phía trên cộng lại.</p>
+          <p class="lsrc">chỉ có com.ibshi.vattu.compactlogs.plist được lên lịch; không có job backup</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">3.2</span><span class="ltitle">Hai script dọn dẹp khác cũng chưa có lịch</span><span class="tag t-risk">Rủi ro</span></div>
+          <p class="lbody"><code>uploads_archive.sh</code> (dọn tệp tải lên quá 6 tháng) và <code>audit_log_cleanup.sh</code> (xoá nhật ký quá 90 ngày) cùng tình trạng: có script, không có lịch. Chưa gây hại ngay nhưng sẽ âm thầm phình ổ đĩa.</p>
+          <p class="lsrc">scripts/uploads_archive.sh · scripts/audit_log_cleanup.sh</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">3.3</span><span class="ltitle">Lịch sử migration lệch với cơ sở dữ liệu thật</span><span class="tag t-risk">Rủi ro</span></div>
+          <p class="lbody">Hai cột <code>selectedAt</code>, <code>selectedBy</code> và ràng buộc duy nhất trên <code>vendorOrder</code> được áp bằng tay qua psql ngày 13/08, cố ý không qua Prisma để khỏi mất dữ liệu. Nhưng thư mục <code>backend/prisma/migrations/</code> không biết đến chúng: máy mới dựng từ đầu sẽ thiếu, và lần chạy <code>migrate diff</code> tới sẽ báo lệch.</p>
+          <p class="lsrc">backend/scripts/migration_20260813_bid_approval.sql · migrations/ dừng ở 20260528144323</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">3.4</span><span class="ltitle">Sổ thay đổi vượt ngưỡng tự nén của chính nó</span><span class="tag t-info">Nhẹ</span></div>
+          <p class="lbody"><code>CHANGES_LOG.md</code> đang 1.541 dòng, trong khi RULE CỨNG #2 quy định quá 500 dòng là phải chạy <code>compact_logs.sh</code> ngay. Chưa nén vì làm vậy lúc này sẽ xáo trộn đúng phần khác biệt đang chờ commit — nên để anh Hưng quyết thời điểm.</p>
+          <p class="lsrc">scripts/compact_logs.sh · ngưỡng 500 dòng</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">3.5</span><span class="ltitle">Tệp mốc thời gian đứng yên 18 ngày</span><span class="tag t-info">Nhẹ</span></div>
+          <p class="lbody"><code>_NOW.md</code> ghi ngày 27/07 trong khi hôm nay 14/08 — cron đồng bộ 5 phút một lần có vẻ đã chết. Tệp này là nguồn ngày tháng cho mọi entry nhật ký, nên sai nó là sai ngày cả chuỗi ghi chép về sau.</p>
+          <p class="lsrc">scripts/update_now.sh · vault root/_NOW.md</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">3.6</span><span class="ltitle">Kiểm thử chỉ chạy trên một trình duyệt</span><span class="tag t-risk">Rủi ro</span></div>
+          <p class="lbody">Chính bài học hôm nay: cookie sai chuẩn được Safari chấp nhận nhưng Chrome vứt bỏ, nên trang Duyệt chạy tốt với anh Hưng và hỏng hoàn toàn với mọi máy dùng Chrome — ẩn suốt 2,5 tháng. Cần đưa “thử trên Chrome” thành bước bắt buộc trước khi báo xong.</p>
+          <p class="lsrc">đã ghi thành luật R-18 trong DEVOPS_NOTES.md:681</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="branch" style="--tone:var(--brand); --tone-soft:var(--brand-soft)">
+      <summary>
+        <span class="bnum">N4</span>
+        <span class="btitle">Nợ kỹ thuật còn thật — đã lọc khỏi backlog cũ</span>
+        <span class="bcount">6 việc</span><span class="chev"></span>
+      </summary>
+      <div class="leaves">
+        <div class="leaf">
+          <div class="ltop"><span class="lid">4.1</span><span class="ltitle">Thẻ đăng nhập vẫn nằm trong localStorage</span><span class="tag t-debt">Nợ</span></div>
+          <p class="lbody">Sprint S2-1 đặt mục tiêu chuyển thẻ JWT sang cookie HttpOnly. Phần CSRF đã làm xong, nhưng nửa còn lại chưa: thẻ vẫn đọc từ <code>localStorage</code>, tức là mã JavaScript bất kỳ trên trang vẫn lấy được. Đây là phần chưa xong của một mục backlog đang bị đánh dấu là đã xong.</p>
+          <p class="lsrc">frontend/src/lib/api.ts — localStorage.getItem('ibshi_token')</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">4.2</span><span class="ltitle">31 gói phụ thuộc chưa ghim phiên bản</span><span class="tag t-debt">Nợ</span></div>
+          <p class="lbody">21 gói ở backend và 10 gói ở frontend còn dấu <code>^</code>, nghĩa là một lần cài lại có thể kéo về phiên bản khác. Với nền tảng đang chạy Next 16 và Prisma, đây là nguồn lỗi “máy em chạy được” điển hình.</p>
+          <p class="lsrc">backend/package.json · frontend/package.json</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">4.3</span><span class="ltitle">Chưa có bộ trạng thái dùng chung giữa hai đầu</span><span class="tag t-debt">Nợ</span></div>
+          <p class="lbody">Các chuỗi trạng thái (OPEN, SELECTED, CONTRACTED, PO_ISSUED…) hiện viết tay ở cả backend lẫn frontend. Một tệp <code>shared/enums.ts</code> dùng chung sẽ chặn được cả một lớp lỗi gõ sai chuỗi mà trình biên dịch hiện không bắt.</p>
+          <p class="lsrc">Roadmap Phase 0.4 · B-CPVT-007</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">4.4</span><span class="ltitle">Chuỗi giao diện chưa gom về một chỗ</span><span class="tag t-debt">Nợ</span></div>
+          <p class="lbody">Chưa có <code>i18n/vi.ts</code>. Mọi nhãn tiếng Việt nằm rải trong từng thành phần, nên sửa cách gọi tên một khái niệm phải đi lùng khắp mã nguồn.</p>
+          <p class="lsrc">Roadmap Phase 0.6 · B-CPVT-009</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">4.5</span><span class="ltitle">Chưa có ô tìm kiếm toàn hệ thống</span><span class="tag t-debt">Nợ</span></div>
+          <p class="lbody">Với 4.440 vật tư, 2.188 dòng báo giá và 2.994 dòng hợp đồng, việc phải đi qua bảy trang để tìm một mã hàng là điểm nghẽn thao tác rõ nhất còn lại.</p>
+          <p class="lsrc">UI-1-4 · cần thêm cửa /api/v1/search</p>
+        </div>
+        <div class="leaf">
+          <div class="ltop"><span class="lid">4.6</span><span class="ltitle">Các sprint giao diện còn lại</span><span class="tag t-debt">Nợ</span></div>
+          <p class="lbody">Bộ token thiết kế, thanh điều hướng theo bảy bước, dòng thời gian tiến độ mỗi yêu cầu mua, vùng “việc của tôi” trên bảng điều khiển, trạng thái rỗng, trạng thái đang tải. Ước lượng cũ 64 giờ, nhưng phần gộp ba trang báo giá thành một đã xong rồi nên khối lượng thật thấp hơn.</p>
+          <p class="lsrc">UI-1-1/2/3 · UI-2-1/2 · UI-3 · UI-4</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="branch" style="--tone:var(--ok); --tone-soft:var(--ok-soft)">
+      <summary>
+        <span class="bnum">N5</span>
+        <span class="btitle">Đã xong nhưng backlog chưa gạch — ĐÃ DỌN 14/08</span>
+        <span class="bcount">15 mục</span><span class="chev"></span>
+      </summary>
+      <div class="leaves">
+        <div class="leaf">
+          <div class="ltop"><span class="ltitle">Backlog đứng yên từ 25/05, đã lạc hậu 2,5 tháng</span><span class="tag t-done">Xong rồi</span></div>
+          <p class="lbody"><b>Đã xử lý:</b> anh Hưng duyệt gạch ngày 14/08, em đã đánh dấu trực tiếp trong <code>BACKLOG.md</code> — mười một mục ghi <code>✅ DONE</code> kèm bằng chứng kiểm bằng đĩa, bốn mục ghi <code>🟡 XONG MỘT NỬA</code> vì có script nhưng thiếu lịch chạy. Danh sách:</p>
+          <p class="lbody" style="margin-top:9px">
+            <b>S1</b> — Pino logger · correlationId · Vitest + thư mục tests · <code>/health/detail</code> · <code>/metrics</code> · ErrorBoundary · cửa client-errors.<br>
+            <b>S2</b> — Zod schemas + middleware validate · pool singleton cho health · script dọn nhật ký.<br>
+            <b>S3</b> — docker-compose.dev.yml · ba chỉ mục khoá ngoại còn thiếu · ecosystem.config.js cho PM2.<br>
+            <b>S4</b> — CI GitHub Actions.<br>
+            <b>UI</b> — gộp ba trang báo giá thành một trang ba tab.
+          </p>
+          <p class="lsrc">lưu ý: “có script” không đồng nghĩa “đang chạy” — xem nhánh 3.1 và 3.2</p>
+        </div>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần hai</span>
+    <h2>Dữ liệu chảy qua bảy bước</h2>
+    <p class="sub">Xương sống của hệ thống là một chuỗi tám bảng nối nhau bằng khoá ngoại. Mỗi mắt xích giữ lại dấu vết của mắt trước, nên truy ngược từ một dòng hợp đồng về tận yêu cầu mua ban đầu luôn thực hiện được.</p>
+  </div>
+
+  <div class="spine">
+    <svg viewBox="0 0 960 210" role="img" aria-label="Sơ đồ xương sống dữ liệu: Dự án đến Yêu cầu mua đến Dòng yêu cầu đến Gói báo giá đến Đơn đặt hàng đến Dòng hợp đồng đến Phiếu nhập kho đến Tồn kho">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+      </defs>
+      <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">
+
+        <g stroke="var(--rule-strong)" stroke-width="1.5" fill="none" marker-end="url(#ar)">
+          <line x1="118" y1="66" x2="152" y2="66"/>
+          <line x1="278" y1="66" x2="312" y2="66"/>
+          <line x1="438" y1="66" x2="472" y2="66"/>
+          <line x1="598" y1="66" x2="632" y2="66"/>
+          <line x1="758" y1="66" x2="792" y2="66"/>
+          <line x1="118" y1="158" x2="152" y2="158"/>
+          <line x1="278" y1="158" x2="312" y2="158"/>
+        </g>
+        <path d="M872 92 L872 122 L60 122 L60 140" fill="none" stroke="var(--rule-strong)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+
+        <g>
+          <rect x="8" y="44" width="110" height="44" rx="6" fill="var(--brand-soft)" stroke="var(--brand)" stroke-width="1.2"/>
+          <text x="63" y="62" text-anchor="middle" fill="var(--brand)" font-weight="700">Project</text>
+          <text x="63" y="77" text-anchor="middle" fill="var(--muted)">56</text>
+        </g>
+        <g>
+          <rect x="168" y="44" width="110" height="44" rx="6" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-width="1.2"/>
+          <text x="223" y="62" text-anchor="middle" fill="var(--ink)" font-weight="700">Purchase-</text>
+          <text x="223" y="77" text-anchor="middle" fill="var(--muted)">Requisition · 51</text>
+        </g>
+        <g>
+          <rect x="328" y="44" width="110" height="44" rx="6" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-width="1.2"/>
+          <text x="383" y="62" text-anchor="middle" fill="var(--ink)" font-weight="700">PrDetail</text>
+          <text x="383" y="77" text-anchor="middle" fill="var(--muted)">1.816</text>
+        </g>
+        <g>
+          <rect x="488" y="44" width="110" height="44" rx="6" fill="var(--info-soft)" stroke="var(--info)" stroke-width="1.6"/>
+          <text x="543" y="62" text-anchor="middle" fill="var(--info)" font-weight="700">BidAnalysis</text>
+          <text x="543" y="77" text-anchor="middle" fill="var(--muted)">251</text>
+        </g>
+        <g>
+          <rect x="648" y="44" width="110" height="44" rx="6" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.2"/>
+          <text x="703" y="62" text-anchor="middle" fill="var(--danger)" font-weight="700">PurchaseOrder</text>
+          <text x="703" y="77" text-anchor="middle" fill="var(--danger)">0</text>
+        </g>
+        <g>
+          <rect x="808" y="44" width="130" height="44" rx="6" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-width="1.2"/>
+          <text x="873" y="62" text-anchor="middle" fill="var(--ink)" font-weight="700">ContractDetail</text>
+          <text x="873" y="77" text-anchor="middle" fill="var(--muted)">2.994</text>
+        </g>
+
+        <g>
+          <rect x="8" y="136" width="110" height="44" rx="6" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.2"/>
+          <text x="63" y="154" text-anchor="middle" fill="var(--danger)" font-weight="700">GoodsRecvNote</text>
+          <text x="63" y="169" text-anchor="middle" fill="var(--danger)">0</text>
+        </g>
+        <g>
+          <rect x="168" y="136" width="110" height="44" rx="6" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.2"/>
+          <text x="223" y="154" text-anchor="middle" fill="var(--danger)" font-weight="700">GRNLineItem</text>
+          <text x="223" y="169" text-anchor="middle" fill="var(--danger)">0</text>
+        </g>
+        <g>
+          <rect x="328" y="136" width="110" height="44" rx="6" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.2"/>
+          <text x="383" y="154" text-anchor="middle" fill="var(--danger)" font-weight="700">Inventory</text>
+          <text x="383" y="169" text-anchor="middle" fill="var(--danger)">0</text>
+        </g>
+
+        <text x="8" y="24" fill="var(--faint)" font-size="10" letter-spacing="1.4">XƯƠNG SỐNG — SỐ LÀ BẢN GHI THẬT TRONG KHO</text>
+        <text x="470" y="200" fill="var(--faint)" font-size="10" text-anchor="middle">nửa dưới chưa từng có dữ liệu — quy trình mới chạy đến bước hợp đồng</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="note" style="--tone:var(--info); --tone-soft:var(--info-soft)">
+    <b>Điều sơ đồ nói ra</b>
+    <span>Ba bảng cuối đều bằng 0: nền tảng chưa từng chạy hết vòng. Hàng về, nhập kho và ghim tồn kho mới chỉ tồn tại dưới dạng bảng, chưa có nghiệp vụ thật đi qua. Còn <code>PurchaseOrder</code> bằng 0 là do phiên thử 13/08 đã hoàn tác — đây là con số đúng của mốc, không phải thiếu dữ liệu.</span>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-h"><span class="snum">1</span><h3>Dự án &amp; ngân sách</h3></div>
+      <div class="ents">
+        <span class="ent core">Project<span class="cnt">56</span></span>
+        <span class="ent">ProjectBudget</span>
+        <span class="ent">FabricationCategory</span>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-h"><span class="snum">2</span><h3>Danh mục vật tư</h3></div>
+      <div class="ents">
+        <span class="ent">MaterialGroup</span>
+        <span class="ent">MaterialSubGroup</span>
+        <span class="ent core">Material<span class="cnt">4.440</span></span>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-h"><span class="snum">3</span><h3>Yêu cầu mua</h3></div>
+      <div class="ents">
+        <span class="ent core">PurchaseRequisition<span class="cnt">51</span></span>
+        <span class="ent core">PrDetail<span class="cnt">1.816</span></span>
+        <span class="ent">PrDetailFabAllocation</span>
+        <span class="ent">TechComment</span>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-h"><span class="snum">4</span><h3>Báo giá &amp; so sánh</h3></div>
+      <div class="ents">
+        <span class="ent core">BidAnalysis<span class="cnt">251</span></span>
+        <span class="ent core">BidQuoteVendor<span class="cnt">450</span></span>
+        <span class="ent core">BidQuoteItem<span class="cnt">2.188</span></span>
+        <span class="ent core">BidQuoteOffer<span class="cnt">1.559</span></span>
+        <span class="ent">BidGroupSelection<span class="cnt">0</span></span>
+        <span class="ent">BidVendorScore<span class="cnt">0</span></span>
+        <span class="ent">BidAnalysisPrLink</span>
+        <span class="ent">Quotation</span>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-h"><span class="snum">5</span><h3>Đơn hàng &amp; hợp đồng</h3></div>
+      <div class="ents">
+        <span class="ent core">PurchaseOrder<span class="cnt zero">0</span></span>
+        <span class="ent core">ContractDetail<span class="cnt">2.994</span></span>
+        <span class="ent">InspectionRecord</span>
+        <span class="ent">PaymentSchedule</span>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-h"><span class="snum">6</span><h3>Hàng về &amp; kho</h3></div>
+      <div class="ents">
+        <span class="ent">GoodsReceivedNote<span class="cnt zero">0</span></span>
+        <span class="ent">GRNLineItem<span class="cnt zero">0</span></span>
+        <span class="ent">Inventory<span class="cnt zero">0</span></span>
+        <span class="ent">HardPegging<span class="cnt zero">0</span></span>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-h"><span class="snum">7</span><h3>Nền hệ thống</h3></div>
+      <div class="ents">
+        <span class="ent core">Vendor<span class="cnt">189</span></span>
+        <span class="ent">User</span>
+        <span class="ent">AuditLog<span class="cnt">165</span></span>
+        <span class="ent">AlertResolution</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Khoá ngoại — ai trỏ vào ai</caption>
+      <thead>
+        <tr><th>Bảng con</th><th class="mono">Khoá ngoại</th><th>Trỏ tới</th><th>Ý nghĩa nghiệp vụ</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">PrDetail</td><td class="mono">prId</td><td class="mono">PurchaseRequisition</td><td>Một yêu cầu mua gồm nhiều dòng vật tư</td></tr>
+        <tr><td class="mono">BidAnalysis</td><td class="mono">projectId · prId · prDetailId</td><td class="mono">Project · PR · PrDetail</td><td>Gói báo giá bám vào dự án, có thể bám thêm tới tận dòng yêu cầu</td></tr>
+        <tr><td class="mono">BidAnalysisPrLink</td><td class="mono">bidAnalysisId + prDetailId</td><td class="mono">BidAnalysis · PrDetail</td><td>Cầu nhiều–nhiều khi một gói gom nhiều dòng của nhiều yêu cầu</td></tr>
+        <tr><td class="mono">BidQuoteVendor</td><td class="mono">bidId</td><td class="mono">BidAnalysis</td><td>Mỗi nhà cung cấp tham gia gói là một cột trong bảng so sánh</td></tr>
+        <tr><td class="mono">BidQuoteItem</td><td class="mono">bidId</td><td class="mono">BidAnalysis</td><td>Mỗi dòng vật tư cần chào giá là một hàng</td></tr>
+        <tr><td class="mono">BidQuoteOffer</td><td class="mono">itemId + vendorId</td><td class="mono">BidQuoteItem · BidQuoteVendor</td><td>Giao điểm hàng × cột — chính là một ô giá</td></tr>
+        <tr><td class="mono">BidGroupSelection</td><td class="mono">bidAnalysisId</td><td class="mono">BidAnalysis</td><td>Lựa chọn nhà cung cấp cho cả một nhóm vật tư</td></tr>
+        <tr><td class="mono">BidVendorScore</td><td class="mono">bidAnalysisId</td><td class="mono">BidAnalysis</td><td>Phiếu chấm điểm ba tiêu chí cho từng nhà cung cấp</td></tr>
+        <tr><td class="mono">PurchaseOrder</td><td class="mono">bidId</td><td class="mono">BidAnalysis</td><td>Một gói đẻ ra một đơn hàng cho mỗi nhà cung cấp trúng</td></tr>
+        <tr><td class="mono">ContractDetail</td><td class="mono">purchaseOrderId · prDetailId</td><td class="mono">PurchaseOrder · PrDetail</td><td>Mắt xích khép vòng: nối đơn hàng ngược về đúng dòng yêu cầu ban đầu</td></tr>
+        <tr><td class="mono">InspectionRecord</td><td class="mono">contractDetailId</td><td class="mono">ContractDetail</td><td>Biên bản nghiệm thu chất lượng từng dòng hợp đồng</td></tr>
+        <tr><td class="mono">PaymentSchedule</td><td class="mono">contractDetailId · projectId</td><td class="mono">ContractDetail · Project</td><td>Lịch thanh toán theo dòng hợp đồng</td></tr>
+        <tr><td class="mono">GRNLineItem</td><td class="mono">grnId</td><td class="mono">GoodsReceivedNote</td><td>Chi tiết từng mã hàng trong một lần nhận</td></tr>
+        <tr><td class="mono">HardPegging</td><td class="mono">inventoryId</td><td class="mono">Inventory</td><td>Ghim một lô tồn kho cho một nhu cầu cụ thể</td></tr>
+        <tr><td class="mono">Material</td><td class="mono">materialSubGroupCode</td><td class="mono">MaterialSubGroup</td><td>Phân loại vật tư — hiện 86% số dòng còn trống ô này</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Phần ba</span>
+    <h2>Luật chi phối dữ liệu</h2>
+    <p class="sub">Những quy tắc dưới đây quyết định dữ liệu hợp lệ hay không. Phần lớn được siết lại trong đợt vá 13/08 — trước đó chúng chỉ tồn tại như thoả thuận ngầm.</p>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Luật ghép nối và tính toán</caption>
+      <thead><tr><th style="width:26%">Luật</th><th>Nội dung</th><th class="mono" style="width:22%">Nơi thi hành</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Ghép báo giá vào cột</b></td>
+          <td>Ô giá thuộc về cột nào là xác định theo <code>vendorId</code> — không theo thứ tự cột, không theo tên nhà cung cấp. Bản cũ ghép theo <code>vendorOrder</code> nên hai nhà cung cấp trùng số thì lẫn giá của nhau.</td>
+          <td class="mono">lib/bid-compare.ts:14</td>
+        </tr>
+        <tr>
+          <td><b>Một ô, một báo giá</b></td>
+          <td>Ràng buộc duy nhất trên cặp <code>(itemId, vendorId)</code>. Một nhà cung cấp không thể có hai giá cho cùng một dòng.</td>
+          <td class="mono">schema.prisma:504</td>
+        </tr>
+        <tr>
+          <td><b>Thứ tự cột không trùng</b></td>
+          <td>Ràng buộc duy nhất trên <code>(bidId, vendorOrder)</code>. Trước 13/08 có 60 gói trùng số, đã đánh số lại 79 dòng.</td>
+          <td class="mono">schema.prisma:446</td>
+        </tr>
+        <tr>
+          <td><b>Mã nhóm vật tư suy từ mã hàng</b></td>
+          <td>Lấy đoạn thứ hai của mã hàng nếu khớp mẫu <code>V + hai chữ + tối đa hai số</code>: <code>I95-VTC01-12</code> ra <code>VTC01</code>. Không khớp thì lấy mác thép thành <code>MAC:&lt;mác&gt;</code>, không có nữa thì xếp vào <code>KHAC</code>. Đây là suy luận từ chuỗi ký tự, chưa phải khoá ngoại thật.</td>
+          <td class="mono">lib/materialGroup.js:19</td>
+        </tr>
+        <tr>
+          <td><b>Giá rẻ nhất chấm riêng từng loại tiền</b></td>
+          <td>Không bao giờ so số thô giữa VND và USD. Mỗi loại tiền có ngôi rẻ nhất riêng, và đơn giá bằng 0 hoặc âm bị loại khỏi cuộc so. Gói trộn tiền hiện dải cảnh báo.</td>
+          <td class="mono">lib/bid-compare.ts:33</td>
+        </tr>
+        <tr>
+          <td><b>Nguồn sự thật của phê duyệt</b></td>
+          <td>Chỉ một chỗ duy nhất: <code>BidQuoteItem.selectedVendorName</code>. Mọi chế độ chọn thầu, kể cả chọn theo nhóm và chọn tự động, cuối cùng đều phải đổ xuống cấp dòng — vì cửa tạo đơn hàng chỉ đọc đúng chỗ này.</td>
+          <td class="mono">bidSelectionModeController.js:151</td>
+        </tr>
+        <tr>
+          <td><b>Không tạo đơn từ dòng thiếu giá</b></td>
+          <td>Đơn giá bằng 0, hoặc nhà cung cấp được duyệt không hề báo giá cho dòng đó, thì cả lệnh bị từ chối với mã 400 kèm danh sách dòng lỗi — <em>trước khi</em> mở giao dịch, nên không ghi gì. Bản cũ dùng toán tử coi 0 là rỗng nên âm thầm lấy đơn giá dự toán ghi lên đơn hàng.</td>
+          <td class="mono">bidAnalysisController.js:1637</td>
+        </tr>
+        <tr>
+          <td><b>Loại hợp đồng theo bản chất nhà cung cấp</b></td>
+          <td>Lấy từ <code>vendor.vendorType</code>, không suy từ loại tiền. Nhà cung cấp trong nước báo giá USD trước đây bị xếp nhầm thành hàng nhập khẩu.</td>
+          <td class="mono">bidAnalysisController.js:1693</td>
+        </tr>
+        <tr>
+          <td><b>Điểm tổng có trọng số</b></td>
+          <td>Giá 50% + chất lượng 30% + điều kiện thanh toán 20%, tính ở máy chủ. Nếu gói có đặt trọng số riêng thì trọng số đó thắng, nhưng nhãn trên giao diện vẫn ghi cứng 50/30/20 — một chỗ dễ gây hiểu nhầm.</td>
+          <td class="mono">bidSelectionModeController.js:353</td>
+        </tr>
+        <tr>
+          <td><b>Khoá khi đã lên hợp đồng</b></td>
+          <td>Gói ở trạng thái CONTRACTED thì không sửa được nhà cung cấp duyệt — trả 409. Tạo đơn lần hai cũng bị chặn, báo kèm mã đơn đã có. <em>Chỉ áp cho hai cửa API, còn bốn cửa chế độ vẫn ghi được</em> — xem lỗi 2.4.</td>
+          <td class="mono">bidAnalysisController.js:322, 393, 1596</td>
+        </tr>
+        <tr>
+          <td><b>Mọi hành vi duyệt đều để lại dấu</b></td>
+          <td>Tám loại hành vi được ghi vào nhật ký kiểm toán, trong đó ba loại ghi rõ nhà cung cấp cũ đổi sang mới. Trước 13/08 có 508 dòng đã duyệt mà nhật ký trống trơn về hành vi duyệt.</td>
+          <td class="mono">bidAnalysisController.js:32</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Năm chế độ chọn thầu — rời chế độ thì mất gì</caption>
+      <thead><tr><th style="width:20%">Chế độ</th><th style="width:34%">Cách chọn</th><th>Rời chế độ này thì hệ thống dọn</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">PER_BID</td><td>Giao cả gói cho một nhà cung cấp</td><td><span class="tag t-bug">Lỗi</span> Chỉ xoá cờ nhà cung cấp trúng. <b>Không</b> gỡ các dòng đã duyệt, <b>không</b> trả trạng thái gói về OPEN.</td></tr>
+        <tr><td class="mono">PER_ITEM</td><td>Chọn riêng cho từng dòng</td><td>Gỡ toàn bộ lựa chọn cấp dòng của gói</td></tr>
+        <tr><td class="mono">PER_GROUP</td><td>Chọn cho cả nhóm vật tư, đổ xuống từng dòng</td><td>Xoá bản ghi nhóm <em>và</em> gỡ luôn lựa chọn cấp dòng</td></tr>
+        <tr><td class="mono">AUTO_MIN_PRICE</td><td>Máy chọn giá thấp nhất, chỉ xét phạm vi V và cùng loại tiền với gói</td><td>Gỡ toàn bộ lựa chọn cấp dòng của gói</td></tr>
+        <tr><td class="mono">MANUAL_WEIGHTED</td><td>Chấm điểm ba tiêu chí rồi giao cả gói cho người cao điểm</td><td>Xoá toàn bộ phiếu điểm</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <caption>Vòng đời trạng thái</caption>
+      <thead><tr><th style="width:24%">Bảng</th><th>Chuỗi trạng thái</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">PurchaseRequisition</td><td class="mono">DRAFT → SOURCING → APPROVED → PO_ISSUED → CLOSED</td></tr>
+        <tr><td class="mono">BidAnalysis</td><td class="mono">OPEN → EVALUATING → SELECTED → CONTRACTED → CANCELLED</td></tr>
+        <tr><td class="mono">PurchaseOrder</td><td class="mono">ISSUED <span style="font-family:var(--f-body)">(mặc định, chưa có chuỗi tiếp)</span></td></tr>
+        <tr><td class="mono">PaymentSchedule</td><td class="mono">PLANNED → DUE → PAID → OVERDUE</td></tr>
+        <tr><td class="mono">Inventory</td><td class="mono">ACTIVE → RELEASED → CONSUMED</td></tr>
+        <tr><td class="mono">Vendor</td><td class="mono">ACTIVE | INACTIVE | BLACKLIST</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note" style="--tone:var(--danger); --tone-soft:var(--danger-soft)">
+    <b>Cái bẫy lớn nhất khi đọc dữ liệu này</b>
+    <span>Có 187 gói mang trạng thái <code>SELECTED</code> nhưng chỉ 6 gói có mốc thời gian phê duyệt thật. Trạng thái đó được gán tự động lúc nhập dữ liệu, không phải do ai bấm duyệt. <b>Đừng bao giờ dùng <code>SELECTED</code> để suy ra “đã duyệt”</b> — muốn biết đã duyệt hay chưa thì đếm <code>BidQuoteItem.selectedVendorName</code>.</span>
+  </div>
+
+  <div class="note" style="--tone:var(--warn); --tone-soft:var(--warn-soft)">
+    <b>Hai khoảng trống nghiệp vụ chưa ai vá</b>
+    <span>Thứ nhất, <b>thuế giá trị gia tăng</b>: bảng báo giá không có ô nào ghi giá đã gồm thuế hay chưa, trong khi dòng hợp đồng mặc định cộng 10%. Nhà cung cấp A báo đã gồm thuế, B báo chưa gồm, thì đang so lệch nhau 10% mà không ai biết. Thứ hai, <b>đơn vị tính</b>: nếu một bên báo theo cây còn bên kia báo theo ký, hệ thống không ghi nhận và cũng không cảnh báo.</span>
+  </div>
+</section>
+
+<footer>
+  <span>Dựng ngày 14/08/2026 từ số liệu đo trực tiếp: cơ sở dữ liệu <code>vpi_procurement</code>, schema Prisma 30 bảng, và kiểm tra sự tồn tại thật của từng mục backlog trên đĩa.</span>
+  <span>Không bao gồm nhánh OCR theo yêu cầu. Nhánh <code>main</code>, chưa commit, chưa push.</span>
+</footer>
+
+</div>
