@@ -24,6 +24,58 @@
 
 ## 2026-08-16
 
+### 2026-08-16 | SỬA LẠI: ràng buộc duy nhất FabricationCategory — em báo sai hôm 15/08
+
+Hôm 15/08 em kết luận "Prisma đã khai ràng buộc duy nhất `(projectId, code)` nhưng cơ sở dữ liệu
+chưa hề có — lệch lược đồ". **Kết luận đó SAI.** Prisma bảo vệ bằng *chỉ mục duy nhất*
+`FabricationCategory_projectId_code_key`, có sẵn từ trước. Script hôm đó dò trong `pg_constraint`
+theo một cái tên khác (`FabricationCategory_project_code_key`) nên không thấy, rồi thêm bản thứ hai.
+
+Hậu quả: **hai chỉ mục duy nhất trùng nhau** trên cùng một cặp cột. Không sai kết quả — quy tắc
+vẫn luôn được thực thi — nhưng thừa, và sổ ghi sai sự thật.
+
+**Đã xử lý 16/08:** gỡ `FabricationCategory_project_code_key`. Kiểm lại còn đúng 1 chỉ mục;
+thử chèn mã trùng vẫn bị chặn bởi chỉ mục gốc của Prisma (đã thử trong giao dịch rồi hoàn tác).
+
+**Rút ra:** dò ràng buộc duy nhất phải tra `pg_indexes` chứ không chỉ `pg_constraint` — Prisma
+tạo *chỉ mục*, không tạo *ràng buộc*. Và phải dò theo **cột**, không theo **tên**.
+
+---
+
+### 2026-08-16 | infra: soát cơ sở dữ liệu trước khi nạp dữ liệu thật + bản sao lưu ĐẦU TIÊN
+
+Anh Hưng sắp nạp dữ liệu thật để chạy thử. Soát trước, kết quả ở phần báo cáo trong hội thoại.
+
+**Việc đã làm:**
+  - Kiểm đủ 30 bảng nghiệp vụ + 11 bảng sao lưu. Cơ sở dữ liệu 19 MB.
+  - Chạy `scripts/backup_pg.sh` lần đầu → `backups/20260816_1650.sql.gz` (882 KB).
+    Kiểm bản dump: nén nguyên vẹn, 27/41 bảng có dữ liệu, và **từng bảng khớp đúng số dòng**
+    với cơ sở dữ liệu đang chạy (Material 4.440 · ContractDetail 2.994 · PrDetail 1.816 ·
+    Project 56). Đây là bản sao lưu đầu tiên tồn tại — thư mục `backups/` trước đó không có.
+
+**Phát hiện đáng chú ý (chưa sửa, chờ anh quyết):**
+  - `com.ibshi.vattu.backuppg` **chưa được cài** dù plist có sẵn ở `deploy/launchd/`.
+    Rủi ro H7 trong sổ đang ghi CLOSED là **không đúng thực tế**.
+  - Đầu nhập PR `POST /api/v1/prs/import` **không idempotent**: mỗi lần nhập đẻ một
+    `PurchaseRequisition` mới với `prRef = PR-<mã dự án>-<dấu thời gian>`, nên nhập lại cùng
+    một file là **nhân đôi dữ liệu, không báo gì**. `skipDuplicates` ở `createMany` cũng vô
+    tác dụng vì `PrDetail` không có ràng buộc duy nhất nào.
+  - Nhập PR **không bọc giao dịch**: tạo phiếu trước, rồi chèn chi tiết theo lô 50. Lô giữa
+    chừng hỏng là còn lại phiếu với dữ liệu dở dang, không tự hoàn tác.
+  - Nhập PR **không đặt `requiredDate`** → 1.369/1.816 dòng đang trống mốc này.
+  - Nhập PR **tự tạo dự án mới** nếu mã chưa có → 44/56 dự án hiện là vỏ rỗng, không PR nào.
+  - 12/30 bảng **rỗng hoàn toàn**, trong đó có cả nhánh cuối quy trình: `PurchaseOrder`,
+    `GoodsReceivedNote`, `GRNLineItem`, `Inventory`, `HardPegging`, `ProjectBudget`, `Quotation`.
+  - Đơn vị tính loạn: **34 cách ghi** cho cùng tập đơn vị (`M2`/`m2`, `PCS`/`Pcs`/`pcs`,
+    `Cái`/`cái`…). Chuẩn hoá hoa thường còn 26.
+  - Chỉ có **1 tài khoản người dùng** → chưa thử được phân quyền theo vai trò.
+
+**Rollback:** không có thay đổi dữ liệu. Chỉ gỡ một chỉ mục thừa (mục trên) và thêm file
+`backups/20260816_1650.sql.gz`.
+
+---
+
+
 ### 2026-08-16 | feature: lưới phân bổ chế tạo — phần chính của phương án B
 
 Dòng = vật tư của dự án · cột = hạng mục của **chính dự án đó** · ô = số lượng · khối lượng ·

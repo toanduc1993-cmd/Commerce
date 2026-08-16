@@ -37,6 +37,9 @@ dist/
 .env*.bak*
 *.env.bak*
 
+# Bản sao lưu cơ sở dữ liệu — 882 KB mỗi ngày, không đưa vào git
+backups/
+
 # Logs
 *.log
 logs/

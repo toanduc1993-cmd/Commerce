@@ -123,6 +123,33 @@
 - **Mitigation:** Phase D — Setup staging env (requires deploy infrastructure first)
 - **Status:** 🟡 DEFERRED Phase D
 
+### C16 — 🔴 Mật khẩu cơ sở dữ liệu nằm công khai trên GitHub
+
+- **Phát hiện:** 2026-08-16, khi quét trước lúc commit.
+- **Sự việc:** kho `github.com/toanduc1993-cmd/Commerce` để chế độ **PUBLIC**; mật khẩu
+  `VpiProcurement2026!` đã nằm trong lịch sử **đã đẩy lên**, ở **10 file**:
+  `CHANGES_LOG.md` · `DEVOPS_NOTES.md` · `docker-compose.dev.yml` ·
+  `backend/scripts/consume_p6_maps.py` · `consume_p6_pr_maps.py` ·
+  `import_pr_mto_from_packages.py` · `scripts/bid_offer_claude_read_consume.py` ·
+  `bidanalysis_sourcefile_consume.py` · `export_to_ocr_index.py` · `vendor_enrich_from_ocr.py`
+- **Có từ khi nào:** từ `9360fc8 Initial commit`, KHÔNG phải do đợt sửa 08/2026.
+- **Phạm vi đã kiểm:** `.env` **chưa bao giờ** bị commit; **không** có `JWT_SECRET` hay
+  `SESSION_SECRET` nào lọt lên. Chỉ mật khẩu cơ sở dữ liệu.
+- **Vì sao xoá file không đủ:** mật khẩu vẫn nằm trong lịch sử git, và kho công khai thì
+  có thể đã bị sao chép (fork/clone) hoặc bộ tìm kiếm lưu lại. Chỉ **đổi mật khẩu** mới dứt điểm.
+- **Cách xử lý khi tới lúc**, theo thứ tự:
+  1. Chuyển kho sang **private** — chặn ngay, làm được trong một phút
+  2. **Đổi mật khẩu** cơ sở dữ liệu, cập nhật `backend/.env` và `docker-compose.dev.yml`
+  3. Dọn mật khẩu khỏi 10 file, thay bằng biến môi trường
+  4. Cân nhắc viết lại lịch sử git (`git filter-repo`) — chỉ làm sau bước 2, và phải
+     thống nhất với mọi máy đang clone
+- **Anh Hưng quyết 16/08/2026:** **HOÃN có chủ ý.** Giai đoạn này ưu tiên hoàn thiện logic
+  nghiệp vụ; xử lý triệt để sau, khi anh gọi lại. Đây là tick đỏ đã ghi nhận, không phải bỏ quên.
+- **Status:** 🔴 **OPEN — HOÃN THEO QUYẾT ĐỊNH** 2026-08-16
+- **Owner:** anh Hưng (bước 1, 2 cần quyền trên GitHub và máy chủ CSDL)
+
+---
+
 ---
 
 ## Status summary (updated 2026-05-26 00:30)
@@ -134,7 +161,8 @@
 | 🔴 CRITICAL OPEN | 3 | C2 (tests), C3 (JWT localStorage), C5 (embedded BETA — depends on Hưng manual) |
 | 🟠 HIGH OPEN | 1 | H10 (CSRF — bundled với S2-1 cookie) |
 | 🟡 MEDIUM OPEN | 3 | M12 (Prisma migrate folder), M14 (OCRP backup unlimited), M15 (no staging env) |
-| **TOTAL** | **15** | (5 closed = 33% in 1 day) |
+| 🔴 HOÃN THEO QUYẾT ĐỊNH | 1 | C16 (mật khẩu CSDL công khai trên GitHub — anh Hưng hoãn 16/08) |
+| **TOTAL** | **16** | |
 
 ---
 
@@ -145,6 +173,7 @@
 | 2026-05-25 20:00 | Initial assessment + 15 risks identified | CPVT session |
 | 2026-05-25 23:50 | Phase A batch 1: C4 + H8 CLOSED, C2 partial (smoke test) | CPVT session |
 | 2026-05-26 00:30 | Phase A+B batch 2: H6 + H7 + M13 CLOSED, C1 + H9 + M11 PARTIAL | CPVT session |
+| 2026-08-16 | Thêm C16 — mật khẩu CSDL công khai trên GitHub; anh Hưng quyết hoãn tới khi xong logic | phiên 16/08 |
 | (next Friday) | Weekly review | Friday cadence |
 
 ---
