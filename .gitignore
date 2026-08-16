@@ -32,6 +32,10 @@ dist/
 .env.local
 .env.*.local
 !.env.example
+# 16/08/2026 — bản sao lưu file môi trường trước khi sửa IP LAN.
+# Chúng chứa mật khẩu cơ sở dữ liệu và JWT_SECRET; KHÔNG được commit.
+.env*.bak*
+*.env.bak*
 
 # Logs
 *.log
