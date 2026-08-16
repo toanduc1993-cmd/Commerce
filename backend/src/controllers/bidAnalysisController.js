@@ -15,6 +15,7 @@ const path = require('path');
 const { parseAllBidAnalyses } = require('../services/bidAnalysisParser');
 const prisma = require('../lib/prisma');
 const logger = require('../lib/logger');
+const { groupCodeOf, groupLabel } = require('../lib/materialGroup');
 const {
   parseBidCode,
   projShort,
@@ -26,6 +27,27 @@ const {
 } = require('../lib/bidcode');
 
 // Sanitize filename for FS (giữ ASCII + .xlsx, drop diacritics/special)
+// P0-4 (13/08/2026) — ghi nhật ký kiểm toán cho hành vi phê duyệt.
+// Không để lỗi ghi log làm hỏng nghiệp vụ chính: nuốt lỗi, chỉ cảnh báo.
+async function writeAudit(req, action, bidId, details) {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user?.id || null,
+        action,
+        entityType: 'BidAnalysis',
+        entityId: bidId,
+        details: JSON.stringify(details),
+      },
+    });
+  } catch (e) {
+    (req.log || logger).warn(
+      { err: e.message?.slice(0, 120), action },
+      'Ghi nhật ký kiểm toán thất bại (không chặn nghiệp vụ)'
+    );
+  }
+}
+
 function sanitizeFileName(name) {
   return name
     .normalize('NFD')
@@ -255,14 +277,25 @@ async function getBidAnalysisDetail(req, res, next) {
           orderBy: { itemOrder: 'asc' },
           include: {
             offers: {
-              include: { vendor: { select: { vendorName: true, vendorOrder: true } } },
+              include: { vendor: { select: { id: true, vendorName: true, vendorOrder: true } } },
             },
           },
         },
       },
     });
     if (!bid) return res.status(404).json({ success: false, error: 'Bid not found' });
-    res.json({ success: true, data: bid });
+
+    // Gắn mã nhóm vật tư cho từng dòng — nguồn duy nhất cho chế độ PER_GROUP,
+    // để giao diện và backend không tự suy mỗi bên một kiểu.
+    const data = {
+      ...bid,
+      items: bid.items.map((it) => ({
+        ...it,
+        groupCode: groupCodeOf(it),
+        groupLabel: groupLabel(groupCodeOf(it)),
+      })),
+    };
+    res.json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -270,36 +303,75 @@ async function getBidAnalysisDetail(req, res, next) {
 
 // ─── SELECT VENDOR (Module 3) ────────────────────────────────────────────────
 
+// Chế độ PER_BID — 1 NCC trúng toàn bộ gói.
+// Sửa 13/08: trước đây hàm này CHỈ gắn cờ isWinner ở cấp gói, không đụng tới lựa chọn cấp
+// dòng, trong khi create-po lại chỉ đọc BidQuoteItem.selectedVendorName. Hệ quả: bấm chọn
+// NCC xong vẫn bị chặn "Chưa có item nào được duyệt NCC". Nay gán luôn xuống mọi dòng để
+// chỉ còn MỘT nguồn sự thật cho khâu tạo đơn hàng (quyết định của anh Hưng 13/08).
 async function selectVendor(req, res, next) {
   try {
     const { id } = req.params;
     const { vendorId } = req.body;
     if (!vendorId) return res.status(400).json({ success: false, error: 'Thiếu vendorId' });
 
-    // Reset all vendors of this bid to non-winner
-    await prisma.bidQuoteVendor.updateMany({
-      where: { bidId: id },
-      data: { isWinner: false },
-    });
-
-    // Set selected vendor as winner
-    const winner = await prisma.bidQuoteVendor.update({
-      where: { id: vendorId },
-      data: { isWinner: true },
-    });
-
-    // Update bid status
-    await prisma.bidAnalysis.update({
+    const bid = await prisma.bidAnalysis.findUnique({
       where: { id },
-      data: {
-        status: 'SELECTED',
-        selectedVendorId: vendorId,
-        approvedBy: req.user?.id,
-        approvedAt: new Date(),
-      },
+      select: { status: true },
+    });
+    if (!bid) return res.status(404).json({ success: false, error: 'Không tìm thấy BID' });
+    if (bid.status === 'CONTRACTED') {
+      return res.status(409).json({
+        success: false,
+        error: 'BID đã tạo đơn hàng (CONTRACTED) — không sửa được NCC duyệt.',
+      });
+    }
+
+    const vendor = await prisma.bidQuoteVendor.findFirst({
+      where: { id: vendorId, bidId: id },
+      select: { id: true, vendorName: true },
+    });
+    if (!vendor) {
+      return res.status(400).json({ success: false, error: 'NCC không thuộc BID này' });
+    }
+
+    const now = new Date();
+    const applied = await prisma.$transaction(async (tx) => {
+      await tx.bidQuoteVendor.updateMany({ where: { bidId: id }, data: { isWinner: false } });
+      await tx.bidQuoteVendor.update({ where: { id: vendorId }, data: { isWinner: true } });
+
+      // Gán NCC này cho MỌI dòng của gói — đúng nghĩa "1 NCC cho cả gói"
+      const r = await tx.bidQuoteItem.updateMany({
+        where: { bidId: id },
+        data: {
+          selectedVendorName: vendor.vendorName,
+          selectedAt: now,
+          selectedBy: req.user?.id || null,
+        },
+      });
+
+      await tx.bidAnalysis.update({
+        where: { id },
+        data: {
+          status: 'SELECTED',
+          selectedVendorId: vendorId,
+          approvedBy: req.user?.id,
+          approvedAt: now,
+        },
+      });
+      return r.count;
     });
 
-    res.json({ success: true, message: `Đã chọn vendor: ${winner.vendorName}` });
+    await writeAudit(req, 'BID_VENDOR_SELECTED_ALL_ITEMS', id, {
+      vendorId,
+      vendorName: vendor.vendorName,
+      itemsApplied: applied,
+    });
+
+    res.json({
+      success: true,
+      message: `Đã chọn ${vendor.vendorName} cho toàn bộ ${applied} dòng của gói`,
+      itemsApplied: applied,
+    });
   } catch (error) {
     next(error);
   }
@@ -312,10 +384,23 @@ async function selectItemVendor(req, res, next) {
     const { bidId, itemId } = req.params;
     const { vendorName } = req.body;
 
+    // P1-2: BID đã sinh đơn hàng thì khoá — nếu không, dữ liệu duyệt sẽ lệch với PO đã phát hành
+    const bid = await prisma.bidAnalysis.findUnique({
+      where: { id: bidId },
+      select: { status: true },
+    });
+    if (!bid) return res.status(404).json({ success: false, error: 'Không tìm thấy BID' });
+    if (bid.status === 'CONTRACTED') {
+      return res.status(409).json({
+        success: false,
+        error: 'BID đã tạo đơn hàng (CONTRACTED) — không sửa được NCC duyệt. Huỷ đơn hàng trước nếu cần đổi.',
+      });
+    }
+
     // Verify item thuộc bid
     const item = await prisma.bidQuoteItem.findFirst({
       where: { id: itemId, bidId },
-      select: { id: true },
+      select: { id: true, itemCode: true, selectedVendorName: true },
     });
     if (!item) return res.status(404).json({ success: false, error: 'Item không thuộc bid này' });
 
@@ -334,7 +419,19 @@ async function selectItemVendor(req, res, next) {
 
     await prisma.bidQuoteItem.update({
       where: { id: itemId },
-      data: { selectedVendorName: vendorName || null },
+      data: {
+        selectedVendorName: vendorName || null,
+        selectedAt: vendorName ? new Date() : null,
+        selectedBy: vendorName ? req.user?.id || null : null,
+      },
+    });
+
+    // P0-4: ghi dấu vết — trước đây 508 dòng đã duyệt mà AuditLog trống trơn
+    await writeAudit(req, vendorName ? 'BID_ITEM_VENDOR_SELECTED' : 'BID_ITEM_VENDOR_CLEARED', bidId, {
+      itemId,
+      itemCode: item.itemCode,
+      from: item.selectedVendorName,
+      to: vendorName || null,
     });
 
     res.json({ success: true, itemId, selectedVendorName: vendorName });
@@ -1494,6 +1591,19 @@ async function createPoFromBid(req, res, next) {
       return res.status(404).json({ success: false, error: 'Bid không tồn tại' });
     }
 
+    // P1-3: chặn tạo đơn hàng lần hai. Trước đây bấm 2 lần sinh 2 bộ PO vì mã PO tự tăng
+    // nên không vướng ràng buộc trùng khoá.
+    if (bid.status === 'CONTRACTED') {
+      const daCo = await prisma.purchaseOrder.findMany({
+        where: { bidId: id },
+        select: { poCode: true },
+      });
+      return res.status(409).json({
+        success: false,
+        error: `BID này đã tạo đơn hàng rồi${daCo.length ? ` (${daCo.map((p) => p.poCode).join(', ')})` : ''}. Huỷ đơn cũ trước nếu muốn tạo lại.`,
+      });
+    }
+
     // Filter items có vendor đã chọn + skip placeholder rows
     const itemsWithVendor = bid.items.filter((it) => {
       if (!it.selectedVendorName) return false;
@@ -1507,14 +1617,6 @@ async function createPoFromBid(req, res, next) {
       });
     }
 
-    // Group items by vendor
-    const byVendor = new Map();
-    for (const it of itemsWithVendor) {
-      const vname = it.selectedVendorName;
-      if (!byVendor.has(vname)) byVendor.set(vname, []);
-      byVendor.get(vname).push(it);
-    }
-
     // Helper: find offer to get unit price + currency
     const offers = await prisma.bidQuoteOffer.findMany({
       where: { itemId: { in: itemsWithVendor.map((i) => i.id) } },
@@ -1526,6 +1628,46 @@ async function createPoFromBid(req, res, next) {
     const offerMap = new Map();
     for (const o of offers) {
       offerMap.set(offerKey(o.itemId, o.vendor?.vendorName), o);
+    }
+
+    // ─── P0-3: KHÔNG tạo đơn hàng cho dòng có đơn giá 0 (quyết định anh Hưng 13/08) ───
+    // Trước đây dùng `offer?.unitPrice || it.estimateUnitPrice` — toán tử || coi 0 là rỗng
+    // nên âm thầm lấy ĐƠN GIÁ DỰ TOÁN ghi lên đơn hàng như thể NCC đã báo giá đó.
+    // Trong kho hiện có 286 báo giá đơn giá 0 (phần lớn scope='X' = NCC không chào mục đó).
+    const dongLoi = [];
+    for (const it of itemsWithVendor) {
+      const offer = offerMap.get(offerKey(it.id, it.selectedVendorName));
+      const gia = offer?.unitPrice;
+      if (offer == null) {
+        dongLoi.push({
+          itemCode: it.itemCode,
+          itemName: it.itemName,
+          vendorName: it.selectedVendorName,
+          lyDo: 'NCC được duyệt không có báo giá cho dòng này',
+        });
+      } else if (!(gia > 0)) {
+        dongLoi.push({
+          itemCode: it.itemCode,
+          itemName: it.itemName,
+          vendorName: it.selectedVendorName,
+          lyDo: `Đơn giá = 0${offer.scope && offer.scope !== 'V' ? ` (phạm vi "${offer.scope}" — NCC không chào)` : ''}`,
+        });
+      }
+    }
+    if (dongLoi.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `${dongLoi.length} dòng có đơn giá 0 hoặc NCC duyệt không báo giá — không tạo được đơn hàng. Sửa lại NCC duyệt hoặc nhập giá trước.`,
+        invalidLines: dongLoi,
+      });
+    }
+
+    // Group items by vendor
+    const byVendor = new Map();
+    for (const it of itemsWithVendor) {
+      const vname = it.selectedVendorName;
+      if (!byVendor.has(vname)) byVendor.set(vname, []);
+      byVendor.get(vname).push(it);
     }
 
     // Generate PO code helper (poCode unique)
@@ -1546,18 +1688,22 @@ async function createPoFromBid(req, res, next) {
         // Pick currency from vendor record (fallback VND)
         const vendor = bid.vendors.find((v) => v.vendorName === vendorName);
         const currency = vendor?.currency || 'VND';
+        // P2-5: loại hợp đồng lấy theo bản chất NCC, KHÔNG suy từ loại tiền
+        // (NCC trong nước báo giá USD trước đây bị xếp nhầm thành hàng nhập khẩu).
+        const contractType = vendor?.vendorType === 'IMPORT' ? 'IMPORT' : 'DOMESTIC';
 
-        // Compute total from offers
+        // Compute total from offers — đơn giá LUÔN lấy từ báo giá thật.
+        // Các dòng thiếu giá đã bị chặn ở trên (P0-3) nên không cần fallback dự toán nữa.
         let totalValue = 0;
         const contractLines = [];
         for (const it of items) {
           const offer = offerMap.get(offerKey(it.id, vendorName));
-          const unitPrice = offer?.unitPrice || it.estimateUnitPrice || 0;
+          const unitPrice = offer.unitPrice;
           const qty = it.qtyToBuy || it.qtyPR || 0;
-          const total = offer?.totalPrice || unitPrice * qty;
+          const total = offer.totalPrice > 0 ? offer.totalPrice : unitPrice * qty;
           totalValue += total;
           contractLines.push({
-            contractType: currency === 'VND' ? 'DOMESTIC' : 'IMPORT',
+            contractType,
             dataSource: 'BID_QUOTE',
             projectCode: bid.project?.code || null,
             vendorName,

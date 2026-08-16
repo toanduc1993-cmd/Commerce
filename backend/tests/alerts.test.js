@@ -5,25 +5,34 @@
  * Tests run sequentially (singleFork) — describe block uses a known canonical_key
  * "002" from the JSON snapshot and cleans up after.
  */
-const { app, request, loginAsAdmin, authHeader } = require('./helpers');
+const {
+  app,
+  request,
+  loginAsAdmin,
+  authHeader,
+  adminAgent,
+  mutateHeader,
+} = require('./helpers');
 
 const TEST_KEY = '002'; // exists in reconciliation snapshot with flag CHƯA_XUẤT_HĐ
 
 let token;
+let agent; // S2-1: giữ cookie phiên + CSRF token cho các POST
 
 beforeAll(async () => {
   token = await loginAsAdmin();
+  agent = await adminAgent();
   // Ensure clean slate for TEST_KEY
-  await request(app)
+  await agent
     .post(`/api/v1/alerts/${TEST_KEY}/unresolve`)
-    .set(authHeader(token));
+    .set(mutateHeader(agent));
 });
 
 afterAll(async () => {
   // Cleanup
-  await request(app)
+  await agent
     .post(`/api/v1/alerts/${TEST_KEY}/unresolve`)
-    .set(authHeader(token));
+    .set(mutateHeader(agent));
 });
 
 describe('F04 alertsController', () => {
@@ -59,9 +68,9 @@ describe('F04 alertsController', () => {
   });
 
   it('POST /alerts/:key/resolve creates AlertResolution row', async () => {
-    const res = await request(app)
+    const res = await agent
       .post(`/api/v1/alerts/${TEST_KEY}/resolve`)
-      .set(authHeader(token))
+      .set(mutateHeader(agent))
       .send({ note: 'F04 test resolve' });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -80,14 +89,14 @@ describe('F04 alertsController', () => {
   });
 
   it('POST /alerts/:key/resolve twice is idempotent (updates note)', async () => {
-    const r1 = await request(app)
+    const r1 = await agent
       .post(`/api/v1/alerts/${TEST_KEY}/resolve`)
-      .set(authHeader(token))
+      .set(mutateHeader(agent))
       .send({ note: 'first' });
     expect(r1.status).toBe(200);
-    const r2 = await request(app)
+    const r2 = await agent
       .post(`/api/v1/alerts/${TEST_KEY}/resolve`)
-      .set(authHeader(token))
+      .set(mutateHeader(agent))
       .send({ note: 'second' });
     expect(r2.status).toBe(200);
     expect(r2.body.data.note).toBe('second');

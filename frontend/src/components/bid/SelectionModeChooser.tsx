@@ -12,9 +12,7 @@ import {
   suggestSelectionMode,
   type SelectionMode,
 } from '@/lib/bid-status';
-import { ensureCsrfToken } from '@/lib/api';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
+import { setBidSelectionMode } from '@/lib/api';
 
 export interface SelectionModeChooserProps {
   bidAnalysisId: string;
@@ -50,26 +48,18 @@ export function SelectionModeChooser({
     }
     setSaving(true);
     try {
-      const csrfToken = await ensureCsrfToken();
-      const res = await fetch(`${API_URL}/api/v1/bid-analyses/${bidAnalysisId}/selection-mode`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        body: JSON.stringify({ mode }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || `HTTP ${res.status}`);
+      // Đi qua apiRequest: tự gắn Authorization + X-CSRF-Token, tự lấy lại thẻ khi 403.
+      const data = await setBidSelectionMode(bidAnalysisId, mode);
+      if (!data.success) {
+        throw new Error(data.error || 'Đổi chế độ thất bại');
       }
+      const resetCount = data.resetCount ?? 0;
       toast.success(
-        data.resetCount > 0
-          ? `Đã chuyển sang ${mode}, reset ${data.resetCount} lựa chọn cũ`
+        resetCount > 0
+          ? `Đã chuyển sang ${mode}, reset ${resetCount} lựa chọn cũ`
           : `Đã chuyển sang ${mode}`
       );
-      onModeChange?.(mode, data.resetCount ?? 0);
+      onModeChange?.(mode, resetCount);
     } catch (e) {
       toast.error(`Lỗi đổi mode: ${(e as Error).message}`);
     } finally {

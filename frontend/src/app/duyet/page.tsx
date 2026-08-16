@@ -10,7 +10,7 @@
  * 1 fetch fetchBidAnalyses, 1 BidListSidebar, 1 data context shared by both tabs.
  */
 
-import { useEffect, useMemo, useState, Suspense } from 'react';
+import { useEffect, useMemo, useState, Suspense, Fragment } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -23,11 +23,26 @@ import {
   selectBidVendor,
   selectItemVendor,
   fetchApprovalSummary,
+  createPoFromBid,
+  selectGroupVendor,
+  autoSelectMinPrice,
+  scoreVendor,
+  fetchVendorScores,
   type BidAnalysisRow,
   type ApprovalSummary,
+  type VendorScoreRow,
 } from '@/lib/api';
 import { toast, Toaster } from 'react-hot-toast';
 import { fmtMoney, fmtNum } from '@/lib/format';
+import {
+  offerOf,
+  currencyOf,
+  hasMixedCurrency,
+  isCheapest,
+  deltaVsMin,
+  hasAnyQuote,
+  groupItems,
+} from '@/lib/bid-compare';
 
 type Tab = 'compare' | 'approve';
 
@@ -46,6 +61,9 @@ function DuyetContent() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
   const [creatingPO, setCreatingPO] = useState(false);
+  const [invalidLines, setInvalidLines] = useState<
+    Array<{ itemCode?: string | null; vendorName?: string | null; lyDo: string }> | null
+  >(null);
 
   // Sync tab from URL
   useEffect(() => {
@@ -92,21 +110,53 @@ function DuyetContent() {
     reloadDetail(selectedBidId);
   }, [selectedBidId]);
 
-  // ── Compare tab handlers ───────────────────────────────────────────────────
+  // ── Approve tab handlers ───────────────────────────────────────────────────
 
-  const handleSelectVendor = async (vendorId: string, vendorName: string) => {
+  // PER_BID — 1 NCC cho toàn bộ gói (gán xuống mọi dòng)
+  const handleSelectVendorAllItems = async (vendorId: string, vendorName: string) => {
     if (!selectedBidId) return;
-    if (!confirm(`Chọn ${vendorName} làm NCC trúng thầu?`)) return;
+    const soDong = bidDetail?.items?.length || 0;
+    if (!confirm(`Giao toàn bộ ${soDong} dòng của gói này cho ${vendorName}?`)) return;
     try {
-      await selectBidVendor(selectedBidId, vendorId);
-      toast.success(`✅ Đã chọn ${vendorName}`);
+      const r = await selectBidVendor(selectedBidId, vendorId);
+      if (!r.success) throw new Error(r.error || 'Không rõ lỗi');
+      toast.success(`✅ ${vendorName} — đã gán ${r.itemsApplied ?? soDong} dòng`);
       await reloadDetail(selectedBidId);
     } catch (err) {
       toast.error(`Lỗi: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   };
 
-  // ── Approve tab handlers ───────────────────────────────────────────────────
+  // PER_GROUP — 1 NCC cho cả nhóm vật tư
+  const handleSelectGroupVendor = async (groupCode: string, vendorName: string) => {
+    if (!selectedBidId) return;
+    try {
+      const r = await selectGroupVendor(selectedBidId, groupCode, vendorName);
+      if (!r.success) throw new Error(r.error || 'Không rõ lỗi');
+      toast.success(`✅ Nhóm ${groupCode} → ${vendorName} (${r.applied ?? 0} dòng)`);
+      await reloadDetail(selectedBidId);
+    } catch (err) {
+      toast.error(`Lỗi: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+  };
+
+  // AUTO_MIN_PRICE — hệ thống tự chọn NCC rẻ nhất
+  const handleAutoMinPrice = async () => {
+    if (!selectedBidId) return;
+    if (!confirm('Để hệ thống tự chọn NCC rẻ nhất cho từng dòng? Lựa chọn thủ công hiện có sẽ bị ghi đè.')) return;
+    const id = toast.loading('Đang chọn tự động...');
+    try {
+      const r = await autoSelectMinPrice(selectedBidId);
+      if (!r.success) throw new Error(r.error || 'Không rõ lỗi');
+      toast.success(
+        `Đã chọn ${r.updated} dòng · bỏ qua ${r.skipped} dòng không đủ điều kiện (tiền tệ ${r.bidCurrency})`,
+        { id, duration: 6000 }
+      );
+      await reloadDetail(selectedBidId);
+    } catch (err) {
+      toast.error(`Lỗi: ${err instanceof Error ? err.message : 'unknown'}`, { id });
+    }
+  };
 
   const handleSelectItemVendor = async (itemId: string, vendorName: string | null) => {
     if (!selectedBidId) return;
@@ -140,31 +190,28 @@ function DuyetContent() {
     if (!confirm(msg)) return;
 
     setCreatingPO(true);
-    const toastId = toast.loading('Đang tạo PO + ContractDetail...');
+    const toastId = toast.loading('Đang tạo PO + chi tiết hợp đồng...');
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
-      const token = typeof window !== 'undefined' ? localStorage.getItem('ibshi_token') : null;
-      const r = await fetch(`${API_URL}/api/v1/bid-analyses/${selectedBidId}/create-po`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({}),
-      });
-      const data = await r.json();
-      if (!r.ok || !data.success) throw new Error(data.error || `HTTP ${r.status}`);
+      const data = await createPoFromBid(selectedBidId);
+      if (!data.success || !data.data) throw new Error(data.error || 'Không rõ lỗi');
       const pos = data.data.purchaseOrders;
       toast.success(
-        `Đã tạo ${data.data.totalPOs} PO: ${pos.map((p: { poCode: string }) => p.poCode).join(', ')}`,
+        `Đã tạo ${data.data.totalPOs} PO: ${pos.map((p) => p.poCode).join(', ')}`,
         { id: toastId, duration: 5000 }
       );
       const refreshed = await fetchBidAnalyses();
       setBidList(refreshed);
       await reloadDetail(selectedBidId);
     } catch (e) {
-      toast.error(`Lỗi tạo PO: ${(e as Error).message}`, { id: toastId });
+      // Backend chặn dòng đơn giá 0 (P0-3) → liệt kê ra cho biết phải sửa dòng nào
+      const err = e as Error & { body?: { invalidLines?: Array<{ itemCode?: string | null; vendorName?: string | null; lyDo: string }> } };
+      const loi = err.body?.invalidLines;
+      if (loi?.length) {
+        setInvalidLines(loi);
+        toast.error(`${loi.length} dòng chưa hợp lệ — xem bảng bên dưới`, { id: toastId, duration: 6000 });
+      } else {
+        toast.error(`Lỗi tạo PO: ${err.message}`, { id: toastId });
+      }
     } finally {
       setCreatingPO(false);
     }
@@ -301,21 +348,21 @@ function DuyetContent() {
 
               {/* Tab content */}
               <div className="flex-1 overflow-auto">
-                {tab === 'compare' && (
-                  <CompareTab
-                    bidDetail={bidDetail}
-                    onSelectVendor={handleSelectVendor}
-                  />
-                )}
+                {tab === 'compare' && <CompareTab bidDetail={bidDetail} />}
                 {tab === 'approve' && (
                   <ApproveTab
                     bidDetail={bidDetail}
                     summary={summary}
                     selectedBidId={selectedBidId!}
                     savingItemId={savingItemId}
+                    invalidLines={invalidLines}
                     onSelectItemVendor={handleSelectItemVendor}
+                    onSelectVendorAllItems={handleSelectVendorAllItems}
+                    onSelectGroupVendor={handleSelectGroupVendor}
+                    onAutoMinPrice={handleAutoMinPrice}
                     onModeChange={(newMode) => {
                       setBidDetail((d) => (d ? { ...d, selectionMode: newMode } : d));
+                      setInvalidLines(null);
                       if (selectedBidId) reloadDetail(selectedBidId);
                     }}
                   />
@@ -329,33 +376,43 @@ function DuyetContent() {
   );
 }
 
-// ── Tab: So sánh (read-only matrix) ──────────────────────────────────────────
+// ── Tab: So sánh (CHỈ ĐỌC) ───────────────────────────────────────────────────
+// 13/08/2026: bỏ nút "Chọn NCC này" theo quyết định anh Hưng — chỉ còn MỘT đường
+// phê duyệt duy nhất ở tab Duyệt. Tab này thuần để nhìn và đối chiếu giá.
 
-function CompareTab({
-  bidDetail,
-  onSelectVendor,
-}: {
-  bidDetail: BidAnalysisRow;
-  onSelectVendor: (vendorId: string, vendorName: string) => void;
-}) {
+function CompareTab({ bidDetail }: { bidDetail: BidAnalysisRow }) {
+  const [chiHienCoBaoGia, setChiHienCoBaoGia] = useState(false);
+  const vendors = bidDetail.vendors;
+  const tronTien = hasMixedCurrency(vendors);
+
+  const dsMuc = (bidDetail.items || []).filter((it) => !chiHienCoBaoGia || hasAnyQuote(it));
+  const soMucRong = (bidDetail.items || []).length - (bidDetail.items || []).filter(hasAnyQuote).length;
+
   return (
     <>
-      {/* Vendor summary cards */}
+      {/* Thẻ tóm tắt từng NCC */}
       <div className="px-6 pt-4 pb-3 border-b border-slate-100 bg-white">
+        {tronTien && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+            <span className="material-symbols-outlined text-amber-600 text-[18px]">warning</span>
+            <p className="text-[11px] text-amber-800">
+              <b>Gói này trộn nhiều loại tiền.</b> Giá thấp nhất được chấm <b>riêng trong từng loại tiền</b>,
+              không so số thô giữa VND và USD. Mỗi ô giá đều ghi rõ loại tiền.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-4 gap-3">
-          {bidDetail.vendors.map((v) => (
+          {vendors.map((v) => (
             <div
               key={v.id}
               className={`rounded-lg p-3 border-2 ${
-                v.isWinner
-                  ? 'bg-emerald-50 border-emerald-500 shadow-md'
-                  : 'bg-slate-50 border-slate-200'
+                v.isWinner ? 'bg-emerald-50 border-emerald-500 shadow-md' : 'bg-slate-50 border-slate-200'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                    {v.vendorType === 'IMPORT' ? '🌏 Nhập khẩu' : '🇻🇳 Trong nước'}
+                    {v.vendorType === 'IMPORT' ? '🌏 Nhập khẩu' : '🇻🇳 Trong nước'} · {currencyOf(v)}
                   </div>
                   <div className="text-sm font-bold text-[#1B365D]">{v.vendorName}</div>
                   <div className="text-lg font-black text-[#0d6efd] mt-1">
@@ -366,100 +423,154 @@ function CompareTab({
                   <span className="material-symbols-outlined text-emerald-600 text-[24px]">verified</span>
                 )}
               </div>
-              {!v.isWinner && (
-                <button
-                  onClick={() => onSelectVendor(v.id, v.vendorName)}
-                  className="mt-2 w-full px-2 py-1 text-[10px] font-bold bg-[#1B365D] text-white rounded hover:bg-[#2a5298]"
-                >
-                  Chọn NCC này
-                </button>
-              )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Comparison matrix */}
+      {/* Bộ lọc dòng rỗng */}
+      <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/60 flex items-center gap-3">
+        <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={chiHienCoBaoGia}
+            onChange={(e) => setChiHienCoBaoGia(e.target.checked)}
+            className="accent-[#1B365D]"
+          />
+          Chỉ hiện mục có báo giá
+        </label>
+        {soMucRong > 0 && (
+          <span className="text-[10px] text-slate-400">
+            ({soMucRong} mục chưa NCC nào báo giá{chiHienCoBaoGia ? ' — đang ẩn' : ''})
+          </span>
+        )}
+      </div>
+
+      {/* Ma trận so sánh */}
       <div className="overflow-auto">
         <table className="w-full text-[10px]">
           <thead className="bg-[#1B365D] text-white sticky top-0 z-10">
             <tr>
-              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Item</th>
-              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Description</th>
-              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Profile</th>
-              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Grade</th>
-              <th className="px-2 py-2 text-right text-[9px] font-black uppercase">SL Mua</th>
+              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Mã</th>
+              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Mô tả</th>
+              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Quy cách</th>
+              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Mác</th>
+              <th className="px-2 py-2 text-right text-[9px] font-black uppercase">SL mua</th>
               <th className="px-2 py-2 text-right text-[9px] font-black uppercase">SL PR</th>
-              <th className="px-2 py-2 text-right text-[9px] font-black uppercase bg-[#0d2b4e]">DT Tổng</th>
+              <th className="px-2 py-2 text-right text-[9px] font-black uppercase bg-[#0d2b4e]">Dự toán</th>
               <th className="px-2 py-2 text-right text-[9px] font-black uppercase bg-[#0d2b4e]">Đã mua</th>
-              {bidDetail.vendors.map((v) => (
+              {vendors.map((v) => (
                 <th
                   key={v.id}
-                  colSpan={3}
+                  colSpan={4}
                   className={`px-2 py-2 text-center text-[9px] font-black uppercase ${
                     v.isWinner ? 'bg-emerald-700' : 'bg-[#2a5298]'
                   }`}
                 >
                   {v.isWinner && '🏆 '}{v.vendorName}
+                  <span className="ml-1 font-normal opacity-70">({currencyOf(v)})</span>
                 </th>
               ))}
-              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Lựa chọn</th>
-              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">Ghi chú</th>
+              <th className="px-2 py-2 text-left text-[9px] font-black uppercase">NCC duyệt</th>
             </tr>
             <tr>
               <th colSpan={8} className="bg-[#1d3f6b]"></th>
-              {bidDetail.vendors.map((v) => (
-                <>
-                  <th key={`${v.id}-s`} className="px-1 py-1 bg-[#37547a] text-white text-[8px] font-bold">Phạm vi</th>
-                  <th key={`${v.id}-u`} className="px-1 py-1 bg-[#37547a] text-white text-[8px] font-bold">Đơn giá</th>
-                  <th key={`${v.id}-t`} className="px-1 py-1 bg-[#37547a] text-white text-[8px] font-bold">Thành tiền</th>
-                </>
+              {vendors.map((v) => (
+                <Fragment key={`sub-${v.id}`}>
+                  <th className="px-1 py-1 bg-[#37547a] text-white text-[8px] font-bold">Phạm vi</th>
+                  <th className="px-1 py-1 bg-[#37547a] text-white text-[8px] font-bold">Đơn giá</th>
+                  <th className="px-1 py-1 bg-[#37547a] text-white text-[8px] font-bold">Chênh</th>
+                  <th className="px-1 py-1 bg-[#37547a] text-white text-[8px] font-bold">Thành tiền</th>
+                </Fragment>
               ))}
-              <th className="bg-[#37547a]"></th>
               <th className="bg-[#37547a]"></th>
             </tr>
           </thead>
           <tbody>
-            {bidDetail.items?.map((it, idx) => {
-              const minPrice = Math.min(
-                ...it.offers.filter((o) => o.unitPrice > 0).map((o) => o.unitPrice),
-                Infinity
-              );
-              return (
-                <tr key={it.id} className={`border-t border-slate-100 ${idx % 2 ? 'bg-slate-50/30' : ''}`}>
-                  <td className="px-2 py-1.5 font-mono font-bold text-[#1B365D] text-[10px]">{it.itemCode || '—'}</td>
-                  <td className="px-2 py-1.5 truncate max-w-[200px]" title={it.itemName || ''}>{it.itemName}</td>
-                  <td className="px-2 py-1.5 font-mono text-[9px] text-slate-600">{it.profile || '—'}</td>
-                  <td className="px-2 py-1.5 font-mono text-[9px]">{it.grade || '—'}</td>
-                  <td className="px-2 py-1.5 text-right font-mono">{fmtNum(it.qtyToBuy)}</td>
-                  <td className="px-2 py-1.5 text-right font-mono text-slate-500">{fmtNum(it.qtyPR)}</td>
-                  <td className="px-2 py-1.5 text-right font-mono font-bold text-slate-700">{fmtMoney(it.estimateTotal)}</td>
-                  <td className="px-2 py-1.5 text-right font-mono text-slate-500">{fmtMoney(it.alreadyBoughtAmount)}</td>
-                  {bidDetail.vendors.map((v) => {
-                    const offer = it.offers.find((o) => o.vendor?.vendorOrder === v.vendorOrder);
-                    const isMin = offer && offer.unitPrice > 0 && offer.unitPrice === minPrice;
-                    return (
-                      <>
-                        <td key={`${it.id}-${v.id}-s`} className={`px-1 py-1.5 text-center text-[9px] ${v.isWinner ? 'bg-emerald-50' : ''}`}>{offer?.scope || '—'}</td>
-                        <td key={`${it.id}-${v.id}-u`} className={`px-1 py-1.5 text-right font-mono text-[9px] ${isMin ? 'bg-yellow-100 font-bold text-emerald-700' : ''} ${v.isWinner ? 'bg-emerald-50' : ''}`} title={isMin ? 'Giá thấp nhất' : ''}>{offer?.unitPrice ? fmtNum(offer.unitPrice, 0) : '—'}</td>
-                        <td key={`${it.id}-${v.id}-t`} className={`px-1 py-1.5 text-right font-mono text-[9px] font-semibold ${v.isWinner ? 'bg-emerald-50 text-emerald-700' : ''}`}>{offer?.totalPrice ? fmtMoney(offer.totalPrice) : '—'}</td>
-                      </>
-                    );
-                  })}
-                  <td className="px-2 py-1.5 text-[9px]">
-                    {it.selectedVendorName ? (
-                      <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-bold">{it.selectedVendorName}</span>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-1.5 text-[8px] text-slate-500 max-w-[150px] truncate">{it.notes || ''}</td>
-                </tr>
-              );
-            })}
+            {dsMuc.map((it, idx) => (
+              <tr key={it.id} className={`border-t border-slate-100 ${idx % 2 ? 'bg-slate-50/30' : ''}`}>
+                <td className="px-2 py-1.5 font-mono font-bold text-[#1B365D] text-[10px]">{it.itemCode || '—'}</td>
+                <td className="px-2 py-1.5 truncate max-w-[200px]" title={it.itemName || ''}>{it.itemName}</td>
+                <td className="px-2 py-1.5 font-mono text-[9px] text-slate-600">{it.profile || '—'}</td>
+                <td className="px-2 py-1.5 font-mono text-[9px]">{it.grade || '—'}</td>
+                <td className="px-2 py-1.5 text-right font-mono">{fmtNum(it.qtyToBuy)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-slate-500">{fmtNum(it.qtyPR)}</td>
+                <td className="px-2 py-1.5 text-right font-mono font-bold text-slate-700">{fmtMoney(it.estimateTotal)}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-slate-500">{fmtMoney(it.alreadyBoughtAmount)}</td>
+                {vendors.map((v) => {
+                  const offer = offerOf(it, v.id);
+                  const cur = currencyOf(v);
+                  const reNhat = isCheapest(it, v, vendors);
+                  const chenh = deltaVsMin(it, v, vendors);
+                  const khongChao = offer && !(offer.unitPrice > 0);
+                  const chuThich = offer
+                    ? [
+                        offer.deliveryTerm ? `Giao hàng: ${offer.deliveryTerm}` : null,
+                        offer.remarks ? `Ghi chú: ${offer.remarks}` : null,
+                        reNhat ? `Giá thấp nhất (${cur})` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+                    : 'NCC không báo giá mục này';
+                  return (
+                    <Fragment key={`${it.id}-${v.id}`}>
+                      <td className={`px-1 py-1.5 text-center text-[9px] ${v.isWinner ? 'bg-emerald-50' : ''}`}>
+                        {offer?.scope || '—'}
+                      </td>
+                      <td
+                        className={`px-1 py-1.5 text-right font-mono text-[9px] ${
+                          reNhat ? 'bg-yellow-100 font-bold text-emerald-700' : ''
+                        } ${v.isWinner ? 'bg-emerald-50' : ''} ${khongChao ? 'text-slate-300' : ''}`}
+                        title={chuThich}
+                      >
+                        {offer && offer.unitPrice > 0 ? (
+                          <>
+                            {fmtNum(offer.unitPrice, 0)}
+                            <span className="ml-0.5 text-[7px] text-slate-400">{cur}</span>
+                            {(offer.deliveryTerm || offer.remarks) && (
+                              <span className="ml-0.5 text-[8px] text-slate-400">*</span>
+                            )}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td
+                        className={`px-1 py-1.5 text-right font-mono text-[8px] ${
+                          v.isWinner ? 'bg-emerald-50' : ''
+                        } ${chenh ? 'text-rose-600' : 'text-slate-300'}`}
+                        title={chenh ? `Đắt hơn NCC rẻ nhất ${fmtNum(chenh.amount, 0)} ${cur}/đơn vị` : ''}
+                      >
+                        {chenh ? `+${chenh.pct.toFixed(1)}%` : reNhat ? 'rẻ nhất' : '—'}
+                      </td>
+                      <td
+                        className={`px-1 py-1.5 text-right font-mono text-[9px] font-semibold ${
+                          v.isWinner ? 'bg-emerald-50 text-emerald-700' : ''
+                        }`}
+                      >
+                        {offer && offer.totalPrice > 0 ? fmtMoney(offer.totalPrice, cur) : '—'}
+                      </td>
+                    </Fragment>
+                  );
+                })}
+                <td className="px-2 py-1.5 text-[9px]">
+                  {it.selectedVendorName ? (
+                    <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-bold">
+                      {it.selectedVendorName}
+                    </span>
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
+      <p className="px-6 py-3 text-[10px] text-slate-400">
+        Bảng này chỉ để xem. Dấu <b>*</b> = NCC có ghi điều kiện giao hàng hoặc ghi chú — rê chuột để đọc.
+        Muốn duyệt NCC, chuyển sang tab <b>Duyệt + PO</b>.
+      </p>
     </>
   );
 }
@@ -471,16 +582,25 @@ function ApproveTab({
   summary,
   selectedBidId,
   savingItemId,
+  invalidLines,
   onSelectItemVendor,
+  onSelectVendorAllItems,
+  onSelectGroupVendor,
+  onAutoMinPrice,
   onModeChange,
 }: {
   bidDetail: BidAnalysisRow;
   summary: ApprovalSummary | null;
   selectedBidId: string;
   savingItemId: string | null;
+  invalidLines: Array<{ itemCode?: string | null; vendorName?: string | null; lyDo: string }> | null;
   onSelectItemVendor: (itemId: string, vendorName: string | null) => void;
+  onSelectVendorAllItems: (vendorId: string, vendorName: string) => void;
+  onSelectGroupVendor: (groupCode: string, vendorName: string) => void;
+  onAutoMinPrice: () => void;
   onModeChange: (mode: SelectionMode, resetCount: number) => void;
 }) {
+  const mode = (bidDetail.selectionMode as SelectionMode) || 'PER_ITEM';
   return (
     <div className="overflow-auto">
       {/* Summary stats */}
@@ -507,31 +627,69 @@ function ApproveTab({
         </div>
       )}
 
-      {/* SelectionModeChooser */}
+      {/* Dòng chưa hợp lệ — backend chặn khi tạo PO (P0-3) */}
+      {invalidLines && invalidLines.length > 0 && (
+        <div className="px-6 pt-4">
+          <div className="rounded-lg border border-rose-300 bg-rose-50 p-3">
+            <div className="text-[11px] font-black text-rose-800 mb-1.5">
+              Không tạo được đơn hàng — {invalidLines.length} dòng chưa hợp lệ
+            </div>
+            <ul className="text-[10px] text-rose-700 space-y-0.5 max-h-40 overflow-auto">
+              {invalidLines.map((l, i) => (
+                <li key={`${l.itemCode}-${i}`}>
+                  <span className="font-mono font-bold">{l.itemCode || '(không mã)'}</span>
+                  {l.vendorName ? ` — NCC duyệt: ${l.vendorName}` : ''} — {l.lyDo}
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-rose-600 mt-1.5">
+              Đổi sang NCC có báo giá cho dòng đó, hoặc bỏ duyệt dòng đó rồi tạo lại.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Chọn chế độ */}
       <div className="px-6 pt-4">
         <SelectionModeChooser
           bidAnalysisId={bidDetail.id}
-          currentMode={(bidDetail.selectionMode as SelectionMode) || 'PER_ITEM'}
+          currentMode={mode}
           itemsCount={bidDetail._count?.items || bidDetail.items?.length || 0}
-          uniqueGroups={
-            new Set(
-              (bidDetail.items || [])
-                .map((it) => (it.itemName || '').split(/[\s\-_]/)[0])
-                .filter(Boolean)
-            ).size || 1
-          }
+          // Số nhóm vật tư THẬT, lấy từ groupCode backend gắn — không còn đoán bằng
+          // cách cắt chữ đầu của tên vật tư như trước (P2-6).
+          uniqueGroups={groupItems(bidDetail.items || []).length || 1}
           onModeChange={onModeChange}
         />
       </div>
 
-      {/* Section 1: Items + dropdown NCC */}
+      {/* Khung thao tác riêng cho từng chế độ (nối 13/08 — trước đây 3 chế độ không có gì) */}
+      {mode === 'PER_BID' && (
+        <PerBidPanel bidDetail={bidDetail} onSelectVendorAllItems={onSelectVendorAllItems} />
+      )}
+      {mode === 'PER_GROUP' && (
+        <PerGroupPanel bidDetail={bidDetail} onSelectGroupVendor={onSelectGroupVendor} />
+      )}
+      {mode === 'AUTO_MIN_PRICE' && (
+        <AutoMinPricePanel bidDetail={bidDetail} onRun={onAutoMinPrice} />
+      )}
+      {mode === 'MANUAL_WEIGHTED' && (
+        <WeightedPanel
+          bidDetail={bidDetail}
+          selectedBidId={selectedBidId}
+          onSelectVendorAllItems={onSelectVendorAllItems}
+        />
+      )}
+
+      {/* Bảng từng dòng — luôn hiện để đối chiếu kết quả của mọi chế độ */}
       <div className="p-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-black text-[#1B365D] uppercase tracking-wide">
-            1. Chọn NCC cho từng item
+            {mode === 'PER_ITEM' ? '1. Chọn NCC cho từng dòng' : '1. Kết quả theo từng dòng'}
           </h2>
           <span className="text-[10px] text-slate-400">
-            Click dropdown ở cột &ldquo;NCC duyệt&rdquo; — bảng tổng hợp tự cập nhật bên dưới
+            {mode === 'PER_ITEM'
+              ? 'Chọn ở cột "NCC duyệt" — bảng tổng hợp tự cập nhật bên dưới'
+              : 'Vẫn sửa tay được từng dòng nếu cần'}
           </span>
         </div>
 
@@ -559,10 +717,6 @@ function ApproveTab({
             </thead>
             <tbody>
               {bidDetail.items?.map((it, idx) => {
-                const minPrice = Math.min(
-                  ...it.offers.filter((o) => o.unitPrice > 0).map((o) => o.unitPrice),
-                  Infinity
-                );
                 const isSaving = savingItemId === it.id;
                 return (
                   <tr
@@ -579,8 +733,11 @@ function ApproveTab({
                     </td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNum(it.qtyToBuy)} {it.uom}</td>
                     {bidDetail.vendors.map((v) => {
-                      const offer = it.offers.find((o) => o.vendor?.vendorName === v.vendorName);
-                      const isMin = offer && offer.unitPrice > 0 && offer.unitPrice === minPrice;
+                      // Ghép theo vendorId — cùng một hàm với tab So sánh (P0-1)
+                      const offer = offerOf(it, v.id);
+                      const cur = currencyOf(v);
+                      const isMin = isCheapest(it, v, bidDetail.vendors);
+                      const chenh = deltaVsMin(it, v, bidDetail.vendors);
                       const isChosen = it.selectedVendorName === v.vendorName;
                       return (
                         <td
@@ -592,12 +749,31 @@ function ApproveTab({
                                 ? 'bg-yellow-50 font-bold text-yellow-700'
                                 : ''
                           }`}
-                          title={offer ? `${fmtMoney(offer.unitPrice)}/u × ${fmtNum(it.qtyToBuy)} = ${fmtMoney(offer.totalPrice)}` : 'Không báo giá'}
+                          title={
+                            offer
+                              ? [
+                                  `${fmtMoney(offer.unitPrice, cur)}/đơn vị × ${fmtNum(it.qtyToBuy)} = ${fmtMoney(offer.totalPrice, cur)}`,
+                                  offer.deliveryTerm ? `Giao hàng: ${offer.deliveryTerm}` : null,
+                                  offer.remarks ? `Ghi chú: ${offer.remarks}` : null,
+                                  chenh ? `Đắt hơn NCC rẻ nhất ${chenh.pct.toFixed(1)}%` : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join('\n')
+                              : 'NCC không báo giá mục này'
+                          }
                         >
                           {offer && offer.unitPrice > 0 ? (
                             <div>
-                              <div>{fmtNum(offer.unitPrice, 0)}</div>
-                              <div className="text-[8px] text-slate-500">{fmtMoney(offer.totalPrice)}</div>
+                              <div>
+                                {fmtNum(offer.unitPrice, 0)}
+                                <span className="ml-0.5 text-[7px] text-slate-400">{cur}</span>
+                              </div>
+                              <div className="text-[8px] text-slate-500">
+                                {fmtMoney(offer.totalPrice, cur)}
+                              </div>
+                              {chenh && (
+                                <div className="text-[8px] text-rose-500">+{chenh.pct.toFixed(1)}%</div>
+                              )}
                             </div>
                           ) : (
                             <span className="text-slate-300">—</span>
@@ -690,6 +866,311 @@ function ApproveTab({
         )}
       </div>
     </div>
+  );
+}
+
+// ── Khung thao tác cho 4 chế độ ngoài PER_ITEM ───────────────────────────────
+// Nối 13/08/2026. Trước đó ô chọn chế độ có đủ 5 lựa chọn nhưng phía dưới luôn chỉ
+// là bảng PER_ITEM — 3 chế độ PER_GROUP / AUTO_MIN_PRICE / MANUAL_WEIGHTED có API
+// backend nhưng giao diện không gọi lần nào.
+
+function KhungChon({ tieuDe, moTa, children }: { tieuDe: string; moTa: string; children: React.ReactNode }) {
+  return (
+    <div className="px-6 pt-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <h3 className="text-sm font-black text-[#1B365D]">{tieuDe}</h3>
+        <p className="text-[11px] text-slate-500 mt-0.5 mb-3">{moTa}</p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** PER_BID — 1 NCC trúng toàn bộ gói. */
+function PerBidPanel({
+  bidDetail,
+  onSelectVendorAllItems,
+}: {
+  bidDetail: BidAnalysisRow;
+  onSelectVendorAllItems: (vendorId: string, vendorName: string) => void;
+}) {
+  const soDong = bidDetail.items?.length || 0;
+  return (
+    <KhungChon
+      tieuDe="Chọn 1 nhà cung cấp cho toàn bộ gói"
+      moTa={`Nhà cung cấp được chọn sẽ được gán cho cả ${soDong} dòng của gói này.`}
+    >
+      <div className="grid grid-cols-4 gap-3">
+        {bidDetail.vendors.map((v) => {
+          const dangChon = v.isWinner;
+          return (
+            <div
+              key={v.id}
+              className={`rounded-lg border-2 p-3 ${
+                dangChon ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50'
+              }`}
+            >
+              <div className="text-sm font-bold text-[#1B365D]">{v.vendorName}</div>
+              <div className="text-[10px] text-slate-400 mb-1">
+                {v.vendorType === 'IMPORT' ? 'Nhập khẩu' : 'Trong nước'} · {currencyOf(v)}
+              </div>
+              <div className="text-base font-black text-[#0d6efd]">
+                {fmtMoney(v.totalQuote, v.currency)}
+              </div>
+              <button
+                type="button"
+                onClick={() => onSelectVendorAllItems(v.id, v.vendorName)}
+                disabled={dangChon}
+                className="mt-2 w-full px-2 py-1 text-[10px] font-bold rounded bg-[#1B365D] text-white hover:bg-[#2a5298] disabled:bg-emerald-600 disabled:cursor-default"
+              >
+                {dangChon ? '✓ Đang chọn' : 'Giao cả gói cho NCC này'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </KhungChon>
+  );
+}
+
+/** PER_GROUP — mỗi nhóm vật tư 1 NCC. */
+function PerGroupPanel({
+  bidDetail,
+  onSelectGroupVendor,
+}: {
+  bidDetail: BidAnalysisRow;
+  onSelectGroupVendor: (groupCode: string, vendorName: string) => void;
+}) {
+  const nhom = groupItems(bidDetail.items || []);
+  return (
+    <KhungChon
+      tieuDe="Chọn nhà cung cấp theo nhóm vật tư"
+      moTa={`${nhom.length} nhóm — suy từ mã vật tư (token giữa, vd I95-VTC01-12 → VTC01). Chọn NCC cho nhóm nào thì mọi dòng trong nhóm đó được gán NCC ấy.`}
+    >
+      <table className="w-full text-[11px]">
+        <thead className="bg-slate-50">
+          <tr>
+            <th className="px-3 py-1.5 text-left text-[9px] font-black uppercase text-slate-500">Nhóm</th>
+            <th className="px-3 py-1.5 text-right text-[9px] font-black uppercase text-slate-500">Số dòng</th>
+            <th className="px-3 py-1.5 text-right text-[9px] font-black uppercase text-slate-500">Đã duyệt</th>
+            <th className="px-3 py-1.5 text-left text-[9px] font-black uppercase text-slate-500">NCC cho cả nhóm</th>
+          </tr>
+        </thead>
+        <tbody>
+          {nhom.map((g) => {
+            const daDuyet = g.items.filter((i) => i.selectedVendorName).length;
+            const dsNcc = [...new Set(g.items.map((i) => i.selectedVendorName).filter(Boolean))];
+            const dongNhat = dsNcc.length === 1 ? (dsNcc[0] as string) : '';
+            return (
+              <tr key={g.groupCode} className="border-t border-slate-100">
+                <td className="px-3 py-2 font-bold text-[#1B365D]">{g.groupLabel}</td>
+                <td className="px-3 py-2 text-right font-mono">{g.items.length}</td>
+                <td className="px-3 py-2 text-right font-mono">
+                  <span className={daDuyet === g.items.length ? 'text-emerald-600 font-bold' : 'text-slate-500'}>
+                    {daDuyet}/{g.items.length}
+                  </span>
+                  {dsNcc.length > 1 && (
+                    <span className="ml-1 text-[9px] text-amber-600" title={dsNcc.join(', ')}>
+                      ({dsNcc.length} NCC khác nhau)
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  <select
+                    value={dongNhat}
+                    onChange={(e) => e.target.value && onSelectGroupVendor(g.groupCode, e.target.value)}
+                    className="w-full max-w-[240px] px-2 py-1 text-[10px] border border-slate-300 rounded bg-white font-bold"
+                  >
+                    <option value="">— Chọn NCC cho cả nhóm —</option>
+                    {bidDetail.vendors.map((v) => (
+                      <option key={v.id} value={v.vendorName}>
+                        {v.vendorName}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </KhungChon>
+  );
+}
+
+/** AUTO_MIN_PRICE — hệ thống tự chọn giá thấp nhất. */
+function AutoMinPricePanel({
+  bidDetail,
+  onRun,
+}: {
+  bidDetail: BidAnalysisRow;
+  onRun: () => void;
+}) {
+  const items = bidDetail.items || [];
+  const coBaoGia = items.filter(hasAnyQuote).length;
+  const tronTien = hasMixedCurrency(bidDetail.vendors);
+  return (
+    <KhungChon
+      tieuDe="Tự động chọn nhà cung cấp rẻ nhất"
+      moTa="Hệ thống duyệt từng dòng, chọn NCC có đơn giá thấp nhất. Chỉ xét báo giá có phạm vi 'V' (có chào), đơn giá lớn hơn 0 và cùng loại tiền với gói. Hoà giá thì lấy NCC theo thứ tự chữ cái."
+    >
+      <div className="flex items-center gap-4">
+        <div className="text-[11px] text-slate-600">
+          <div>
+            Dòng có báo giá dùng được: <b>{coBaoGia}</b> / {items.length}
+          </div>
+          {tronTien && (
+            <div className="text-amber-700 mt-0.5">
+              ⚠️ Gói trộn nhiều loại tiền — dòng nào lệch loại tiền của gói sẽ bị bỏ qua, không tự chọn.
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={coBaoGia === 0}
+          className="ml-auto px-4 py-2 text-xs font-bold rounded bg-[#1B365D] text-white hover:bg-[#2a5298] disabled:opacity-40"
+        >
+          Chạy chọn tự động
+        </button>
+      </div>
+    </KhungChon>
+  );
+}
+
+/** MANUAL_WEIGHTED — chấm điểm NCC theo trọng số rồi áp NCC cao điểm nhất. */
+function WeightedPanel({
+  bidDetail,
+  selectedBidId,
+  onSelectVendorAllItems,
+}: {
+  bidDetail: BidAnalysisRow;
+  selectedBidId: string;
+  onSelectVendorAllItems: (vendorId: string, vendorName: string) => void;
+}) {
+  const [scores, setScores] = useState<VendorScoreRow[]>([]);
+  const [nhap, setNhap] = useState<Record<string, { gia: string; chatLuong: string; thanhToan: string }>>({});
+  const [dangLuu, setDangLuu] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetchVendorScores(selectedBidId);
+        setScores(r.data || []);
+      } catch {
+        setScores([]);
+      }
+    })();
+  }, [selectedBidId]);
+
+  const luu = async (vendorName: string) => {
+    const v = nhap[vendorName] || { gia: '', chatLuong: '', thanhToan: '' };
+    const so = [Number(v.gia), Number(v.chatLuong), Number(v.thanhToan)];
+    if (so.some((n) => Number.isNaN(n) || n < 0 || n > 100)) {
+      toast.error('Điểm phải từ 0 đến 100');
+      return;
+    }
+    setDangLuu(vendorName);
+    try {
+      const r = await scoreVendor(selectedBidId, {
+        vendorName,
+        priceScore: so[0],
+        qualityScore: so[1],
+        paymentScore: so[2],
+      });
+      if (!r.success) throw new Error(r.error || 'Không rõ lỗi');
+      const lai = await fetchVendorScores(selectedBidId);
+      setScores(lai.data || []);
+      toast.success(`Đã chấm điểm ${vendorName}`);
+    } catch (e) {
+      toast.error(`Lỗi: ${e instanceof Error ? e.message : 'unknown'}`);
+    } finally {
+      setDangLuu(null);
+    }
+  };
+
+  const xepHang = [...scores].sort((a, b) => b.overallScore - a.overallScore);
+  const dan = xepHang[0];
+  const vendorDan = dan ? bidDetail.vendors.find((v) => v.vendorName === dan.vendorName) : null;
+
+  return (
+    <KhungChon
+      tieuDe="Chấm điểm nhà cung cấp theo trọng số"
+      moTa="Cho điểm 0–100 ở ba tiêu chí. Điểm tổng = giá 50% + chất lượng 30% + điều kiện thanh toán 20%. Chấm xong có thể giao cả gói cho NCC cao điểm nhất."
+    >
+      <table className="w-full text-[11px]">
+        <thead className="bg-slate-50">
+          <tr>
+            <th className="px-3 py-1.5 text-left text-[9px] font-black uppercase text-slate-500">Nhà cung cấp</th>
+            <th className="px-2 py-1.5 text-center text-[9px] font-black uppercase text-slate-500">Giá (50%)</th>
+            <th className="px-2 py-1.5 text-center text-[9px] font-black uppercase text-slate-500">Chất lượng (30%)</th>
+            <th className="px-2 py-1.5 text-center text-[9px] font-black uppercase text-slate-500">Thanh toán (20%)</th>
+            <th className="px-2 py-1.5 text-right text-[9px] font-black uppercase text-slate-500">Điểm tổng</th>
+            <th className="px-2 py-1.5"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {bidDetail.vendors.map((v) => {
+            const daCham = scores.find((s) => s.vendorName === v.vendorName);
+            const o = nhap[v.vendorName] || {
+              gia: daCham ? String(daCham.priceScore) : '',
+              chatLuong: daCham ? String(daCham.qualityScore) : '',
+              thanhToan: daCham ? String(daCham.paymentScore) : '',
+            };
+            const dat = (k: 'gia' | 'chatLuong' | 'thanhToan', val: string) =>
+              setNhap((p) => ({ ...p, [v.vendorName]: { ...o, [k]: val } }));
+            return (
+              <tr key={v.id} className="border-t border-slate-100">
+                <td className="px-3 py-2 font-bold text-[#1B365D]">
+                  {v.vendorName}
+                  {dan?.vendorName === v.vendorName && <span className="ml-1 text-emerald-600">★</span>}
+                </td>
+                {(['gia', 'chatLuong', 'thanhToan'] as const).map((k) => (
+                  <td key={k} className="px-2 py-2 text-center">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={o[k]}
+                      onChange={(e) => dat(k, e.target.value)}
+                      className="w-16 px-1 py-0.5 text-[10px] text-center border border-slate-300 rounded"
+                    />
+                  </td>
+                ))}
+                <td className="px-2 py-2 text-right font-mono font-black text-[#1B365D]">
+                  {daCham ? daCham.overallScore.toFixed(1) : '—'}
+                </td>
+                <td className="px-2 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => luu(v.vendorName)}
+                    disabled={dangLuu === v.vendorName}
+                    className="px-2 py-1 text-[10px] font-bold rounded bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40"
+                  >
+                    {dangLuu === v.vendorName ? 'Đang lưu…' : 'Lưu điểm'}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {dan && vendorDan && (
+        <div className="mt-3 flex items-center gap-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+          <span className="text-[11px] text-emerald-800">
+            Cao điểm nhất: <b>{dan.vendorName}</b> ({dan.overallScore.toFixed(1)} điểm)
+          </span>
+          <button
+            type="button"
+            onClick={() => onSelectVendorAllItems(vendorDan.id, vendorDan.vendorName)}
+            className="ml-auto px-3 py-1 text-[10px] font-bold rounded bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            Giao cả gói cho NCC này
+          </button>
+        </div>
+      )}
+    </KhungChon>
   );
 }
 

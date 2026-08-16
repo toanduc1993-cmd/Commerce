@@ -24,4 +24,42 @@ function authHeader(token) {
   return { Authorization: `Bearer ${token}` };
 }
 
-module.exports = { app, request, loginAsAdmin, authHeader, ADMIN_USER, ADMIN_PASS };
+// S2-1: request mutating (POST/PUT/PATCH/DELETE) đi qua csrfProtection nên phải
+// giữ cookie ibshi_session + ibshi_csrf và gửi kèm header X-CSRF-Token.
+// Token bám theo session identifier = cookie ibshi_session → phải login TRƯỚC rồi mới xin token.
+async function adminAgent() {
+  const agent = request.agent(app);
+  const login = await agent
+    .post('/api/v1/auth/login')
+    .send({ username: ADMIN_USER, password: ADMIN_PASS });
+  if (login.status !== 200 || !login.body.token) {
+    throw new Error(
+      `adminAgent login failed: status=${login.status} body=${JSON.stringify(login.body)}`
+    );
+  }
+  const csrf = await agent.get('/api/v1/auth/csrf-token');
+  if (csrf.status !== 200 || !csrf.body.csrfToken) {
+    throw new Error(
+      `adminAgent csrf-token failed: status=${csrf.status} body=${JSON.stringify(csrf.body)}`
+    );
+  }
+  agent.jwt = login.body.token;
+  agent.csrfToken = csrf.body.csrfToken;
+  return agent;
+}
+
+// Header đầy đủ cho request mutating: JWT + CSRF token.
+function mutateHeader(agent) {
+  return { Authorization: `Bearer ${agent.jwt}`, 'X-CSRF-Token': agent.csrfToken };
+}
+
+module.exports = {
+  app,
+  request,
+  loginAsAdmin,
+  authHeader,
+  adminAgent,
+  mutateHeader,
+  ADMIN_USER,
+  ADMIN_PASS,
+};

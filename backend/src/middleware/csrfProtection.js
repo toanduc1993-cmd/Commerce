@@ -25,9 +25,14 @@ const csrf = doubleCsrf({
   cookieName: isProd ? '__Host-ibshi_csrf' : 'ibshi_csrf',
   cookieOptions: {
     httpOnly: true,
-    // Dev: SameSite=None để cross-port (3001→5005) hoạt động trên localhost
+    // Dev: SameSite=Lax. TUYỆT ĐỐI KHÔNG dùng 'none' ở dev — theo chuẩn cookie,
+    // SameSite=None bắt buộc đi kèm Secure; thiếu Secure thì Chrome (từ bản 80),
+    // Firefox và Safari VỨT THẲNG cookie ⇒ ibshi_csrf không bao giờ được lưu
+    // ⇒ mọi POST/PATCH/DELETE đều trả 403. Tiền đề của bản cũ sai: khác CỔNG
+    // (3000/3001 → 5005) vẫn là CÙNG SITE, nên Lax gửi cookie bình thường.
+    // Phát hiện 14/08/2026 khi nghiệm thu bằng mắt trang /duyet — xem R-18.
     // Prod: strict cho bảo mật tối đa
-    sameSite: isProd ? 'strict' : 'none',
+    sameSite: isProd ? 'strict' : 'lax',
     secure: isProd ? true : false,
     path: '/',
   },

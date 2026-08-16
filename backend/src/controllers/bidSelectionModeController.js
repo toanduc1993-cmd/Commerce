@@ -9,6 +9,7 @@
 // ============================================================
 const prisma = require('../lib/prisma');
 const logger = require('../lib/logger');
+const { groupCodeOf } = require('../lib/materialGroup');
 
 const VALID_MODES = ['PER_BID', 'PER_ITEM', 'PER_GROUP', 'AUTO_MIN_PRICE', 'MANUAL_WEIGHTED'];
 
@@ -68,15 +69,26 @@ exports.setSelectionMode = async (req, res) => {
         resetCount += r.count;
       }
       if (bid.selectionMode === 'PER_ITEM' || bid.selectionMode === 'AUTO_MIN_PRICE') {
-        const r = await tx.bidQuoteOffer.updateMany({
-          where: { bidAnalysisItem: { bidId: id }, selectedVendorName: { not: null } },
-          data: { selectedVendorName: null },
+        // Lựa chọn NCC nằm ở BidQuoteItem.selectedVendorName — KHÔNG phải ở BidQuoteOffer.
+        // (Bản cũ trỏ vào `bidQuoteOffer.bidAnalysisItem` + `selectedVendorName` — hai thứ
+        //  không tồn tại trong schema, nên mọi lần đổi mode từ PER_ITEM đều ném lỗi 500.
+        //  Đó là lý do 3 chế độ kia chưa từng chạy được. Sửa 13/08.)
+        const r = await tx.bidQuoteItem.updateMany({
+          where: { bidId: id, selectedVendorName: { not: null } },
+          data: { selectedVendorName: null, selectedAt: null, selectedBy: null },
         });
         resetCount += r.count;
       }
       if (bid.selectionMode === 'PER_GROUP') {
         const r = await tx.bidGroupSelection.deleteMany({ where: { bidAnalysisId: id } });
         resetCount += r.count;
+        // PER_GROUP đổ lựa chọn xuống từng dòng, nên rời chế độ phải gỡ luôn ở cấp dòng —
+        // nếu không, xoá bản ghi nhóm mà dòng vẫn còn NCC, hai nơi lệch nhau.
+        const r2 = await tx.bidQuoteItem.updateMany({
+          where: { bidId: id, selectedVendorName: { not: null } },
+          data: { selectedVendorName: null, selectedAt: null, selectedBy: null },
+        });
+        resetCount += r2.count;
       }
       if (bid.selectionMode === 'MANUAL_WEIGHTED') {
         const r = await tx.bidVendorScore.deleteMany({ where: { bidAnalysisId: id } });
@@ -124,26 +136,57 @@ exports.upsertGroupSelection = async (req, res) => {
       });
     }
 
-    const selection = await prisma.bidGroupSelection.upsert({
-      where: {
-        bidAnalysisId_materialSubGroupCode: {
+    // NCC phải nằm trong BID này
+    const vendor = await prisma.bidQuoteVendor.findFirst({
+      where: { bidId: id, vendorName },
+      select: { id: true },
+    });
+    if (!vendor) {
+      return res
+        .status(400)
+        .json({ success: false, error: `NCC "${vendorName}" không có trong BID này.` });
+    }
+
+    // Ghi lựa chọn cấp nhóm VÀ đổ xuống từng dòng thuộc nhóm.
+    // Bắt buộc phải đổ xuống: create-po chỉ đọc BidQuoteItem.selectedVendorName,
+    // nếu chỉ ghi BidGroupSelection thì chọn xong vẫn không tạo được đơn hàng.
+    const items = await prisma.bidQuoteItem.findMany({
+      where: { bidId: id },
+      select: { id: true, itemCode: true, grade: true },
+    });
+    const itemIds = items.filter((it) => groupCodeOf(it) === groupCode).map((it) => it.id);
+
+    const { selection, applied } = await prisma.$transaction(async (tx) => {
+      const sel = await tx.bidGroupSelection.upsert({
+        where: {
+          bidAnalysisId_materialSubGroupCode: {
+            bidAnalysisId: id,
+            materialSubGroupCode: groupCode,
+          },
+        },
+        create: {
           bidAnalysisId: id,
           materialSubGroupCode: groupCode,
+          selectedVendorName: vendorName,
+          selectedBy: req.user?.id || 'unknown',
+          notes,
         },
-      },
-      create: {
-        bidAnalysisId: id,
-        materialSubGroupCode: groupCode,
-        selectedVendorName: vendorName,
-        selectedBy: req.user?.id || 'unknown',
-        notes,
-      },
-      update: { selectedVendorName: vendorName, selectedBy: req.user?.id || 'unknown', notes },
+        update: { selectedVendorName: vendorName, selectedBy: req.user?.id || 'unknown', notes },
+      });
+      const r = await tx.bidQuoteItem.updateMany({
+        where: { id: { in: itemIds } },
+        data: {
+          selectedVendorName: vendorName,
+          selectedAt: new Date(),
+          selectedBy: req.user?.id || null,
+        },
+      });
+      return { selection: sel, applied: r.count };
     });
 
-    await audit(req, 'BID_GROUP_VENDOR_SELECTED', id, { groupCode, vendorName });
+    await audit(req, 'BID_GROUP_VENDOR_SELECTED', id, { groupCode, vendorName, applied });
 
-    res.status(200).json({ success: true, data: selection });
+    res.status(200).json({ success: true, data: selection, applied });
   } catch (error) {
     (req.log || logger).error({ err: error, op: 'upsertGroupSelection' }, 'Group selection failed');
     res.status(500).json({ success: false, error: 'Lỗi hệ thống.' });
@@ -245,21 +288,20 @@ exports.autoSelectMinPrice = async (req, res) => {
       totalValue += updates[updates.length - 1].totalPrice;
     }
 
-    // Apply: mỗi item set selectedVendorName trên winning offer
+    // Áp dụng: ghi NCC thắng vào BidQuoteItem.selectedVendorName.
+    // (Bản cũ ghi vào `bidQuoteOffer.selectedVendorName` qua quan hệ `bidAnalysisItem` —
+    //  cả hai đều không có trong schema nên hàm này chưa từng chạy thành công. Sửa 13/08.)
+    const now = new Date();
+    const uid = req.user?.id || null;
     await prisma.$transaction(async (tx) => {
-      // First clear all previous selections cho BID này
-      await tx.bidQuoteOffer.updateMany({
-        where: { bidAnalysisItem: { bidId: id }, selectedVendorName: { not: null } },
-        data: { selectedVendorName: null },
+      await tx.bidQuoteItem.updateMany({
+        where: { bidId: id, selectedVendorName: { not: null } },
+        data: { selectedVendorName: null, selectedAt: null, selectedBy: null },
       });
-      // Mark winning offer cho mỗi item
       for (const u of updates) {
-        await tx.bidQuoteOffer.updateMany({
-          where: {
-            bidAnalysisItem: { id: u.itemId },
-            vendor: { vendorName: u.vendorName },
-          },
-          data: { selectedVendorName: u.vendorName },
+        await tx.bidQuoteItem.update({
+          where: { id: u.itemId },
+          data: { selectedVendorName: u.vendorName, selectedAt: now, selectedBy: uid },
         });
       }
     });
