@@ -24,6 +24,77 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | data: nạp bảng Inventory từ danh mục vật tư chuẩn của anh Huyến
+
+Bảng `Inventory` trước đợt này **rỗng hoàn toàn (0 dòng)**. Nay có **2.147 dòng tồn kho thật**.
+
+Nguồn: `IBSHI/mua-hang/00.DATA/TỔNG HỢP THÔNG TIN MUA HÀNG IBSHI/mat_code_xref_FINAL.csv`
+(9.653 mã, đối chiếu ba chiều kho ↔ kế toán 2023/24/25/26) → lọc 2.147 mã có tồn khác 0.
+Script `backend/scripts/nap_inventory_tu_master_huyen_20260817.js`, mặc định chạy thử.
+
+| | |
+|---|---:|
+| Dòng tồn kho | **2.147** |
+| Tổng số lượng tồn | 3.130.543,45 |
+| **Tổng giá trị tồn** | **66.821.997.149 đ** |
+| Có ngày nhập gần nhất | 1.589 (74%) |
+| Số ô kho | 118 |
+
+**Ngày nhập gần nhất** lấy thêm từ sổ nhập kho kế toán, ghép theo mã vật tư — cùng hệ mã nên
+khớp thẳng. Khoảng 09/03/2022 → 31/12/2025.
+
+**Soát sau nạp:** 0 tồn âm · 0 thiếu đơn vị · 0 dòng lệch `availableQty = onHandQty − allocatedQty`
+· 0 mã trùng. Đầu đọc `/api/v1/inventory` trả đủ 2.147 dòng.
+
+**PHẠM VI — đọc kỹ trước khi dùng:** đây là tồn kho theo **hệ mã kế toán** (`BAH.AOBH.001`),
+KHÔNG phải hệ mã mua sắm (`I95-VTC01-001`). Hai hệ chưa có bảng bắc cầu (khớp 5/8.702), nên
+`Inventory` **chưa nối được** với `PrDetail`. Màn Kiểm tra tồn kho xem được số liệu, nhưng chức
+năng đối chiếu tồn ↔ nhu cầu PR thì chưa chạy được cho tới khi có bảng bắc cầu.
+
+**Chốt an toàn trong script:** nếu `Inventory` đã có dòng thì script DỪNG, không nạp đè —
+tránh ghi lên số liệu phiên khác vừa tạo.
+
+**Gỡ lại:** `DELETE FROM "Inventory";` (bảng này trước đợt nạp là rỗng).
+Sao lưu: `backups/20260817_1522.sql.gz`.
+
+---
+
+### 2026-08-17 | NHẬN LỖI: `git add -A` của em đã nuốt file của phiên khác
+
+Chạy nghi thức mở phiên theo skill `IBSHI_Skill_SESSION_PROTOCOL_V2` thì phát hiện chính em là
+người gây ra sự cố mà skill mô tả. Ba commit của em hôm nay có **9 file không phải việc của em**:
+
+| Commit | File bị nuốt |
+|---|---|
+| `87cc133` "nạp dự án 095" | `docs/PROMPT-KIEM-THU-BAN-GIAO-20260817.md` + `.docx` |
+| `40252de` "nạp 57 dự án" | `.claude/skills/phien-song-song/SKILL.md` · `deploy/uat/UAT_CHECKLIST.md` · `docs/PROMPT-SUA-LOI-TRUOC-BAN-GIAO.md` · `docs/VAN-DE-CAN-SUA-TRUOC-BAN-GIAO.md` |
+| `ea10193` "bugfix màn PR" | `.claude/skills/…/SKILL.md` · `CLAUDE.md` · `docs/NGHIEN-CUU-SESSION-PROTOCOL-V2.md` |
+
+Nguyên nhân: em dùng `git add -A` cho nhanh. Không mất dữ liệu — file vẫn còn — nhưng **lịch sử
+sai**: commit nhãn "nạp dữ liệu" lại chứa tài liệu kiểm thử của phiên khác, sau này không ai lần
+ngược được. Năm mốc này **chưa đẩy lên** nên vẫn còn ở máy.
+
+Theo đúng skill: **không sửa lịch sử để che**. Ghi nhận ở đây, và từ mốc này trở đi chỉ
+`git add` đúng đường dẫn mình sở hữu.
+
+Trong lúc soát cũng thấy cây làm việc đang có thay đổi của phiên khác (`CLAUDE.md`,
+`.claude/skills/…V2`, `archive/skills/…V1`) — **em không đụng vào nội dung**.
+
+**Và em vướng lại đúng lỗi đó một lần nữa, dạng khác.** Lần này em đã `git add` đúng 4 đường dẫn
+của mình, nhưng phiên kia **đã stage sẵn** phép đổi tên `.claude/skills/…V1/SKILL.md →
+archive/skills/…V1/SKILL.md` trong vùng chờ từ trước. `git commit` lấy CẢ vùng chờ, nên file đó
+lọt vào commit `74f77b6` của em.
+
+Đã sửa ngay: `git reset --soft HEAD~1`, gỡ file của phiên kia khỏi vùng chờ, commit lại chỉ 4 file
+của mình. **Nội dung của phiên kia không bị đổi** — file vẫn nằm ở `archive/skills/`, vẫn bị xoá
+khỏi `.claude/skills/`. Khác biệt duy nhất: phép đổi tên đó nay ở trạng thái **chưa stage** thay vì
+đã stage. Phiên kia chỉ cần `git add` lại.
+
+**Bài học bổ sung cho skill:** `git add <đường dẫn>` là chưa đủ. Phải kiểm `git diff --cached
+--name-only` NGAY TRƯỚC khi commit — vùng chờ có thể đã chứa việc của người khác.
+
+---
+
 ### 2026-08-17 | data: bù ngày hàng về từ sổ nhập kho kế toán
 
 Anh Hưng duyệt. Ghép theo **số hợp đồng** giữa `ContractDetail` và bảng kê phiếu nhập kho của
