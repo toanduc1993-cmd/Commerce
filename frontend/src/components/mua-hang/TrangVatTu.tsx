@@ -656,11 +656,13 @@ export function TrangVatTu({ khoaCheDo }: Props = {}) {
             >
               <span className="material-symbols-outlined text-[14px]">folder_open</span>
               <span>
-                {viewMode === 'detail' ? 'PR-090' : (
-                  tableFilters.columnFilters['projectCode']?.type === 'multiSelect' && (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values.length > 0
-                    ? (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values.join(', ')
-                    : 'Tất cả dự án'
-                )}
+                {/* 17/08: trước đây ở chế độ 'detail' nút ghi cứng chữ 'PR-090' nên
+                    trông như tiêu đề chứ không phải ô chọn, và không phản ánh dự án
+                    đang lọc. Nay luôn hiện đúng thứ đang chọn. */}
+                {tableFilters.columnFilters['projectCode']?.type === 'multiSelect' &&
+                (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values.length > 0
+                  ? (tableFilters.columnFilters['projectCode'] as { type: 'multiSelect'; values: string[] }).values.join(', ')
+                  : 'Tất cả dự án'}
               </span>
               <span className={`material-symbols-outlined text-[12px] transition-transform ${viewDropOpen ? 'rotate-180' : ''}`}>
                 expand_more
@@ -668,7 +670,9 @@ export function TrangVatTu({ khoaCheDo }: Props = {}) {
             </button>
 
             {viewDropOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
+              // 17/08: 66 dự án → menu cao gần 3.000px, tràn khỏi màn hình.
+              // Giới hạn chiều cao và cho cuộn trong menu.
+              <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[70vh] overflow-y-auto bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
                 {/* Section: View mode — chỉ hiện khi trang cha KHÔNG khoá chế độ.
                     Sau đợt 2, /mua-hang khoá 'detail' và /theo-doi-mua-hang khoá 'workflow'
                     nên ô chọn này không còn ý nghĩa ở cả hai trang. */}
@@ -700,8 +704,12 @@ export function TrangVatTu({ khoaCheDo }: Props = {}) {
                 </>
                 )}
 
-                {/* Section: Lọc theo dự án (chỉ khi workflow) */}
-                {viewMode === 'workflow' && (
+                {/* Section: Lọc theo dự án.
+                    17/08: trước đây rào bằng `viewMode === 'workflow'`. Sau đợt tách
+                    module, /mua-hang bị khoá cứng chế độ 'detail' nên rào này làm
+                    menu rỗng hoàn toàn — bấm vào không ra gì. Lọc theo dự án cần cho
+                    CẢ HAI chế độ, nhất là khi đã nạp 63 dự án vào cùng một bảng. */}
+                {true && (
                   <>
                     <div className="px-3 py-1 border-t border-b border-slate-50 mt-1 mb-1">
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Lọc theo dự án</p>

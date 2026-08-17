@@ -24,6 +24,51 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | bugfix: màn Yêu cầu mua (PR) không chọn được dự án — lỗi do chính đợt tách module
+
+Anh Hưng báo: không thấy chỗ chọn theo dự án, và chọn một loại vật tư thì không biết đang mua
+cho những dự án nào. Kiểm ra ba lỗi, **lỗi gốc là do em gây ra ở đợt tách module (đợt 2)**.
+
+**1. Menu chọn dự án rỗng hoàn toàn.** Khối "Lọc theo dự án" bị rào bằng
+`viewMode === 'workflow'`. Đợt tách module khoá `/mua-hang` cứng ở chế độ `'detail'`, nên rào
+đó làm menu **không vẽ gì cả** — bấm vào ra một hộp trắng cao 14px. Bỏ rào; lọc dự án nay chạy
+ở cả hai chế độ.
+
+**2. Nhãn nút ghi cứng chữ "PR-090".** `viewMode === 'detail' ? 'PR-090' : …` nên nút trông như
+tiêu đề tĩnh chứ không phải ô chọn, và không bao giờ phản ánh dự án đang lọc. Nay luôn hiện đúng
+thứ đang chọn, mặc định "Tất cả dự án".
+
+**3. Bảng chi tiết không có cột nào cho biết dòng thuộc dự án nào.** Trước đây chấp nhận được vì
+chỉ có 12 dự án có dữ liệu; sau khi nạp 63 dự án vào cùng một bảng 6.339 dòng thì không đọc nổi.
+Thêm cột **Dự án** làm cột ghim đầu tiên (`VatTuItem.duAn`, rộng 104px, dịch ba cột ghim cũ sang
+phải, hai ô gộp `colSpan` 4 → 5).
+
+**4. Trả lời "đang mua cho những dự án nào".** Thêm chỉ báo trên thanh thống kê: số dự án của
+ĐÚNG tập dòng đang hiện (sau tìm kiếm và lọc), kèm danh sách mã khi ≤ 6 dự án, rê chuột xem đầy
+đủ khi nhiều hơn.
+
+**5. Menu 66 dự án cao 2.977px, tràn khỏi màn hình.** Giới hạn `max-h-[70vh]` + cuộn, nới rộng
+`w-60` → `w-72`.
+
+**Files:**
+  - `frontend/src/components/mua-hang/TrangVatTu.tsx` — bỏ rào workflow · sửa nhãn nút · giới hạn chiều cao menu
+  - `frontend/src/components/mua-hang/PR090DetailView.tsx` — thêm `duAn` vào `VatTuItem` · cột ghim mới · chỉ báo số dự án
+
+**Kiểm chứng trên trình duyệt (dữ liệu thật, 6.339 dòng / 66 dự án):**
+  - menu ra đủ **66 mục**, cao 700px, cuộn được
+  - chọn `25-BRA-I-090` → nhãn nút đổi đúng · bảng còn **446 mã · 854,5 tấn · 4 nhóm · 1 dự án**
+  - cột "Dự án" hiện đúng mã trên từng dòng
+  - tìm `H350x350` → **2 mã · 2 dự án**, hiện rõ `25-BRA-I-090 (1)` và `25-VPI-I-095 (1)`
+  - tìm `SUS304` → 232 mã · 19 dự án · tìm `Tôn tấm` → 657 mã · 44 dự án
+  - `tsc` 0 lỗi · `npm test` 20/20
+
+**CÒN LỖI, CHƯA SỬA — báo để anh Hưng quyết:** ô chọn dự án ở **thanh bên**
+(`WorkspaceSelector`) chỉ liệt kê **4/66 dự án**. Nó đọc hằng số ghi cứng `PROJECTS` trong
+`frontend/src/context/ProjectContext.tsx` chứ không gọi API. Sửa phải đổi `WorkspaceContext`
+sang nạp bất đồng bộ — ảnh hưởng mọi trang nên em không tự làm cuối phiên.
+
+---
+
 ### 2026-08-17 | data: nạp 57 dự án còn lại từ kho theo dõi Excel của anh Đức
 
 Anh Hưng chốt: nạp dự án trước, tự dọn danh mục nhà cung cấp sau. Em đã nêu rủi ro

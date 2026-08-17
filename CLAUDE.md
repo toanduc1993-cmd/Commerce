@@ -53,6 +53,15 @@ Refs: [SESSION_IDENTITY.md](SESSION_IDENTITY.md), [BACKLOG.md](BACKLOG.md), [../
 5. Khi muốn request session khác → tạo message vào _inbox của họ, KHÔNG edit trực tiếp workspace họ
 6. Khi DONE task → move từ BACKLOG.md sang CHANGES_LOG.md
 
+**⚠️ Khi có NHIỀU PHIÊN cùng làm trong workspace này** (vd phiên kiểm thử + phiên "Code vật tư"
+chạy song song): bắt buộc theo skill **`IBSHI_Skill_SESSION_PROTOCOL_V1`**
+([.claude/skills/IBSHI_Skill_SESSION_PROTOCOL_V1/SKILL.md](.claude/skills/IBSHI_Skill_SESSION_PROTOCOL_V1/SKILL.md)).
+PROTOCOL.md ở `_sessions/` chỉ lo nhiều phiên ở **khác** workspace nhắn tin cho nhau; skill này lo
+tình huống nguy hiểm hơn — nhiều phiên trong **CÙNG** một kho git, cùng một cơ sở dữ liệu, cùng lúc.
+Luật quan trọng nhất: **chỉ `git add` đúng đường dẫn mình sở hữu, KHÔNG BAO GIỜ `git add -A`**
+khi có phiên khác đang chạy (17/08/2026: một commit "nạp dữ liệu Excel" đã nuốt trọn 5 file tài liệu
+của phiên kiểm thử vì `git add -A`).
+
 ---
 
 ## 🔥 RULE CỨNG #0 — CẤM TỰ ĐỘNG `git push` (zero tolerance)

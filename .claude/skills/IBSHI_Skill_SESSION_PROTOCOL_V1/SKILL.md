@@ -1,5 +1,5 @@
 ---
-name: phien-song-song
+name: IBSHI_Skill_SESSION_PROTOCOL_V1
 description: Điều phối nhiều phiên Claude làm việc song song trên CÙNG một workspace / kho git — chống ghi đè, trùng việc, dẫm chân nhau. Dùng skill này BẤT CỨ KHI NÀO có dấu hiệu nhiều phiên cùng chạy: người dùng nhắc "session khác", "phiên kia", "chạy song song", "nhiều session", tên một phiên cụ thể (CPVT, OCRP, DA, "Code vật tư"), hoặc bảo bạn viết prompt giao việc cho phiên khác. Cũng dùng khi TỰ PHÁT HIỆN dấu vết phiên khác: có thay đổi chưa commit mà mình không tạo ra, số liệu đổi giữa hai lần đo, file bị sửa bất ngờ, commit lạ trong git log, bản ghi mới trong nhật ký kiểm toán không phải do mình. Và dùng TRƯỚC khi làm bất cứ việc gì có tác dụng phụ toàn cục — đổi schema, thêm ràng buộc cơ sở dữ liệu, khởi động lại máy chủ, sửa biến môi trường, chạy script làm sạch dữ liệu.
 ---
 
@@ -56,6 +56,36 @@ của mọi lần dẫm chân.
 
 Nguyên tắc chọn ranh giới: **cắt theo thư mục, đừng cắt theo file lẻ trong cùng thư mục.** Hai phiên
 cùng sửa hai file cạnh nhau thì sớm muộn cũng có người sửa nhầm file bên kia.
+
+### Kỷ luật commit — luật quan trọng nhất của tầng 1
+
+**Chỉ đưa vào commit đúng những đường dẫn mình sở hữu. Đừng bao giờ `git add -A` hay `git add .`
+khi có phiên khác đang làm việc.**
+
+```bash
+# ❌ SAI — quét sạch cây làm việc, nuốt luôn việc dở dang của phiên khác
+git add -A && git commit -m "..."
+
+# ✅ ĐÚNG — nêu đích danh những gì mình vừa làm
+git add backend/src/controllers/abc.js CHANGES_LOG.md
+git commit -m "..."
+
+# Kiểm trước khi commit: có gì trong danh sách mà mình không nhận ra không?
+git status --short
+```
+
+Vì sao đáng bận tâm đến thế: hậu quả **không phải mất dữ liệu** nên rất dễ bỏ qua — file vẫn còn,
+mọi thứ trông vẫn ổn. Cái hỏng là **lịch sử**. Một commit mang nhãn "nạp dữ liệu" mà bên trong chứa
+tài liệu kiểm thử và một skill thì sau này không ai lần ngược được: tìm skill ra đời lúc nào sẽ ra
+một commit nói về Excel. Sổ thay đổi và git log là thứ dự án dùng để quay lại khi có sự cố — làm
+nhiễu chúng là rút mất tấm lưới an toàn, đúng lúc không ai nhận ra.
+
+Kèm theo: file bị commit ở trạng thái **dở dang**. Phiên kia không biết bạn đã viết xong chưa, đã
+tự kiểm chưa. Một bản nháp giữa chừng vào git trông y hệt một bản hoàn chỉnh.
+
+Nếu lỡ gom nhầm rồi thì **đừng sửa lịch sử để che** — nói ra, và nếu cần thì tách bằng một commit
+tiếp theo có thông điệp đúng. Với dự án cấm `git push` tự động thì lịch sử còn ở máy, sửa được;
+nhưng minh bạch vẫn tốt hơn im lặng.
 
 ### File dùng chung (sổ thay đổi, ghi chú vận hành)
 

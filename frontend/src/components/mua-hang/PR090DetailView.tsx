@@ -41,6 +41,9 @@ interface FabAlloc {
 }
 
 interface VatTuItem {
+  /** 17/08: mã dự án của dòng. Trước đây bảng gộp mọi dự án mà không cột nào
+   *  cho biết dòng thuộc dự án nào — sau khi nạp 63 dự án thì không đọc nổi. */
+  duAn: string;
   id: string;
   stt: string; // I95-VTC01-001
   description: string; // Tôn tấm
@@ -117,6 +120,7 @@ function prsToGroups(prs: PRDetail[]): CategoryGroup[] {
     // Map PRDetail → VatTuItem
     const item: VatTuItem = {
       id: pr.id,
+      duAn: pr.pr?.project?.code ?? '—',
       stt: pr.itemCode,
       description: pr.itemName,
       profile: pr.profile || '',
@@ -190,11 +194,12 @@ const TD_STICKY = `${TD_LEFT} sticky bg-white z-10`;
 // tiêu đề lệch dữ liệu một cột.
 // Cách chữa: ghim cứng width + minWidth + maxWidth, mốc tính từ chính bề rộng đó,
 // nội dung dài thì cắt bằng truncate và giữ đủ ở thuộc tính title.
-const STICKY_W = { stt: 96, desc: 168, profile: 208 } as const;
+const STICKY_W = { duAn: 104, stt: 96, desc: 168, profile: 208 } as const;
 const STICKY_LEFT = {
-  stt: 0,
-  desc: STICKY_W.stt,                        // 96
-  profile: STICKY_W.stt + STICKY_W.desc,     // 264
+  duAn: 0,
+  stt: STICKY_W.duAn,                                        // 104
+  desc: STICKY_W.duAn + STICKY_W.stt,                        // 200
+  profile: STICKY_W.duAn + STICKY_W.stt + STICKY_W.desc,     // 368
 } as const;
 const pin = (k: keyof typeof STICKY_W) => ({
   left: STICKY_LEFT[k],
@@ -219,6 +224,15 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
   const groups = useMemo(() => prsToGroups(prs), [prs]);
 
   const visibleRevs = showAllRevs ? DU_TRU_REVS : [];
+
+  // 17/08 — anh Hưng: "chọn 1 loại vật tư thì không biết đang mua cho những dự án nào".
+  // Đây là danh sách dự án của ĐÚNG tập dòng đang hiện (đã qua tìm kiếm và bộ lọc),
+  // nên khi gõ tên một loại vật tư là thấy ngay nó đang mua cho những dự án nào.
+  const duAnDangHien = useMemo(() => {
+    const dem = new Map<string, number>();
+    for (const g of groups) for (const i of g.items) dem.set(i.duAn, (dem.get(i.duAn) ?? 0) + 1);
+    return [...dem.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [groups]);
 
   const grandTotalItems = groups.reduce((s, g) => s + g.items.length, 0);
   const grandTotalWeight = groups.reduce(
@@ -263,6 +277,22 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
           <div className="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600">
             {groups.length} nhóm
           </div>
+          <div
+            className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#1B365D]/10 text-[#1B365D]"
+            title={duAnDangHien.map(([m, n]) => `${m}: ${n} mã`).join('\n')}
+          >
+            {duAnDangHien.length} dự án
+          </div>
+          {duAnDangHien.length > 0 && duAnDangHien.length <= 6 && (
+            <div className="flex items-center gap-1 text-[9px] text-slate-500">
+              <span className="material-symbols-outlined text-[12px] text-slate-400">folder</span>
+              {duAnDangHien.map(([m, n]) => (
+                <span key={m} className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono">
+                  {m} <span className="text-slate-400">{n}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="ml-auto flex items-center gap-2">
@@ -297,6 +327,9 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
             <thead className="sticky top-0 z-20">
               {/* ── Row 1: Column group headers ─── */}
               <tr>
+                <th rowSpan={2} className={`${TH} sticky z-30`} style={pin('duAn')}>
+                  Dự án
+                </th>
                 <th rowSpan={2} className={`${TH} sticky z-30`} style={pin('stt')}>
                   Item/
                   <br />
@@ -457,7 +490,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                   <>
                     {/* ── Group header row ── */}
                     <tr key={`grp-${group.code}`}>
-                      <td colSpan={4} className={`${GROUP_ROW} sticky left-0 z-10`}>
+                      <td colSpan={5} className={`${GROUP_ROW} sticky left-0 z-10`}>
                         {group.code} — {group.nameEn} / {group.nameVi}
                       </td>
                       <td className="border border-slate-400 bg-[#dbeafe]" />
@@ -517,6 +550,13 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                           idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'
                         }`}
                       >
+                        <td
+                          className={`${TD_STICKY} font-mono text-[8px] font-bold text-[#1B365D]`}
+                          style={pin('duAn')}
+                          title={item.duAn}
+                        >
+                          <div className="truncate">{item.duAn}</div>
+                        </td>
                         <td
                           className={`${TD_STICKY} font-mono text-[8px] text-slate-500`}
                           style={pin('stt')}
@@ -608,7 +648,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
               {/* ══════ GRAND TOTAL ROW ══════ */}
               <tr className="bg-[#1B365D] text-white">
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="border border-[#2a5298] sticky left-0 z-10 bg-[#1B365D] text-[9px] font-black px-2 py-2"
                 >
                   TỔNG CỘNG / GRAND TOTAL
