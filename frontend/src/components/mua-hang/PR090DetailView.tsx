@@ -450,18 +450,18 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                 </th>
 
                 {visibleRevs.map((rev) => (
-                  <>
-                    <th key={`rev${rev}-qty`} className={TH2}>
+                  <Fragment key={`th-rev${rev}`}>
+                    <th className={TH2}>
                       Q.Ty/
                       <br />
                       Số lượng
                     </th>
-                    <th key={`rev${rev}-kg`} className={TH2}>
+                    <th className={TH2}>
                       Weight/
                       <br />
                       KL (Kg)
                     </th>
-                  </>
+                  </Fragment>
                 ))}
 
                 <th className={TH2}>
@@ -487,9 +487,9 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                 const grpTotalWeight = group.items.reduce((s, i) => s + i.totalWeight, 0);
 
                 return (
-                  <>
+                  <Fragment key={`grp-${group.code}`}>
                     {/* ── Group header row ── */}
-                    <tr key={`grp-${group.code}`}>
+                    <tr>
                       <td colSpan={5} className={`${GROUP_ROW} sticky left-0 z-10`}>
                         {group.code} — {group.nameEn} / {group.nameVi}
                       </td>
@@ -504,9 +504,8 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                       <td className="border border-slate-400 bg-[#dbeafe]" />
                       <td className="border border-slate-400 bg-[#dbeafe]" />
                       {visibleRevs.map((rev) => (
-                        <>
+                        <Fragment key={`grp-${group.code}-rev${rev}`}>
                           <td
-                            key={`grp-${group.code}-rev${rev}-q`}
                             className="border border-slate-400 bg-[#dbeafe] text-right text-[9px] font-black px-1"
                           >
                             {fmt(
@@ -517,7 +516,6 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                             )}
                           </td>
                           <td
-                            key={`grp-${group.code}-rev${rev}-w`}
                             className="border border-slate-400 bg-[#dbeafe] text-right text-[9px] font-black px-1"
                           >
                             {fmt(
@@ -527,7 +525,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                               )
                             )}
                           </td>
-                        </>
+                        </Fragment>
                       ))}
                       <td className="border border-slate-400 bg-[#dbeafe] text-right text-[9px] font-black px-1">
                         {fmt(grpTotalQty)}
@@ -641,7 +639,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                         <td className={`${TD} w-20 text-slate-600`}>{fmt(item.weight2U)}</td>
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 );
               })}
 
@@ -666,9 +664,8 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                 <td className="border border-[#2a5298]" />
                 <td className="border border-[#2a5298]" />
                 {visibleRevs.map((rev) => (
-                  <>
+                  <Fragment key={`grand-rev${rev}`}>
                     <td
-                      key={`grand-rev${rev}-qty`}
                       className="border border-[#2a5298] text-right text-[9px] font-black px-1"
                     >
                       {fmt(
@@ -699,7 +696,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                         )
                       )}
                     </td>
-                  </>
+                  </Fragment>
                 ))}
                 <td className="border border-[#2a5298] text-right text-[9px] font-black px-1">
                   {fmt(

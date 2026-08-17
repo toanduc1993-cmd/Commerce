@@ -24,6 +24,147 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | bugfix: React cảnh báo thiếu `key` ở PR090DetailView
+
+Console báo *"Each child in a list should have a unique key prop — PR090DetailView"* mỗi lần vẽ
+bảng. Lỗi **có từ trước** đợt sửa hôm nay (đối chiếu `git show 0d87049`).
+
+**Nguyên nhân — cùng một hiểu nhầm lặp ở 4 chỗ:** `key` đặt ở phần tử CON bên trong fragment, thay
+vì ở chính fragment — mà fragment mới là thứ `.map()` trả về. React chỉ đọc `key` ở phần tử ngoài
+cùng, nên `key` trên `<th>`/`<td>`/`<tr>` bên trong bị bỏ qua hoàn toàn.
+
+Đúng ghi chú đã có sẵn trong file từ 15/08 ở chỗ thứ năm — chỗ đó đã sửa đúng, bốn chỗ còn lại thì chưa:
+> *"key phải đặt ở Fragment (phần tử ngoài cùng map trả về), đặt ở `<td>` bên trong là React không thấy"*
+
+**Bốn chỗ đã sửa** — đổi `<>` thành `<Fragment key={…}>`, bỏ luôn các `key` thừa bên trong:
+
+| Chỗ | Khoá mới |
+|---|---|
+| Tiêu đề nhóm cột "Dự trù lần n" | `th-rev{n}` |
+| Vòng lặp nhóm vật tư (`groups.map`) | `grp-{mã nhóm}` |
+| Ô tổng theo nhóm cho từng REV | `grp-{mã nhóm}-rev{n}` |
+| Ô tổng cộng toàn bảng cho từng REV | `grand-rev{n}` |
+
+**Kiểm chứng:** `<Fragment key=` 5 · `</Fragment>` 5 · `<>` trơ **0** · `</>` trơ **0**.
+`npx tsc --noEmit` 0 lỗi.
+
+Mở tab mới (console sạch, không lẫn log cũ), bật "Xem tất cả REV" để **cả 4 khối vừa sửa đều được
+vẽ**: bảng ra 6.347 dòng, và console **trắng hoàn toàn** — chỉ còn dòng React DevTools và HMR.
+
+Bất biến cột vẫn đúng sau khi sửa: hàng tiêu đề 2 có **24** ô + **12** cột `rowSpan=2` = **36**,
+bằng đúng số ô của mọi dòng dữ liệu (đo trên 400 dòng, tất cả đều 36).
+
+**Một chỗ suýt báo nhầm:** giữa chừng console hiện lỗi cú pháp `Expression expected` ở dòng 528 —
+đó là **log đọng lại** từ trạng thái sau khi em đổi thẻ mở nhưng chưa đổi thẻ đóng. Tab mới cho
+thấy bản hiện tại không có lỗi đó. Đây là lý do phải đọc console trên tab sạch chứ không tin log cũ.
+
+**File:** `frontend/src/components/mua-hang/PR090DetailView.tsx`
+
+**Chưa commit.**
+
+---
+
+### 2026-08-17 | bugfix: ô chọn dự án ở thanh bên chỉ có 4/66 dự án
+
+`WorkspaceSelector` đọc `allProjects` từ `useWorkspace()`, mà `WorkspaceContext` trả thẳng hằng số
+`PROJECTS` ghi cứng **4 dự án** (mã giả `p001`–`p004`). Sau đợt nạp 17/08 cơ sở dữ liệu có **66
+dự án**, nên 62 dự án không chọn được từ thanh bên.
+
+**Sửa:** `WorkspaceContext` nạp từ `GET /api/v1/projects` bằng `fetchProjects()` có sẵn.
+Hằng số `PROJECTS` **giữ nguyên** làm bản dự phòng — hiện ngay khi chưa nạp xong và khi API lỗi,
+để thanh bên không bao giờ rỗng. (8 nơi khác nhập `PROJECTS` trực tiếp, không đụng tới.)
+
+**Phạm vi ảnh hưởng nhỏ hơn lo ngại:** `grep useWorkspace` cho thấy **chỉ `WorkspaceSelector`**
+dùng context này. Các trang khác nhập thẳng `PROJECTS`, không qua đây.
+
+**Ba chỗ phải xử lý cẩn thận:**
+1. **Khôi phục lựa chọn cũ.** Bản cũ dò `localStorage` ngay lúc gắn — nay danh sách nạp bất đồng bộ
+   nên lúc đó vẫn là bản dự phòng, dò sẽ không thấy. Tách thành hai bước: nhớ mã đã lưu, rồi dò lại
+   mỗi khi danh sách đổi.
+2. **Mã cũ trong `localStorage` là mã giả** (`p001`) nên sẽ không khớp mã thật (UUID). Khi đó về
+   "Tất cả dự án" — đúng và an toàn, không phải lỗi.
+3. **Kiểu dữ liệu lệch.** `ProjectRow` (API) có `client`/`refNo` cho phép rỗng và `status` là chuỗi
+   tự do; `Project` (giao diện) bắt buộc có và `status` chỉ nhận 3 giá trị. Thêm hàm `doiSang()`
+   chuyển đổi, `status` lạ thì quy về `active`.
+
+**Thêm ô lọc trong menu.** 66 dự án trong khung cao 320px là cực hình. Nay có ô lọc theo mã hoặc
+tên, dính trên đầu khi cuộn, nới khung `max-h-80` → `max-h-[60vh]`, kèm trạng thái rỗng.
+
+**Kiểm chứng trên trình duyệt:**
+| | |
+|---|---|
+| Số mục trong menu | **66 dự án** + "Tất cả dự án" |
+| Ô lọc | "Lọc trong 66 dự án…" |
+| Khung menu | 600px, cuộn được (nội dung 3.988px) |
+| Lọc `095` | 1 dự án — `25-VPI-I-095` |
+| Lọc `BRADEN` (theo TÊN) | 1 dự án — `25-BRA-I-090` |
+| Lọc chuỗi vô nghĩa | hiện "Không có dự án nào khớp…" |
+| Chọn `25-VPI-I-095` | nút đổi đúng · `localStorage` lưu **UUID thật** `b8e63043-…` |
+| Giữ lựa chọn khi tải lại + đổi trang | **CÓ** |
+
+Đã mở lại 5 trang chính — `/mua-hang`, `/theo-doi-mua-hang`, `/phan-bo-che-tao`,
+`/kiem-tra-ton-kho`, `/duyet` — đều HTTP 200, không lỗi ứng dụng, thanh bên giữ đúng dự án đã chọn.
+`npx tsc --noEmit` 0 lỗi.
+
+**Files:** `frontend/src/context/WorkspaceContext.tsx` · `frontend/src/components/layout/WorkspaceSelector.tsx`
+
+**Phát hiện kèm, KHÔNG sửa vì ngoài phạm vi việc này:** console báo *"Each child in a list should
+have a unique key prop — PR090DetailView"*. Nguyên nhân là fragment `<>` không có `key` ngay trong
+`groups.map(...)`. Đã đối chiếu `git show 0d87049` — **có từ trước mọi thay đổi hôm nay**, không
+phải do đợt sửa này. Sửa bằng cách đổi `<>` thành `<Fragment key={group.code}>`.
+
+**Chưa commit** — theo đúng yêu cầu của việc này.
+
+---
+
+### 2026-08-17 | bugfix: lớp CSS `text-heading` không tồn tại — tiêu đề 4 trang hiển thị sai cỡ
+
+`globals.css` khai token chữ trong khối `@theme`: `--text-caption` · `--text-body` ·
+`--text-emphasis` · `--text-h3` · `--text-h2` · `--text-h1` · `--text-display`. **Không có
+`--text-heading`.** Dự án dùng Tailwind v4 (không có `tailwind.config.*`) nên `text-heading`
+không sinh ra CSS nào — thẻ mang lớp đó rơi về cỡ chữ mặc định của trình duyệt.
+
+Hậu quả đo được: tiêu đề `/hang-muc-che-tao` ra **16px** trong khi thiết kế là **24px**;
+`/phan-bo-che-tao` dùng đúng `text-h1` thì ra 24px. Hai trang cạnh nhau lệch hẳn một cấp.
+
+**Sửa — 5 chỗ trong 4 file:**
+
+| File | Chỗ | Đổi thành |
+|---|---|---|
+| `kiem-tra-ton-kho/page.tsx` | `<h1>` tiêu đề trang | `text-h1` |
+| `lam-ro-ky-thuat/page.tsx` | `<h1>` tiêu đề trang | `text-h1` |
+| `hang-muc-che-tao/page.tsx` | `<h1>` tiêu đề trang | `text-h1` |
+| `lich-su-mua-hang/page.tsx` | `<h1>` tiêu đề trang | `text-h1` |
+| `lich-su-mua-hang/page.tsx` | `<div>` mã vật tư trong thẻ chi tiết | **`text-h3`** |
+
+**Bỏ `font-bold` và `text-[var(--color-brand,#002046)]` đi kèm ở 4 tiêu đề trang.** Không phải
+cho gọn mà vì **`font-bold` phá thiết kế**: `.text-h1` đặt `font-weight: 800`, còn `font-bold`
+là 700; hai lớp cùng độ ưu tiên nên lớp tiện ích của Tailwind xếp sau sẽ thắng, kéo tiêu đề
+xuống 700. `.text-h1` cũng đã tự đặt `color: var(--color-brand)` nên lớp màu kia là thừa.
+
+**Một chỗ làm khác đề bài, có lý do.** Đề bài nói đổi cả 4 file sang `text-h1`, nhưng chỗ thứ 5
+(`lich-su-mua-hang` dòng 257) là **`<div>` mã vật tư trong thẻ chi tiết**, không phải tiêu đề
+trang. Gán `text-h1` sẽ ra chữ 24px màu thương hiệu nằm giữa một cái thẻ — sai vai trò. Em dùng
+`text-h3` (16px, weight 600 — token dành cho tiêu đề thẻ) và **giữ** lớp màu vì `.text-h3` không
+đặt màu.
+
+**Kiểm chứng trên trình duyệt (đo `getComputedStyle`, không đoán):**
+| Trang | Cỡ | Đậm | Màu |
+|---|---|---|---|
+| `/hang-muc-che-tao` | **24px** | **800** | `rgb(27,54,93)` |
+| `/kiem-tra-ton-kho` | 24px | 800 | `rgb(27,54,93)` |
+| `/lam-ro-ky-thuat` | 24px | 800 | `rgb(27,54,93)` |
+| `/lich-su-mua-hang` | 24px | 800 | `rgb(27,54,93)` |
+| — tiêu đề thẻ `I95-VTC01-001` | **16px** | 600 | `rgb(27,54,93)` |
+
+Phông đều là **Manrope** (`--font-headline`), đúng lớp `.text-h1`. Đầu trang không vỡ bố cục,
+không trang nào tràn ngang. `grep text-heading` trong `frontend/src/` nay ra **0 kết quả**.
+`npx tsc --noEmit` 0 lỗi. Đã khởi động lại frontend, 5 trang đều HTTP 200.
+
+**Chưa commit** — theo đúng yêu cầu của việc này.
+
+---
+
 ### 2026-08-17 | tra cứu: soát lại cầu nối mã vật tư PR ↔ kho ↔ kế toán (anh Huyến)
 
 Anh Hưng chuyển lời anh Huyến: đã thống nhất xong toàn bộ mã vật tư từ PR đến kho, kế toán.
@@ -1036,6 +1177,40 @@ frontend/src/components/mua-hang/PR090DetailView.tsx`
 ---
 
 ## 2026-08-17
+
+### 2026-08-17 16:55 | bugfix: BG-03 — mã đơn hàng đụng nhau khi nhiều người bấm cùng lúc
+
+**What:** `createPoFromBid` sinh mã đơn hàng bằng cách ĐẾM số đơn đã có rồi cộng thêm, và phép đếm
+nằm NGOÀI giao dịch. Có **hai** lỗi trong một chỗ:
+
+1. **Đua nhau.** Hai người bấm "Tạo PO" gần nhau cùng đếm ra N, cùng sinh `PO-yymmdd-001`; ràng buộc
+   duy nhất `poCode` (`schema.prisma:622`) làm một người nhận **lỗi 500** thay vì thông báo dễ hiểu.
+   Một người dùng thì gần như không gặp — **12 người kiểm đồng thời thì chắc chắn gặp**.
+2. **Đếm ≠ số thứ tự lớn nhất.** Xoá một đơn trong ngày là `count()` tụt xuống, mã sinh ra **đè lên
+   mã đang tồn tại** — lỗi này xảy ra NGAY CẢ KHI chỉ một người dùng. Script hoàn tác
+   `backend/scripts/revert_test_po_20260813.sql` có xoá PO, nên đây là rủi ro thật.
+
+**Cách sửa:** lấy số thứ tự LỚN NHẤT đang có thay cho số lượng; và bọc giao dịch trong vòng thử lại
+(tối đa 5 lần) bắt lỗi `P2002` trên `poCode`. Không có khoá nào ngăn được hai giao dịch cùng đọc một
+giá trị, nên phải chịu được va chạm thay vì cố tránh.
+
+**Files:**
+  - backend/src/controllers/bidAnalysisController.js:1673-1700 — thay `count()` bằng `soThuTuLonNhat()`
+  - backend/src/controllers/bidAnalysisController.js:1774-1790 — vòng thử lại bắt `P2002`
+
+**Verify:** mô phỏng trong giao dịch rồi ROLLBACK — tạo `PO-260817-001/002/003`, xoá `-002`:
+  · bản cũ sinh `PO-260817-003` → **trùng mã đang tồn tại** (`t`)
+  · bản mới sinh `PO-260817-004` → không trùng (`f`)
+  PurchaseOrder sau rollback = 0. `node --check` sạch. `npm test` **20/20 × 3 lần liên tiếp**.
+
+**Ghi nhận thêm:** một lần chạy `npm test` ra 18/20 rồi 5 lần sau đều 20/20, kể cả trên bản gốc —
+**bộ test chập chờn khi có hoạt động đồng thời**. Đáng lưu ý cho kế hoạch 12 người kiểm cùng lúc.
+
+**⚠️ Chưa có hiệu lực:** backend chạy `node src/app.js` không có `--watch`, phải khởi động lại.
+
+**Rollback:** `git checkout backend/src/controllers/bidAnalysisController.js` rồi khởi động lại backend.
+
+---
 
 ### 2026-08-17 13:55 | test: kiểm thử trước bàn giao — kết luận CHƯA BÀN GIAO ĐƯỢC
 
