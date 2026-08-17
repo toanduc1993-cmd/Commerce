@@ -24,6 +24,62 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | tra cứu: soát lại cầu nối mã vật tư PR ↔ kho ↔ kế toán (anh Huyến)
+
+Anh Hưng chuyển lời anh Huyến: đã thống nhất xong toàn bộ mã vật tư từ PR đến kho, kế toán.
+Em soát lại — kết luận trước của em ("không có cầu nối") là **vội**, có cầu nối thật; nhưng đo
+vào dữ liệu sống thì **đầu PR vẫn chưa nối được**.
+
+**Những tệp em bỏ sót lần trước, nay đã mở:**
+- `03_CSDL_CHUAN/CSDL_VATTU_CHUAN.xlsx` — `mat_master` 9.653 dòng (mat_code · ma_chuan_v2 · nhóm ·
+  kích thước · mác · tên chuẩn · giá kế toán TB) · `price_history` **2.538 dòng có CẢ mã dự án**
+  (095, 090, 097, 104, 109, 110, 071, 0106, 078LK…) · `supplier` 83
+- `02_DATABASE/SO_SANH_DB_vs_MASTER_HUYEN.xlsx` — sheet `01_Khop_ChenhGia` **chính là bảng bắc cầu**
+
+**Chính báo cáo của anh Huyến (11/06/2026) tự ghi tỉ lệ:**
+| | |
+|---|---:|
+| Database giao dịch (báo giá NCC) | 1.451 vật tư |
+| Material Master ACTIVE | 2.494 mã |
+| **Khớp được mã chuẩn** | **228** |
+| — khớp tên chính xác | **57** |
+| — khớp loại+kích thước, **nhiều ứng viên, cần soát** | 171 |
+| **KHÔNG khớp, cần chuẩn hoá** | **1.223** |
+
+Lưu ý: "Database" trong báo cáo đó là **cơ sở báo giá NCC**, không phải bảng PR của nền tảng.
+
+**Em đo thêm 5 đường ghép vào dữ liệu SỐNG (6.339 dòng PrDetail):**
+| Đường ghép | Khớp |
+|---|---:|
+| Tên vật tư → cầu nối `01_Khop_ChenhGia` | 0/1.968 |
+| Tên vật tư → `ten_chuan` (mat_master) | 13/1.968 |
+| Tên vật tư → `ten_vat_tu_goc` (price_history) | 4/1.968 |
+| Tên vật tư → `final_name` (ACTIVE_CATALOG) | 13/1.967 |
+| Quy cách nằm trong tên báo giá | 15/4.397 |
+| Quy cách == `kich_thuoc` (mat_master) | 0/4.397 |
+
+**NGUYÊN NHÂN GỐC — không phải lỗi dữ liệu, mà là hai danh mục của hai thứ khác nhau:**
+- Master ACTIVE của anh Huyến là **danh mục KHO / vật tư tiêu hao / MRO**: áo bảo hộ, bột giặt,
+  giầy BHLĐ, găng tay hàn…
+- PR của nền tảng là **vật tư kết cấu theo dự án**: tôn tấm, thép hình, bu lông kết cấu…
+- 13 mã khớp được đều là đồ tiêu hao (mũi doa, sứ lót đường hàn, bép cắt laser, thước cuộn) —
+  đúng chỗ hai tập giao nhau.
+
+Thêm nữa, hai bên **đặt tên theo hai cấu trúc khác nhau**: PR tách tên chung (`Thép hình-H`) ra
+khỏi quy cách (`H250x250x9x14x12000`) và mác; anh Huyến gộp tất cả vào một chuỗi
+(`CB 8.8 MDP Bu lông LGN ren suốt M16*50`). Ghép theo tên không thể chạy.
+
+**Bằng chứng phương pháp vẫn đúng:** 15 trường hợp khớp theo quy cách đều chính xác —
+`H250x250x9x14x12000 → VLC.H250.001`, `H300x300x10x15x12000 → VLC.H300.002`, `M16x50 → BL.L016.050`.
+Cách làm chạy được; chỉ là hai tập gần như không giao nhau.
+
+**Kết luận:** phần **kho ↔ kế toán** anh Huyến đã thống nhất xong thật (2.018/2.494 ACTIVE_MATCHED).
+Phần **PR ↔ kế toán** thì chưa — theo cả báo cáo của chính anh Huyến lẫn số đo trên dữ liệu sống.
+Có thể anh Huyến đã làm thêm sau 11/06 mà bản đó chưa nằm trong kho này; **cần hỏi lại anh Huyến
+xem có tệp mới hơn không** trước khi kết luận cuối.
+
+---
+
 ### 2026-08-17 | data: nạp bảng Inventory từ danh mục vật tư chuẩn của anh Huyến
 
 Bảng `Inventory` trước đợt này **rỗng hoàn toàn (0 dòng)**. Nay có **2.147 dòng tồn kho thật**.
