@@ -41,6 +41,9 @@ interface FabAlloc {
 }
 
 interface VatTuItem {
+  /** 17/08: mã phiếu PR của dòng — dùng cho lối tắt sang bước 1b và 1c. */
+  prId: string;
+  prRef: string;
   /** 17/08: mã dự án của dòng. Trước đây bảng gộp mọi dự án mà không cột nào
    *  cho biết dòng thuộc dự án nào — sau khi nạp 63 dự án thì không đọc nổi. */
   duAn: string;
@@ -120,6 +123,8 @@ function prsToGroups(prs: PRDetail[]): CategoryGroup[] {
     // Map PRDetail → VatTuItem
     const item: VatTuItem = {
       id: pr.id,
+      prId: pr.pr?.id ?? '',
+      prRef: pr.pr?.prRef ?? '',
       duAn: pr.pr?.project?.code ?? '—',
       stt: pr.itemCode,
       description: pr.itemName,
@@ -194,7 +199,10 @@ const TD_STICKY = `${TD_LEFT} sticky bg-white z-10`;
 // tiêu đề lệch dữ liệu một cột.
 // Cách chữa: ghim cứng width + minWidth + maxWidth, mốc tính từ chính bề rộng đó,
 // nội dung dài thì cắt bằng truncate và giữ đủ ở thuộc tính title.
-const STICKY_W = { duAn: 104, stt: 96, desc: 168, profile: 208 } as const;
+// 17/08: cột mã vật tư nay chứa thêm 2 lối tắt (1b, 1c) nên nới 96 → 132.
+// Bài học từ bảng theo dõi hôm 15/08: thêm biểu tượng mà không nới là mã bị cắt
+// cụt thành "195-VPK…".
+const STICKY_W = { duAn: 104, stt: 132, desc: 168, profile: 208 } as const;
 const STICKY_LEFT = {
   duAn: 0,
   stt: STICKY_W.duAn,                                        // 104
@@ -555,12 +563,36 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                         >
                           <div className="truncate">{item.duAn}</div>
                         </td>
+                        {/* Mã vật tư + LỐI TẮT LIÊN BƯỚC sang 1b và 1c.
+                            17/08/2026 — chuyển từ màn Theo dõi mua hàng về đây theo chỉ đạo
+                            của anh Hưng: 1b và 1c là mục con của bước 1 (Yêu cầu mua), nên
+                            lối vào phải nằm ở chính màn PR. */}
                         <td
                           className={`${TD_STICKY} font-mono text-[8px] text-slate-500`}
                           style={pin('stt')}
                           title={item.stt}
                         >
-                          <div className="truncate">{item.stt}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="truncate flex-1">{item.stt}</div>
+                            {item.prId && (
+                              <>
+                                <Link
+                                  href={`/kiem-tra-ton-kho?prId=${item.prId}`}
+                                  title={`1b · Đối chiếu tồn kho cho phiếu ${item.prRef}`}
+                                  className="shrink-0 w-[13px] h-[13px] inline-flex items-center justify-center text-slate-400 hover:text-[#1B365D] transition-colors overflow-hidden"
+                                >
+                                  <span className="material-symbols-outlined text-[12px] leading-none">inventory_2</span>
+                                </Link>
+                                <Link
+                                  href={`/lam-ro-ky-thuat?prId=${item.prId}`}
+                                  title={`1c · Làm rõ kỹ thuật cho phiếu ${item.prRef}`}
+                                  className="shrink-0 w-[13px] h-[13px] inline-flex items-center justify-center text-slate-400 hover:text-[#1B365D] transition-colors overflow-hidden"
+                                >
+                                  <span className="material-symbols-outlined text-[12px] leading-none">engineering</span>
+                                </Link>
+                              </>
+                            )}
+                          </div>
                         </td>
                         <td className={TD_STICKY} style={pin('desc')} title={item.description}>
                           <div className="truncate">{item.description}</div>

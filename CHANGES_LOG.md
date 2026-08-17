@@ -24,6 +24,48 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | fix(ui): chuyển LỐI TẮT LIÊN BƯỚC 1b/1c về đúng màn Yêu cầu mua
+
+Anh Hưng chỉ ra: màn **Theo dõi mua hàng** đang có lối tắt sang *Kiểm tra tồn kho* và
+*Làm rõ kỹ thuật*, nhưng theo cách đánh số ở thanh bên thì hai mục đó là **1b** và **1c** —
+mục con của **bước 1 · Yêu cầu mua (PR)**, tức giai đoạn đầu. Đặt ở màn Theo dõi là sai bước.
+
+**Tên gọi thống nhất từ nay — "lối tắt liên bước"**, chia hai họ:
+
+| Họ | Gồm | Nằm ở màn | Đặt tại ô |
+|---|---|---|---|
+| **Lối tắt bước 1** | 1b Kiểm tra tồn kho · 1c Làm rõ kỹ thuật | **Yêu cầu mua (PR)** | ô Mã vật tư |
+| **Lối tắt hạ nguồn** | 4 Hợp đồng · 5 Hàng về & QC · 6 Thanh toán | Theo dõi mua hàng | ô Số hợp đồng (`NutHopDong`) |
+
+Nguyên tắc: lối tắt đứng ở bước **sinh ra** dữ liệu, trỏ tới bước **dùng** dữ liệu đó.
+1b/1c là việc phải làm *trước* khi đi hỏi giá nên thuộc màn PR; 4/5/6 là việc *sau* khi có hợp
+đồng nên thuộc màn Theo dõi. Lối tắt hạ nguồn giữ nguyên chỗ cũ, không đụng.
+
+**Đã làm**
+- Gỡ 2 lối tắt khỏi `MasterTrackingTable` (ô Item/STT)
+- Thêm vào `PR090DetailView` (ô Item/STT), kèm `prId` và `prRef` vào `VatTuItem`
+- Chú thích tooltip nay có tiền tố bước: *"1b · Đối chiếu tồn kho cho phiếu …"*,
+  *"1c · Làm rõ kỹ thuật cho phiếu …"* — nhìn là biết mình đang ở nhánh nào
+- Nới cột mã vật tư `96 → 132px`. Đúng bài học 15/08 ở bảng theo dõi: thêm biểu tượng mà không
+  nới thì mã bị cắt cụt thành `195-VPK…`
+
+**Kiểm chứng trên trình duyệt**
+| | |
+|---|---|
+| Màn PR — lối tắt 1b/1c | **12.678** = 6.339 vật tư × 2 |
+| Màn Theo dõi — lối tắt 1b/1c | **0** |
+| Màn Theo dõi — lối tắt 4/5/6 | 197 × 3, giữ nguyên |
+| Cột mã vật tư | 132px, chữ **không bị cắt** |
+| Bấm thử 1c | nhảy đúng `/lam-ro-ky-thuat?prId=c09ad598-…`, trang mở đúng tiêu đề |
+| Nhãn rê chuột | *"1c · Làm rõ kỹ thuật cho phiếu I-068-ENG-001-REV 04"* — đúng mã phiếu thật |
+
+`npx tsc --noEmit` 0 lỗi · `/mua-hang` và `/theo-doi-mua-hang` đều HTTP 200.
+
+**Files:** `frontend/src/components/mua-hang/MasterTrackingTable.tsx` ·
+`frontend/src/components/mua-hang/PR090DetailView.tsx`
+
+---
+
 ### 2026-08-17 | bugfix: React cảnh báo thiếu `key` ở PR090DetailView
 
 Console báo *"Each child in a list should have a unique key prop — PR090DetailView"* mỗi lần vẽ

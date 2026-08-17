@@ -1015,31 +1015,12 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters }: MasterTrac
                           style={pin('item')}
                           title={pr.itemCode}
                         >
-                          {/* M-02 — 15/08/2026: lối vào 1b và 1c ngay trên dòng vật tư.
-                              Trước đây hai trang phụ chỉ vào được bằng cách gõ tay `?prId=`
-                              vào thanh địa chỉ: chúng bảo "mở trang này từ màn hình PR"
-                              nhưng màn hình PR không có đường nào dẫn tới. */}
-                          <div className="flex items-center gap-1">
-                            <div className="truncate max-w-[80px] flex-1">{pr.itemCode}</div>
-                            {pr.pr?.id && (
-                              <>
-                                <Link
-                                  href={`/kiem-tra-ton-kho?prId=${pr.pr.id}`}
-                                  title={`Đối chiếu tồn kho cho phiếu ${pr.pr.prRef ?? ''}`}
-                                  className="shrink-0 w-[14px] h-[14px] inline-flex items-center justify-center text-slate-400 hover:text-[#1B365D] transition-colors overflow-hidden"
-                                >
-                                  <span className="material-symbols-outlined text-[13px] leading-none">inventory_2</span>
-                                </Link>
-                                <Link
-                                  href={`/lam-ro-ky-thuat?prId=${pr.pr.id}`}
-                                  title={`Làm rõ kỹ thuật cho phiếu ${pr.pr.prRef ?? ''}`}
-                                  className="shrink-0 w-[14px] h-[14px] inline-flex items-center justify-center text-slate-400 hover:text-[#1B365D] transition-colors overflow-hidden"
-                                >
-                                  <span className="material-symbols-outlined text-[13px] leading-none">engineering</span>
-                                </Link>
-                              </>
-                            )}
-                          </div>
+                          {/* 17/08/2026 — anh Hưng chỉ ra: hai lối tắt 1b (tồn kho) và 1c
+                              (làm rõ kỹ thuật) là mục con của BƯỚC 1 — Yêu cầu mua, không
+                              thuộc màn Theo dõi. Đã chuyển sang PR090DetailView.
+                              Màn này chỉ giữ lối tắt HẠ NGUỒN (4 Hợp đồng · 5 Hàng về ·
+                              6 Thanh toán) trong ô số hợp đồng — xem NutHopDong. */}
+                          <div className="truncate">{pr.itemCode}</div>
                         </td>
 
                         {/* Description */}
