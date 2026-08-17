@@ -24,6 +24,67 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | data: bù ngày hàng về từ sổ nhập kho kế toán
+
+Anh Hưng duyệt. Ghép theo **số hợp đồng** giữa `ContractDetail` và bảng kê phiếu nhập kho của
+kế toán (`00.DATA/KE-TOAN/CT NK theo NCCCT VT.xlsx`, 17.244 dòng, 01/2022 → 12/2025).
+Script `backend/scripts/bu_ngay_hang_ve_20260817.js`, mặc định chạy thử.
+
+**Kết quả: ngày hàng về 102 → 656 dòng (gấp 6,4 lần).** Trong đó 491 dòng do đợt này bù.
+Con số lớn hơn ước tính 151 lúc chiều vì đã nạp thêm 3.843 dòng hợp đồng từ 57 dự án.
+Phủ nhiều dự án: VOGT060 124 · 095 44 · 075 43 · 074 38 · 071 32 · 070 31 · 068 20 …
+
+**ĐÂY LÀ SUY LUẬN Ở MỨC HỢP ĐỒNG, KHÔNG PHẢI NGÀY CỦA TỪNG DÒNG VẬT TƯ.**
+Mã vật tư kế toán (`VTS.BTLL.01`) và mã mua sắm (`I95-VTC01-001`) là hai hệ khác nhau, chỉ khớp
+5/8.702 — không nối được ở mức dòng. Nên mỗi hợp đồng lấy ngày nhập kho **muộn nhất** làm mốc
+"hàng về đủ", gán cho mọi dòng của hợp đồng đó. **Mọi dòng đều ghi dấu vết vào `notes`** để sau
+này lọc ra và thay bằng số liệu chính xác hơn.
+
+**Tự soát và tự gỡ 4 dòng bù sai.** Sau khi ghi, đối chiếu ngày về với ngày ký:
+- 487 dòng hợp lý (về sau khi ký, dưới 9 tháng)
+- 4 dòng **về TRƯỚC ngày ký** 106–363 ngày → số hợp đồng bị trùng giữa hai hợp đồng khác nhau,
+  phép ghép không đáng tin. **Đã gỡ**, ảnh chụp ở `_backup_arrivedDate_go_20260817`, và ghi lại
+  lý do vào `notes` thay vì xoá trắng.
+- 4 dòng không có ngày ký nên không đối chiếu được — giữ nguyên.
+Còn 8 dòng "về trước ngày ký" **có từ trước đợt này**, không phải do em, chưa đụng vào.
+
+**Gỡ lại toàn bộ:**
+```
+UPDATE "ContractDetail" SET "arrivedDate"=NULL,
+       notes = nullif(btrim(replace(notes,'[ngày hàng về suy từ sổ nhập kho kế toán — mức hợp đồng, 17/08/2026]','')),'')
+ WHERE notes LIKE '%suy từ sổ nhập kho kế toán%';
+```
+Sao lưu trước khi chạy: `backups/20260817_1505.sql.gz`.
+
+---
+
+### 2026-08-17 | tra cứu: tìm ra danh mục vật tư của anh Huyến
+
+Lần tìm trước em giới hạn độ sâu thư mục nên bỏ sót. Nay tìm lại, không giới hạn:
+
+`IBSHI/mua-hang/00.DATA/TỔNG HỢP THÔNG TIN MUA HÀNG IBSHI/`
+- **`IBS_HI_Material_Master_FINAL_2026-04-19.xlsx`** — "IBS HI Material Master Catalog FINAL",
+  chốt 19/04/2026, dựng từ 3 nguồn: NAS 31-3-2026 + KeToan Vattu + THR. 9 sheet:
+  **2.494 mã ACTIVE** (25 cột: mat_code, prefix, tên, đơn vị, tồn, giá trị tồn, số kho, giá bình
+  quân) · 476 dòng **chênh lệch KHO ↔ KẾ TOÁN cần chốt** · 7.159 mã hết dùng · tồn theo **31 kho**
+- `mat_code_xref_FINAL.csv` — **9.653 mã**, đối chiếu ba chiều kho ↔ kế toán 2023/24/25/26
+- `02_DATABASE/SO_SANH_DB_vs_MASTER_HUYEN.xlsx` — so sánh CSDL với master của anh Huyến
+- `02_DATABASE/MASTER_DATABASE_MUA_HANG.xlsx` — 8 sheet, dựng từ 53 dự án
+- `03_CSDL_CHUAN/CSDL_VATTU_CHUAN.xlsx` + `build_csdl.py`
+
+**Đo được:** 2.147 mã có số lượng tồn · **tổng giá trị tồn 66,8 tỷ đồng** · 2.018 mã
+ACTIVE_MATCHED (khớp cả kho lẫn kế toán).
+
+**Nhưng KHÔNG bắc được cầu sang mã mua sắm.** Trong 9.653 mã, số mã theo lối mua sắm
+(`I95-…`, `I90-…`) là **0**. Tiền tố toàn bộ là hệ kế toán: VLC 2.351 · VLP 2.186 · BL 1.733 ·
+VTS 1.033 … Nghĩa là master này chuẩn hoá **kho ↔ kế toán**, còn khoảng cách
+**kế toán ↔ mua sắm** vẫn chưa ai bắc.
+
+**Dùng được ngay cho:** bảng `Inventory` (đang 0 dòng) · làm giàu `Material` phía kế toán ·
+chốt 476 chênh lệch kho–kế toán. **Chưa dùng được cho:** nối sổ nhập kho 17.244 dòng vào PR.
+
+---
+
 ### 2026-08-17 | bugfix: màn Yêu cầu mua (PR) không chọn được dự án — lỗi do chính đợt tách module
 
 Anh Hưng báo: không thấy chỗ chọn theo dự án, và chọn một loại vật tư thì không biết đang mua
