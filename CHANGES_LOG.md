@@ -22,6 +22,49 @@
 
 ---
 
+## 2026-08-17
+
+### 2026-08-17 | data: nối tầng _index của kho Obsidian về bảng Material
+
+Khoá nối `ma_vat_tu_root` == `Material.rootKey`, khớp **4.440/4.440**.
+Script: `backend/scripts/nap_material_tu_kho_20260817.sql`. Áp tay bằng psql (RULE CỨNG #6).
+
+**Kết quả:**
+| | trước | sau |
+|---|---:|---:|
+| có mã nhóm vật tư | 2.646 | **3.906** (+1.260) |
+| có khối lượng đơn vị | 2.368 | **2.396** (+28) |
+
+**ĐÍNH CHÍNH con số em báo hôm 16/08.** Em nói "`unit_weight_derived_v1` phủ 100% cho 2.072
+dòng thiếu khối lượng". SAI — 100% là tỉ lệ khớp **khoá**, không phải tỉ lệ có **giá trị**.
+Tệp có 4.440 bản ghi nhưng chỉ **1.576** bản ghi thật sự có số (2.864 bản ghi còn lại là
+`no_pattern_matched`), và số đó gần như trùng hết với những dòng cơ sở dữ liệu **đã có** giá trị.
+Lấp được thật: **28 dòng**, không phải 2.072.
+
+**Nguyên tắc áp dụng: chỉ lấp ô TRỐNG, tuyệt đối không đè.** Kho cập nhật lần cuối 26/05,
+cơ sở dữ liệu chạy tới 08/2026 — đè là đi lùi. Quyết định này tránh được hỏng dữ liệu thật:
+kho áp **công thức tỉ trọng THÉP 7,85** cho tấm **cao su** —
+`cao su|pl08-585x1800l|natural rubber|m2` kho ghi 62,8 kg/m² (đúng bằng PL8 thép) trong khi
+cơ sở dữ liệu có 13,44 — sai gấp 4,7 lần. Một dòng nữa sai gấp 6,5 lần.
+
+**Chỗ hai bên lệch — KHÔNG tự sửa, để anh Hưng quyết.** Bảng `_review_Material_lech_20260817`:
+  - **103** dòng lệch khối lượng quá 5% (10 dòng là kho áp nhầm tỉ trọng thép)
+  - **123** dòng kho xếp mã nhóm khác cơ sở dữ liệu
+
+**Còn kẹt — chờ quyết định:** 534 vật tư không lấp được mã nhóm vì 3 mã chưa có trong danh mục
+`MaterialSubGroup` (khoá ngoại chặn): `VPK03` Phụ kiện kim loại khác (354) ·
+`VTC05` Thép tròn đặc / Rebar (175) · `VPK04` Sơn / Bông bảo ôn / Vật liệu phụ (80).
+
+**Bảng để lại:** `_backup_Material_20260817` (ảnh trước khi nạp) ·
+`_review_Material_lech_20260817` (danh sách lệch) · `_nap_uw` / `_nap_sg` (dữ liệu tạm, giữ
+để chạy tiếp nếu anh Hưng duyệt 3 mã nhóm trên).
+
+**Rollback:** câu lệnh nằm ở cuối file script, lấy lại từ `_backup_Material_20260817` theo id.
+
+**Sao lưu trước khi chạy:** `backups/20260817_0851.sql.gz` (956 KB).
+
+---
+
 ## 2026-08-16
 
 ### 2026-08-16 | SỬA LẠI: ràng buộc duy nhất FabricationCategory — em báo sai hôm 15/08
