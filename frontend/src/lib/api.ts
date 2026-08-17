@@ -1481,19 +1481,38 @@ export interface TechThreadRow {
   comments: TechCommentItem[];
 }
 
+/** Một dòng vật tư của phiếu — dùng cho ô chọn trong biểu mẫu nêu yêu cầu làm rõ. */
+export interface PrLineOption {
+  id: string;
+  itemCode: string;
+  itemName: string;
+  profile: string | null;
+  grade: string | null;
+  uom: string;
+}
+
 export interface TechThreadsResult {
   prId: string;
+  pr: { prRef: string; docNo: string | null; revNo: number | null };
+  project: { id: string; code: string; name: string } | null;
   summary: {
+    /** TỔNG dòng của phiếu — KHÔNG phải số dòng đang hiện. Số đang hiện là `raised`. */
     total: number;
+    /** Số dòng CÓ yêu cầu làm rõ (= rows.length). */
+    raised: number;
+    /** Trong số đó, bao nhiêu dòng chưa chốt. */
+    openIssues: number;
     pending: number;
     inDiscussion: number;
     clarified: number;
     substitutionRequested: number;
     approved: number;
     rejected: number;
+    /** = total − openIssues. */
     readyForRFQ: number;
   };
   rows: TechThreadRow[];
+  prLines: PrLineOption[];
 }
 
 export async function fetchTechThreadsByPR(prId: string): Promise<TechThreadsResult> {

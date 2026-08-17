@@ -1,7 +1,8 @@
 /**
  * techCommentController.js — F2: Làm rõ kỹ thuật per PrDetail
  *
- * GET  /api/v1/tech-comments?prId=<id>           → Lấy tất cả threads của 1 PR
+ * GET  /api/v1/tech-comments?prId=<id>           → CHỈ những dòng có yêu cầu làm rõ
+ *                                                  (kèm danh tính phiếu, dự án, và prLines)
  * GET  /api/v1/tech-comments/:prDetailId         → Thread cho 1 PrDetail
  * POST /api/v1/tech-comments/:prDetailId         → Thêm comment mới
  * PATCH /api/v1/tech-comments/:prDetailId/status → Cập nhật status (PENDING|CLARIFIED|SUBSTITUTION_REQUESTED|APPROVED|REJECTED)
@@ -15,10 +16,32 @@ const prisma = require('../lib/prisma');
 async function listThreadsByPR(req, res, next) {
   try {
     const { prId } = req.query;
-    if (!prId) return res.status(400).json({ error: 'prId required' });
+    if (!prId) return res.status(400).json({ error: 'Thiếu tham số prId' });
 
+    // Danh tính phiếu + dự án. Trang 1c mở bằng prId trên URL và KHÔNG đọc dự án
+    // đang chọn ở thanh bên, nên trước đây thanh bên ghi "0106" trong khi nội dung
+    // là phiếu của gói PKG-068 mà màn hình không có cách nào biết để cảnh báo.
+    const pr = await prisma.purchaseRequisition.findUnique({
+      where: { id: prId },
+      select: { id: true, prRef: true, docNo: true, revNo: true,
+                project: { select: { id: true, code: true, name: true } } },
+    });
+    // Thông báo tiếng Việt: chuỗi này hiện thẳng lên giao diện. Nhánh 404 là hành vi
+    // MỚI (trước đây prId không tồn tại vẫn trả 200 kèm danh sách rỗng), hay gặp nhất
+    // khi mở lại một đường dẫn cũ trỏ tới phiếu đã bị gộp hoặc xoá.
+    if (!pr) return res.status(404).json({ error: 'Không tìm thấy phiếu này — có thể phiếu đã bị gộp hoặc xoá. Hãy mở lại từ màn Yêu cầu mua (PR).' });
+
+    // Mẫu số thật của phiếu, tách khỏi số dòng đang hiện.
+    const totalPrLines = await prisma.prDetail.count({ where: { prId } });
+
+    // CHỈ lấy dòng THẬT SỰ có yêu cầu làm rõ (có ít nhất một bình luận kỹ thuật).
+    // Trước 17/08/2026 chỗ này lấy TOÀN BỘ dòng của phiếu rồi gán 'PENDING' cho dòng
+    // chưa có bình luận, giao diện dịch ra "Chưa làm rõ" — phiếu 230 dòng hiện 230 mục
+    // phải xử lý. Không có nguồn dữ liệu nào nói 230 dòng đó cần làm rõ; đó là suy diễn
+    // của mã nguồn. Bộ lọc some:{} sinh EXISTS, TechComment đã có @@index([prDetailId]).
     const details = await prisma.prDetail.findMany({
-      where: { prId },
+      where: { prId, techComments: { some: {} } },
+      orderBy: { itemCode: 'asc' },
       select: {
         id: true,
         itemCode: true,
@@ -39,10 +62,11 @@ async function listThreadsByPR(req, res, next) {
     const rows = details.map((d) => {
       const comments = d.techComments || [];
       const latestComment = comments[comments.length - 1] || null;
-      // Derive status from latest comment type, or default PENDING
-      const threadStatus = comments.length === 0
-        ? 'PENDING'
-        : (latestComment.threadStatus || 'PENDING');
+      // Lấy trạng thái từ bình luận GẦN NHẤT CÓ ĐẶT trạng thái. Bình luận loại 'NOTE'
+      // để threadStatus = null; nếu đọc thẳng bình luận cuối thì một ghi chú vu vơ sẽ
+      // kéo luồng đã CLARIFIED tụt ngược về PENDING.
+      const coTrangThai = [...comments].reverse().find((c) => c.threadStatus);
+      const threadStatus = coTrangThai ? coTrangThai.threadStatus : 'PENDING';
 
       return {
         prDetailId: d.id,
@@ -81,18 +105,46 @@ async function listThreadsByPR(req, res, next) {
       };
     });
 
+    // Còn vướng = yêu cầu đã nêu nhưng chưa chốt. REJECTED xếp vào nhóm còn vướng:
+    // đề nghị chuyển đổi bị từ chối nghĩa là vẫn phải mua theo yêu cầu gốc, chưa xong.
+    const CON_VUONG = ['PENDING', 'IN_DISCUSSION', 'SUBSTITUTION_REQUESTED', 'REJECTED'];
+    const dem = (tt) => rows.filter((r) => r.threadStatus === tt).length;
+    const conVuong = rows.filter((r) => CON_VUONG.includes(r.threadStatus)).length;
+
     const summary = {
-      total: rows.length,
-      pending: rows.filter((r) => r.threadStatus === 'PENDING' && r.commentCount === 0).length,
-      inDiscussion: rows.filter((r) => r.threadStatus === 'IN_DISCUSSION').length,
-      clarified: rows.filter((r) => r.threadStatus === 'CLARIFIED').length,
-      substitutionRequested: rows.filter((r) => r.threadStatus === 'SUBSTITUTION_REQUESTED').length,
-      approved: rows.filter((r) => r.threadStatus === 'APPROVED').length,
-      rejected: rows.filter((r) => r.threadStatus === 'REJECTED').length,
-      readyForRFQ: rows.filter((r) => ['CLARIFIED', 'APPROVED', 'PENDING'].includes(r.threadStatus) && r.commentCount >= 0).length,
+      // total = TỔNG DÒNG CỦA PHIẾU, không phải số dòng đang hiện (rows.length).
+      // Đổi nghĩa mà giữ tên: chỗ nào đọc summary.total phải hiểu lại cho đúng.
+      total: totalPrLines,
+      raised: rows.length,          // số dòng CÓ yêu cầu làm rõ
+      openIssues: conVuong,         // trong đó, số dòng chưa chốt
+      pending: dem('PENDING'),
+      inDiscussion: dem('IN_DISCUSSION'),
+      clarified: dem('CLARIFIED'),
+      substitutionRequested: dem('SUBSTITUTION_REQUESTED'),
+      approved: dem('APPROVED'),
+      rejected: dem('REJECTED'),
+      // Sẵn sàng hỏi giá = mọi dòng của phiếu TRỪ những dòng đang vướng làm rõ.
+      // Cách cũ đếm cả 'PENDING' vào diện sẵn sàng nên nút ghi "230 SKU sẵn sàng"
+      // ngay bên trên 230 thẻ "Chưa làm rõ" — tự mâu thuẫn.
+      readyForRFQ: totalPrLines - conVuong,
     };
 
-    return res.json({ prId, summary, rows });
+    // prLines: danh sách dòng vật tư của phiếu, để biểu mẫu nêu yêu cầu làm rõ có
+    // cái mà chọn. Sau khi lọc rows, đây là đường DUY NHẤT tạo được yêu cầu mới.
+    const prLines = await prisma.prDetail.findMany({
+      where: { prId },
+      orderBy: { itemCode: 'asc' },
+      select: { id: true, itemCode: true, itemName: true, profile: true, grade: true, uom: true },
+    });
+
+    return res.json({
+      prId,
+      pr: { prRef: pr.prRef, docNo: pr.docNo, revNo: pr.revNo },
+      project: pr.project,
+      summary,
+      rows,
+      prLines,
+    });
   } catch (err) {
     next(err);
   }

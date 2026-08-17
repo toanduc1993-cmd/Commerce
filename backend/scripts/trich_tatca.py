@@ -9,6 +9,10 @@ MOC=('item/','description','profile','grade','unit/','u.weight','net quantity')
 TRUONG={
  'itemCode':[r'item/\s*stt'], 'itemName':[r'description'], 'profile':[r'^profile'], 'grade':[r'^grade'],
  'uom':[r'unit/'], 'unitWeight':[r'u\.weight'],
+ # Cột ghi chú của kỹ thuật. Thiếu khai báo này là lý do 4.591 dòng PrDetail
+ # mất trắng ghi chú trong đợt nạp 17/08 — dò cột theo tên thì cột nào không
+ # khai báo sẽ bị bỏ qua lặng lẽ, không báo lỗi.
+ 'remarks':[r'^remarks?\s*/\s*ghi ch'],
  'netQty':[r'net quantity', r'q\.ty'], 'netWeight':[r'net quantity', r'weight/'],
  'ordQty':[r'total ordered', r'q\.ty'], 'ordWeight':[r'total ordered', r'weight/'],
  'remainQty':[r'tận dụng tồn kho', r'q\.ty'], 'remainWeight':[r'tận dụng tồn kho', r'weight/'],
