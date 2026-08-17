@@ -127,7 +127,9 @@
 
 - **Phát hiện:** 2026-08-16, khi quét trước lúc commit.
 - **Sự việc:** kho `github.com/toanduc1993-cmd/Commerce` để chế độ **PUBLIC**; mật khẩu
-  `VpiProcurement2026!` đã nằm trong lịch sử **đã đẩy lên**, ở **10 file**:
+  của người dùng `vpi_user` đã nằm trong lịch sử **đã đẩy lên**, ở **10 file** dưới đây.
+  *(Không chép lại chuỗi mật khẩu vào đây — kho đang PUBLIC, viết ra là tự khuếch đại lỗ hổng.
+  Tìm giá trị thật bằng `grep -rn PGPASSWORD backend/.env docker-compose.dev.yml`.)*
   `CHANGES_LOG.md` · `DEVOPS_NOTES.md` · `docker-compose.dev.yml` ·
   `backend/scripts/consume_p6_maps.py` · `consume_p6_pr_maps.py` ·
   `import_pr_mto_from_packages.py` · `scripts/bid_offer_claude_read_consume.py` ·
