@@ -1670,15 +1670,38 @@ async function createPoFromBid(req, res, next) {
       byVendor.get(vname).push(it);
     }
 
-    // Generate PO code helper (poCode unique)
+    // ─── BG-03 (17/08/2026): sinh mã đơn hàng an toàn khi nhiều người bấm cùng lúc ───
+    // Bản cũ có HAI lỗi:
+    //  1) Đếm số đơn đã có rồi cộng thêm, mà phép đếm nằm NGOÀI giao dịch. Hai người bấm
+    //     gần nhau cùng đếm ra N, cùng sinh PO-yymmdd-001; ràng buộc duy nhất poCode
+    //     (schema.prisma:622) làm một người nhận lỗi 500 thay vì thông báo dễ hiểu.
+    //     Một người dùng thì gần như không gặp; 12 người kiểm đồng thời thì chắc chắn gặp.
+    //  2) Dùng count() thay vì SỐ THỨ TỰ LỚN NHẤT. Xoá một đơn trong ngày là count tụt
+    //     xuống, mã sinh ra đè lên mã đang tồn tại — lỗi này xảy ra NGAY CẢ KHI chỉ một
+    //     người dùng. Script hoàn tác (backend/scripts/revert_test_po_*.sql) có xoá PO,
+    //     nên đây là rủi ro thật chứ không phải giả định.
+    // Cách sửa: lấy số thứ tự lớn nhất đang có, và thử lại khi đụng ràng buộc duy nhất —
+    // không có khoá nào ngăn được hai giao dịch cùng đọc một giá trị, nên phải chịu được
+    // va chạm thay vì cố tránh.
     const yymmdd = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-    let seqStart = 0;
-    const seqCount = await prisma.purchaseOrder.count({
-      where: { poCode: { startsWith: `PO-${yymmdd}-` } },
-    });
-    seqStart = seqCount;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const soThuTuLonNhat = async () => {
+      const rows = await prisma.purchaseOrder.findMany({
+        where: { poCode: { startsWith: `PO-${yymmdd}-` } },
+        select: { poCode: true },
+      });
+      return rows.reduce((max, r) => {
+        const n = parseInt(String(r.poCode).slice(-3), 10);
+        return Number.isFinite(n) && n > max ? n : max;
+      }, 0);
+    };
+
+    const LAN_THU_TOI_DA = 5;
+    let result;
+    for (let lanThu = 1; ; lanThu += 1) {
+      const seqStart = await soThuTuLonNhat();
+      try {
+        result = await prisma.$transaction(async (tx) => {
       const createdPOs = [];
       let seq = seqStart;
       for (const [vendorName, items] of byVendor.entries()) {
@@ -1772,7 +1795,19 @@ async function createPoFromBid(req, res, next) {
       });
 
       return createdPOs;
-    });
+        });
+        break;
+      } catch (err) {
+        const trungMa =
+          err?.code === 'P2002' && String(err?.meta?.target ?? '').includes('poCode');
+        if (!trungMa || lanThu >= LAN_THU_TOI_DA) throw err;
+        // Phiên khác vừa chiếm đúng mã này. Đọc lại số lớn nhất rồi thử lại.
+        (req.log || logger).warn(
+          { op: 'createPoFromBid', lanThu },
+          'Mã đơn hàng bị chiếm bởi yêu cầu khác — đang thử lại'
+        );
+      }
+    }
 
     res.status(201).json({
       success: true,
