@@ -2925,3 +2925,215 @@ git checkout HEAD~1 -- src/app/yeu-cau-bao-gia/ src/app/so-sanh-bao-gia/ src/app
 - Mobile responsive: < 768px sidebar collapse
 - E2E regression test
 
+
+## 17/08/2026 — Gộp dự án trùng · khôi phục ghi chú · lọc lại màn Làm rõ kỹ thuật
+
+Ba việc anh Hưng giao sau khi phát hiện màn 1c liệt kê cả 230 dòng của phiếu như thể
+dòng nào cũng cần làm rõ.
+
+### 1. Màn 1c chỉ hiện mục THẬT SỰ có yêu cầu làm rõ
+
+`listThreadsByPR` trước đây chạy `prisma.prDetail.findMany({ where: { prId } })` — không lọc
+gì — rồi gán `PENDING` cho dòng chưa có bình luận, giao diện dịch ra "Chưa làm rõ". Phiếu 230
+dòng hiện 230 mục phải xử lý. Không có nguồn dữ liệu nào nói vậy; đó là suy diễn của mã nguồn.
+
+Anh Hưng quyết: **không nhập dữ liệu sai lệch kỹ thuật từ Excel**, để biểu mẫu trống làm ví dụ.
+(Khối *Sai lệch kỹ thuật* chỉ có ở 7/128 file PR, và cả 7 đều là các bản sửa đổi của riêng gói
+068 — không dùng chung được.)
+
+- `backend/src/controllers/techCommentController.js` — lọc `techComments: { some: {} }`;
+  `summary` tách `total` (tổng dòng phiếu) / `raised` (có yêu cầu) / `openIssues` (chưa chốt);
+  `readyForRFQ = total − openIssues` thay cho cách cũ đếm cả `PENDING` vào diện sẵn sàng;
+  trả thêm `pr`, `project`, `prLines`; trạng thái luồng nay lấy từ bình luận gần nhất **có đặt**
+  trạng thái (trước đây một ghi chú `NOTE` kéo luồng đã `CLARIFIED` tụt về `PENDING`).
+- `frontend/src/app/lam-ro-ky-thuat/page.tsx` — thêm biểu mẫu *Nêu yêu cầu làm rõ*
+  (bắt buộc, vì sau khi lọc thì đây là đường duy nhất tạo dữ liệu); băng vàng cảnh báo khi phiếu
+  thuộc dự án khác dự án đang chọn ở thanh bên; dải chỉ đường ghi rõ mã dự án + số phiếu;
+  tách trạng thái trống làm hai (chưa ai nêu ≠ bộ lọc quá hẹp).
+- `frontend/src/lib/api.ts` — cập nhật `TechThreadsResult`, thêm `PrLineOption`.
+
+**Kiểm bằng trình duyệt.** Phiếu `068-TD-20241029`: 248 dòng của phiếu · 0 có yêu cầu ·
+nút "Tạo RFQ (248/248 SKU sẵn sàng)". Nêu thử một yêu cầu cho `A-60`
+(`S35C-JIS G4051 OR 35-GB/T699`) — đây là **lần đầu tiên đường ghi `TechComment` chạy thật**,
+bảng vốn 0 dòng: số tự đổi thành 1 có yêu cầu · 1 đang vướng · nút tụt còn **247/248**.
+Đã xoá dòng thử, `TechComment` về 0. `tsc` 0 lỗi.
+
+Nhánh 404 là **hành vi mới** (trước đây prId không tồn tại vẫn trả 200 kèm danh sách rỗng).
+Thông báo để tiếng Việt vì chuỗi này hiện thẳng lên giao diện.
+
+### 2. Gộp 3 cặp dự án trùng — `backend/scripts/gop_3_cap_du_an_20260817.sql`
+
+`009/PKG-009`, `068/PKG-068`, `075/PKG-075` — cùng một gói thầu bị hai trình nạp tạo thành hai
+dự án ở hai bản sửa đổi khác nhau. Dấu vết từ đợt nạp 58 dự án hôm 17/08: trình nạp theo dõi
+tạo dự án mới thay vì nối vào dự án PR đã có.
+
+**Giữ bên mã trần, xoá bên `PKG-`.** Bên mã trần nắm toàn bộ **410 dòng hợp đồng** (11 + 194 +
+205); bên `PKG-` có **0 tham chiếu ở cả 12 bảng** và **0 mã vật tư** mà bên kia chưa có.
+
+Một vòng phản biện đã bác kế hoạch đầu tiên và bác đúng chỗ cốt lõi — chi tiết ở mục *Sai đã
+sửa* bên dưới.
+
+Kết quả: `UPDATE 4` · `DELETE 287 / 3 / 3`. Project 66 → **63**, PR 107 → **104**,
+PrDetail 6.339 → **6.052**, ContractDetail **7.309 không đổi**, 0 dòng mồ côi, 0 cặp trùng còn lại.
+
+Ảnh chụp lùi lại: `_backup_{PrDetail,Project,PurchaseRequisition}_gop_20260817`.
+
+### 3. Khôi phục ghi chú kỹ thuật
+
+`trich_tatca.py` không khai báo cột `Remarks/ Ghi chú`, nên đợt nạp 17/08 bỏ qua nó lặng lẽ
+(dò cột theo tên thì cột nào không khai báo sẽ trượt, không báo lỗi). Riêng trình nạp MTO còn
+ghi đè bằng chuỗi cứng `Imported from <file>.xlsx`.
+
+- `backend/scripts/trich_tatca.py` — **vá gốc**: khai báo `'remarks'` trong `TRUONG`.
+- `backend/scripts/trich_ghichu_20260817.py` — trích riêng cột ghi chú, 57/59 dự án có cột này
+  (059 và VOGT 060 không có), 3.745 ghi chú.
+- `backend/scripts/nap_ghichu_20260817.js` — nạp, chỉ lấp ô trống, mặc định chạy thử.
+  Thêm 095 vào diện xử lý: `plan_nap.json` đánh dấu BỎ nhưng trình nạp riêng của 095 cũng không
+  đọc cột ghi chú nên nó thiếu y hệt.
+- `backend/scripts/{trich,nap}_ghichu_pr_20260817.{py,sql}` — 46 dòng còn lại lấy từ file PR gốc.
+
+Kết quả: ghi chú thật 1.461 → **3.680** (+2.407 từ kho theo dõi, +4 từ file PR), ô trống
+4.545 → **2.180**, dấu rác `Imported from` 46 → **0**. 1.458 ghi chú thật sẵn có **không bị đụng**.
+Ảnh chụp: `_backup_PrDetail_remarks_20260817`.
+
+Dấu `Imported from …` đặt về NULL vì nó là dấu vết trình nạp chứ không phải ghi chú nghiệp vụ,
+mà giao diện lại hiển thị nó như ghi chú. Nguồn gốc không mất: chuỗi này vẫn nằm ở
+`PurchaseRequisition.client` của đúng hai phiếu đó.
+
+### Sai đã sửa trong lúc làm
+
+- **Chốt an toàn bắn nhầm vì lỗi của chính em.** `to_regclass('public._backup_PrDetail_…')`
+  hạ chữ thường mọi định danh không có nháy kép nên báo thiếu bảng dù bảng có thật.
+  Phải bọc nháy kép bên trong chuỗi.
+- **Hằng số cứng trong chốt nghiệm thu.** Chốt ghi `ContractDetail = 7308` — mốc nhớ từ phiên
+  trước, thực tế đã là 7.309. Sửa thành so với giá trị **đo lúc mở giao dịch**: điều cần bảo đảm
+  là việc gộp không làm số này đổi, chứ không phải nó bằng một con số cụ thể.
+- **Trình trích ghi chú từ file PR đọc nhầm dòng đánh số cột.** Dòng `1,2,3,…,18` cũng khớp mẫu
+  `^\d+$` ở cột STT nên sinh ra "ghi chú" là chuỗi `15` (chính số thứ tự của cột ghi chú).
+  Thêm điều kiện: dòng vật tư thật luôn có mô tả. 6 ghi chú → 4 ghi chú thật.
+- **Kế hoạch gộp đầu tiên định chép `materialGroupCode`/`materialSubGroupCode` từ bên `PKG-`
+  sang, gọi đó là "thứ duy nhất bên kia đóng góp".** Phản biện chứng minh hai cột này do
+  `import_pr_mto_from_packages.py` dòng 64-72 sinh máy móc từ **chữ cái section** (A→VTC, B→VPK),
+  không đọc tên hay mác vật tư. 47/229 giá trị của 068 sai nghiệp vụ; ở 009 thì `A-14`/`A-15` là
+  **TẤM LẤY SÁNG composite** lại bị đóng dấu "thép carbon CT3/SS400/A36" — mà `A-15` đã có hợp
+  đồng thật tên đúng chữ *Mua bán tấm lợp Composite*. **Không chép.**
+- **Cũng không chép số lượng và quy cách.** Trình nạp MTO nhét KHỐI LƯỢNG (kg) vào `reqQty`
+  trong khi `uom` vẫn ghi `m2`/`m`, và gán cứng `toBuyQty = remainQty = reqQty`. Cả 34 ô
+  `profile` chỉ lặp bề dày trong ngoặc (`PL6` → `PL6 (6)`), riêng `A-78` còn sai (`PL1` → `PL1 (2)`).
+- **Bổ sung ngược đúng 4 ô**: mác vật liệu `A-1..A-4` của 068, `BRASS` → `BRASS-JIS -C2600 OR C2680`,
+  đối chiếu đúng chuỗi trong file nguồn `I-068-ENG-001-REV 04 (PR).xlsx`.
+- **Số ghi chú bị mất em từng báo sai.** Lúc đầu nói "4.207 ghi chú đang bị vứt" — đó là đếm trên
+  toàn bộ 128 file Excel kể cả các bản sửa đổi không hề nạp, không phải lượng mất trong CSDL.
+
+### Còn nợ, chưa làm
+
+- **Cặp dự án nghi trùng ngoài 3 cặp đã gộp** — chưa đụng, chờ anh Hưng quyết:
+  `PKG-063[10] + VOGT063[51]` · `060-LK[21] + VOGT060[272]` ·
+  `24-VPI-I-078[0] + 25-IBS-I-078[290] + 26-VPI-I-078-LK[8]` · `082[96] + 25-BRA-I-082[0]` ·
+  `25-BRA-I-090[446] + 25-BRA-I-090K[1] + 25-VPI-I-090[0]`.
+  Ba dự án rỗng (0 dòng) nhiều khả năng là vỏ rác do trình nạp PR không idempotent tạo ra.
+- **2.180 ô ghi chú vẫn trống** — phần lớn vì ô nguồn vốn trống, không phải mất.
+- **Nút "Tạo RFQ" vẫn hứa sai đích**: `/bao-gia` không đọc `?prId=`. Con số trên nút nay đúng
+  nhưng bấm vào vẫn không lọc theo phiếu.
+- `backend/scripts/nap_58_du_an_20260817.js` và `nap_095_tu_excel_duc_20260817.js` chưa truyền
+  trường `remarks`; lần nạp sau vẫn sẽ để trống nếu không sửa (trình trích đã vá xong).
+
+## 18/08/2026 — Nạp dữ liệu chuẩn phòng Thương mại (SCMS) vào hệ Vật Tư
+
+Anh Hưng giao nạp khu dữ liệu chuẩn `IBSHI/mua-hang/04.DATA-CHUAN-SCMS/`. Sau khảo sát,
+anh chốt: **"phần nào thiếu thông tin em loại ra khỏi cơ sở dữ liệu luôn, anh đang test thôi…
+dữ liệu chỉ là tham chiếu, không cần phức tạp quá."** Toàn bộ đợt này làm theo tinh thần đó.
+
+**Xác thực nguồn.** Cả 6 tệp khớp cả kích thước byte lẫn 16 ký tự đầu SHA-256 với
+`KHO-TRUNG-GIAN-IBSHI/0-SO/tracklog/TRACKLOG.tsv`. Vault chỉ ĐỌC, không ghi ngược một byte nào.
+Chỉ dẫn ghi 4 tệp kế toán ở `00.DATA/…`, thực tế ở `mua-hang/00.DATA/…`.
+
+### 0. Gỡ bẫy có sẵn — migration mồ côi
+
+`backend/prisma/migrations/20260528144307_f_bid_a_add_5_modes_foundation/migration.sql`
+KHÔNG phải SQL — nó là thông báo lỗi của `prisma migrate diff` bị ghi nhầm vào file. Prisma coi
+đây là migration CHƯA áp; ai chạy `prisma migrate dev` sẽ bị báo lệch và được đề nghị **reset,
+xoá sạch CSDL**. Đã chuyển vào `_archive/migrations-rac-20260818/` kèm ghi chú (không xoá).
+Bản thật `…144323` vẫn nguyên chỗ. Nay 7 thư mục / 7 bản đã áp — khớp.
+
+Mọi thay đổi lược đồ đợt này đều cập nhật `schema.prisma` cùng lúc; `prisma validate` sạch.
+
+### B1 — Sổ mã NCC → "Vendor"
+
+Thêm 2 cột (`accountingCode`, `groupCode`) + index. KHÔNG nhét `nhom` vào `categories`:
+cột đó đang mang hệ mã khác hẳn (VTC01/VDK/VPK, 60 dòng).
+
+`backend/scripts/nap_so_ma_ncc_20260818.js` — mặc định chạy thử, `--ghi` mới ghi.
+
+Loại 8/310 dòng: 1 dòng không có tên (`VTH.XXX.023`, mã còn chữ XXX), 6 dòng tên pháp lý trùng
+nhau trong chính sổ (`Vendor.name` là UNIQUE), 1 va chạm (`NCC.THINHPHAT.016` ↔ CSDL "Thịnh Phát"
+— loại thay vì thêm mới, nếu không sẽ đẻ ra hai NCC gần trùng vì Postgres phân biệt hoa thường).
+
+**KHÔNG đè dữ liệu thật.** Sổ chỉ là nguồn chuẩn cho 3 trường `code`/`accountingCode`/`groupCode`;
+`taxCode`, `address`, `name` chỉ được LẤP Ô TRỐNG. Lý do đo được: sổ ghi Hùng Nguyên MST
+`0200731945` còn CSDL đang `0200731944` — lệch đúng một chữ số cuối, chưa biết bên nào đúng, mà
+đây là NCC lớn nhất (1.477 dòng hợp đồng); và 38 ca sổ ghi đè địa chỉ bằng bản sai chính tả
+(WELDCOM 'Ngô Gia Tự' → 'Ngô Gia Tợ') hoặc địa chỉ nơi khác hẳn.
+
+Kết quả: Vendor **189 → 420** · có mã **0 → 302** · mã kế toán **274** · nhóm **302** ·
+MST **79 → 237**. Ảnh chụp `_backup_Vendor_soma_20260818`.
+
+### B2 — Danh mục mã vật tư anh Huyến → bảng "MatCode"
+
+Bảng TRA CỨU riêng, **không gộp vào "Material"**. Đo thật: Material (4.440 dòng, bóc từ hồ sơ) và
+mat_code (kho + kế toán) là hai tập rời nhau — khớp 0/4.440 theo mã, 4/4.440 theo tên. Ép gộp là
+bịa cầu nối. Cầu nối THẬT đã có: `Inventory.itemCode` chính là `matCode`.
+
+`backend/scripts/nap_matcode_20260818.py`. Loại 7.159/9.653 mã không có tên ở CẢ `name_kho` lẫn
+`name_ketoan` — không tra cứu được thì giữ vô nghĩa.
+
+Kết quả: **2.494 mã** (đúng bằng sheet ACTIVE_CATALOG của file gốc), trong đó **2.018
+ACTIVE_MATCHED** — khớp chính xác con số chỉ dẫn nêu. `Inventory` nối sang MatCode **2.147/2.147 =
+100%**. 5 cặp mã trùng spec: giữ cả hai, không hợp nhất (3/10 mã trong danh sách không tồn tại).
+
+### B5 — Bảng kê phiếu nhập kế toán → bảng "AccountingInbound"
+
+Bảng phẳng riêng. KHÔNG ép vào `GoodsReceivedNote`/`GRNLineItem`: hai bảng đó đòi
+`purchaseOrderId` NOT NULL + khoá ngoại (3.249 dòng không có PO) và `GRNLineItem` không có cột tiền.
+
+`backend/scripts/nap_nhap_kho_ke_toan_20260818.py`. Đọc đúng **17.244 dòng** như chỉ dẫn nêu;
+loại 630 dòng số lượng bằng 0 (không tính được đơn giá thực).
+
+Hai chi tiết trong chỉ dẫn KHÔNG khớp thực tế, đã làm theo dữ liệu:
+- Dự án và số hợp đồng nằm ở **cột riêng** `Vụ việc` / `Hợp đồng`, không phải trong `Diễn giải`.
+- KHÔNG áp quy tắc biến thể mã vật tư `.01↔.001`, `O↔0`: đo thật chỉ cứu thêm 155 mã, trong đó
+  chỉ 28 xác minh được bằng tên và **16 ca bắt sang vật tư khác hẳn**. Giữ nguyên mã kế toán.
+- Chỉ dẫn nói `ma_ke_toan` gộp nhiều mã bằng dấu `+`; đo thật **0/310 dòng sổ có dấu `+`**.
+
+Kết quả: **16.576 dòng · 432,84 tỷ đ** (38 dòng trùng khít bị khoá chống nạp lại gộp).
+Nối NCC **16.024/16.576** · nối MatCode **6.762** · có mã dự án **16.327**.
+
+### B3 và B4 — KHÔNG nạp
+
+- **B3 (1.995 dòng PR)**: **1.973/1.995 đã có sẵn** trong CSDL; 618 dòng trùng ngay trong chính
+  tệp nguồn; tệp không có số lượng mà `PrDetail` bắt buộc phải có; gói G-16 chưa có dự án.
+  Nạp là nhân đôi nhu cầu mua.
+- **B4 (1.732 dòng báo giá)**: **cả 1.732/1.732 dòng không có giá**; cột `sl_pr` lệch cột ở 1.686
+  dòng; gói 090 có 154 dòng nhưng không dòng nào khớp PR.
+
+Cả hai chờ bảng nối item↔mat_code và bản bóc tách lại.
+
+### Sai đã sửa trong lúc làm
+
+- `to_regclass` / `ON CONFLICT ON CONSTRAINT` — em tạo unique **INDEX** nhưng tham chiếu như
+  **CONSTRAINT**, Postgres không tìm thấy tên. Đổi sang dạng liệt kê cột. (Cùng loại bẫy đã ghi
+  trong mục 17/08.)
+- psycopg2 không đặt `client_encoding` thì lấy mã hoá môi trường (ascii) và ném
+  `UnicodeEncodeError` ngay tên vật tư có dấu đầu tiên.
+- Một đoạn Python ghi `schema.prisma` tự đè lên chính nó làm mất model vừa thêm; đã ghi lại
+  bằng heredoc và `prisma validate` xác nhận sạch.
+
+### Đã giao
+
+`docs/CAN-CAP-MA-TRA-VE-PHONG-TM-20260818.md` — **170 mục ngoài sổ** cần phòng TM cấp mã
+(gồm 22 NCC có MST thật mà sổ còn thiếu). Hệ thống **không tự cấp mã nào**, đúng luật số 2.
+
+### Còn chờ anh Hưng
+
+MST Hùng Nguyên `0200731944` hay `0200731945` · bản sổ vá cho 8 dòng bị loại ·
+3/10 mã trong danh sách chờ hợp nhất không tồn tại trong sổ 9.653 mã.

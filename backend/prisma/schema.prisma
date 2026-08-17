@@ -548,6 +548,9 @@ model Vendor {
   name            String   @unique // Tên công ty
   shortName       String?  // Tên gọi tắt (VSAN, GNEE, APEC)
   taxCode         String?  // Mã số thuế
+  // Sổ mã NCC chính thức phòng TM (anh Hưng duyệt 17/08/2026) — 18/08/2026
+  accountingCode  String?  // ma_ke_toan: khoá nối sang phần mềm kế toán. KHÔNG unique (JFESHOVN, GLOBAL dùng chung)
+  groupCode       String?  // nhom: THEP · VTH · DIEN · TPHU … KHÔNG nhét vào categories (cột đó đang mang hệ mã VTC01/VDK khác hẳn)
   address         String?
   city            String?
   country         String?  @default("Việt Nam")
@@ -572,6 +575,7 @@ model Vendor {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  accountingInbounds AccountingInbound[]
 
   @@index([name])
   @@index([taxCode])
@@ -733,4 +737,60 @@ model AlertResolution {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("alert_resolution")
+}
+
+/// Sổ mã vật tư chuẩn của anh Huyến (mat_code_xref_FINAL.csv, 18/08/2026).
+/// Bảng TRA CỨU riêng, KHÔNG gộp vào Material: đo thật thì Material (4.440 dòng, bóc từ hồ sơ)
+/// và mat_code (kho + kế toán) là hai tập rời nhau — khớp 0/4.440 theo mã, 4/4.440 theo tên.
+/// Cầu nối đang dùng được: Inventory.itemCode CHÍNH LÀ matCode, khớp 2.147/2.147.
+model MatCode {
+  matCode       String   @id
+  prefix        String?
+  name          String
+  nameKetoan    String?
+  uom           String?
+  mappingStatus String?
+  inKho         Boolean  @default(false)
+  onHandQty     Float?
+  onHandValue   Float?
+  unitPriceAvg  Float?
+  khoList       String?
+  source        String   @default("HUYEN_XREF_20260817")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([prefix])
+  @@index([mappingStatus])
+}
+
+/// Bảng kê phiếu nhập của kế toán 2022–2025 (CT NK theo NCCCT VT.xlsx, nạp 18/08/2026).
+/// Đây là THƯỚC ĐO lịch sử nhập kho — mọi lệch số về nhập kho lấy theo bảng này.
+/// Để riêng, KHÔNG ép vào GoodsReceivedNote/GRNLineItem: hai bảng đó đòi purchaseOrderId
+/// NOT NULL + khoá ngoại (3.249 dòng không có PO tương ứng) và GRNLineItem không có cột tiền.
+model AccountingInbound {
+  id             BigInt   @id @default(autoincrement())
+  docNo          String
+  docDate        DateTime
+  vendorAcctCode String?
+  vendorNameRaw  String?
+  matCode        String?
+  matNameRaw     String?
+  uom            String?
+  warehouse      String?
+  qty            Float
+  unitPrice      Float?
+  amount         Float
+  creditAcct     String?
+  projectRaw     String?
+  contractRaw    String?
+  note           String?
+  vendorId       String?
+  vendor         Vendor?  @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  source         String   @default("KE_TOAN_CT_NK_2022_2025")
+  createdAt      DateTime @default(now())
+
+  @@unique([docNo, docDate, matCode, qty, amount], name: "AccountingInbound_dedupe_key")
+  @@index([matCode])
+  @@index([vendorId])
+  @@index([docDate])
 }
