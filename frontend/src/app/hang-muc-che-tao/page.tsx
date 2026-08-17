@@ -195,7 +195,7 @@ export default function TrangHangMucCheTao() {
           </div>
           <div className="flex items-end justify-between gap-6 flex-wrap">
             <div>
-              <h1 className="text-heading font-bold text-[var(--color-brand,#002046)]">
+              <h1 className="text-h1">
                 Hạng Mục Chế Tạo
               </h1>
               <p className="text-caption text-slate-500 mt-1 max-w-2xl">

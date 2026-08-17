@@ -174,7 +174,7 @@ export default function LichSuMuaHangPage() {
       <div className="bg-white border-b border-slate-200 px-8 py-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-heading font-bold text-[var(--color-brand,#002046)]">Lịch Sử Mua Hàng</h1>
+            <h1 className="text-h1">Lịch Sử Mua Hàng</h1>
             <p className="text-body text-slate-500 mt-0.5">Tra cứu lịch sử đơn giá, nhà cung cấp và khối lượng theo mã vật tư</p>
           </div>
         </div>
@@ -254,7 +254,7 @@ export default function LichSuMuaHangPage() {
               <div className="bg-white rounded-xl border border-slate-200 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-heading font-bold text-[var(--color-brand,#002046)]">
+                    <div className="text-h3 text-[var(--color-brand,#002046)]">
                       {selectedItem.itemCode}
                     </div>
                     <div className="text-body text-slate-600 mt-0.5">{selectedItem.itemName}</div>

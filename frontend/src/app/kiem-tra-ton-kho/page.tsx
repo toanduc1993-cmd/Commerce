@@ -252,7 +252,7 @@ export default function KiemTraTonKhoPage() {
               <span className="material-symbols-outlined text-[14px]">chevron_right</span>
               <span className="font-medium text-slate-600">1b. Kiểm tra tồn kho</span>
             </div>
-            <h1 className="text-heading font-bold text-[var(--color-brand,#002046)]">Kiểm Tra Tồn Kho</h1>
+            <h1 className="text-h1">Kiểm Tra Tồn Kho</h1>
             {checkResult && (
               <div className="flex items-center gap-4 mt-2">
                 {[

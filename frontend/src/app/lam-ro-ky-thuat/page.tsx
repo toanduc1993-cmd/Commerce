@@ -407,7 +407,7 @@ export default function LamRoKyThuatPage() {
               <span className="material-symbols-outlined text-[14px]">chevron_right</span>
               <span className="font-medium text-slate-600">1c. Làm rõ kỹ thuật</span>
             </div>
-            <h1 className="text-heading font-bold text-[var(--color-brand,#002046)]">Làm Rõ Kỹ Thuật</h1>
+            <h1 className="text-h1">Làm Rõ Kỹ Thuật</h1>
             {summary && (
               <div className="flex flex-wrap items-center gap-4 mt-2">
                 {[
