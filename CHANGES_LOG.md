@@ -24,6 +24,73 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | data: nạp dự án 095 từ file theo dõi Excel của anh Đức
+
+Nguồn: `IBSHI/mua-hang/00.DATA/10 TH-MUA SẮM CÁC GÓI/Cập nhật 07-08-2026/2026 08 07 Theo dõi
+dự án 095_Rev D1.xlsx`, sheet `25-VPI-I-095` — 155 cột, 39 lần dự trù.
+Script: `backend/scripts/trich_095.py` (trích) · `nap_095_tu_excel_duc_20260817.js` (nạp) ·
+`bu_moc_ngay_095_20260817.js` (bù mốc ngày). Cả hai script nạp mặc định CHẠY THỬ, phải có `--ghi`.
+
+**Kết quả**
+| | trước | sau |
+|---|---:|---:|
+| PrDetail của 095 | 507 | **670** (+163) |
+| Hợp đồng của 095 | 478 | **949** (+471) |
+| Hợp đồng toàn hệ thống | 2.994 | **3.465** |
+| PrDetail toàn hệ thống | 1.816 | **1.979** |
+
+Thêm 471 dòng hợp đồng (439 trong nước VND · 32 nhập khẩu USD), bù 18 mốc bàn giao sản xuất
+và 1 mốc mời nghiệm thu vào những dòng sẵn có đang trống.
+
+**Mô hình đã kiểm trên dữ liệu thật:** 1.015 dòng sheet = 6 dòng tiêu đề nhóm + 1.009 dòng dữ
+liệu; 1.009 dòng = 556 mã vật tư, mỗi mã có 1 dòng "gốc" mang số lượng, các dòng sau là những
+lần ký hợp đồng khác nhau cho cùng mã → 556 PrDetail + 952 dòng hợp đồng.
+
+**Khử trùng — 481 dòng bỏ qua, đã truy đúng từng dòng:**
+374 dòng đã có sẵn trong cơ sở dữ liệu (Excel và CSDL khớp nhau) + 107 dòng lặp trong chính
+Excel (8 khoá, phần lớn khối lượng = 0). 374 + 107 = 481, khớp chính xác.
+
+**BỐN LỖI TỰ BẮT ĐƯỢC TRƯỚC KHI GHI**
+1. **Đếm hụt 1.242 tệp.** Tên tệp tiếng Việt trên macOS lưu ở hai dạng Unicode: 1.392 tệp NFD
+   (tổ hợp), chỉ 83 tệp NFC (dựng sẵn). Tìm bằng chuỗi NFC chỉ khớp 83 tệp. Chữ hiện lên giống
+   hệt nhau, byte thì khác. **Script lọc tệp theo tên mà không chuẩn hoá Unicode sẽ bỏ sót 80%
+   kho và vẫn báo chạy xong.**
+2. **Lệch múi giờ 1 ngày.** `new Date('2025-08-13T00:00:00')` được Node hiểu là giờ địa phương
+   (UTC+7) → lưu thành `2025-08-12T17:00Z`. Mọi mốc ngày sẽ lệch sớm một ngày. Vá bằng cách
+   gắn `'Z'`. Đã kiểm lại: `2025-08-13 00:00:00` → `2025-08-13T00:00:00.000Z`.
+3. **Dòng tổng cộng và tiêu đề nhóm.** Dòng 7 là tổng cộng (ngày = số nguyên 3.721.148, số HĐ = 0);
+   6 dòng VTC01/VTC02/VTC03/VTC04/VPK/VDK là tiêu đề nhóm. Nếu nạp thẳng sẽ có 7 dòng rác.
+4. **Vị trí cột đổi theo dự án.** 078 để khối hợp đồng ở cột 55, 095 ở cột 107. Đọc theo vị trí
+   cố định là sai — em đã dính đúng lỗi này trong lúc đo và phải làm lại. Bắt buộc dò theo TÊN
+   tiêu đề. Dò được 48/48 cột.
+
+**KHÔNG làm — có chủ ý**
+- Không đè quy cách, mác, đơn trọng, số lượng của 393 mã đã có. 10 chỗ hai bên ghi khác nhau
+  (4 quy cách, 6 mác) để nguyên, chờ anh Hưng và anh Đức quyết.
+- Ngày cần vật tư: lấp được **0**. 163 mã Excel có ngày thì cơ sở dữ liệu đã có sẵn; 230 mã cơ
+  sở dữ liệu còn trống thì Excel cũng không có. Không phải lỗi — giao của hai tập đúng bằng 0.
+- QC nghiệm thu: Excel trống hoàn toàn 0/1.015. Nạp xong vẫn không có dữ liệu nghiệm thu.
+
+**Còn tồn**
+- 86 mã chỉ có trong CSDL, phần lớn dạng `A###-ITEM-###` — rác do đầu nhập PR tự sinh mã theo
+  dấu thời gian. Chờ anh Đức xác nhận bỏ hay giữ.
+- 2 mã có nhiều dòng gốc (`I95-VTC01-044`, `I95-VTC01-045`) — script lấy dòng đầu.
+- Một hợp đồng ghi ngày ký 01/12/2026 (tương lai) — cần anh Đức kiểm.
+- **39 lần dự trù** trong file này. `PR090DetailView` vẫn ghi cứng 9 vòng.
+
+**Gỡ lại đợt nạp**
+```
+DELETE FROM "ContractDetail" WHERE "dataSource"='EXCEL_TRACKING' AND "projectCode"='25-VPI-I-095';
+DELETE FROM "PrDetail" WHERE "prId"='37ac3816-4156-4915-9502-aafdf7d1a765';
+DELETE FROM "PurchaseRequisition" WHERE id='37ac3816-4156-4915-9502-aafdf7d1a765';
+```
+Riêng 18 mốc ngày bù thêm thì khôi phục từ `backups/20260817_1336.sql.gz`.
+
+**Kiểm chứng:** `npm test` 20/20 · `tsc` 0 lỗi · 3 màn chính đều HTTP 200.
+**Bản đối chiếu gửi anh Hưng:** `exports/DOI-CHIEU-095-Excel-Duc-vs-CSDL-20260817.xlsx`, 6 sheet.
+
+---
+
 ### 2026-08-17 | data: nối tầng _index của kho Obsidian về bảng Material
 
 Khoá nối `ma_vat_tu_root` == `Material.rootKey`, khớp **4.440/4.440**.
