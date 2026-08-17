@@ -24,6 +24,71 @@
 
 ## 2026-08-17
 
+### 2026-08-17 | data: nạp 57 dự án còn lại từ kho theo dõi Excel của anh Đức
+
+Anh Hưng chốt: nạp dự án trước, tự dọn danh mục nhà cung cấp sau. Em đã nêu rủi ro
+(tên NCC dạng chữ tự do sẽ phải dọn trên hàng nghìn dòng) — anh giữ quyết định, em làm theo.
+
+Script: `trich_tatca.py` (trích 59 dự án) · `nap_58_du_an_20260817.js` (nạp).
+Mặc định CHẠY THỬ, phải có `--ghi`.
+
+**Kết quả**
+| | trước | sau |
+|---|---:|---:|
+| Dự án | 57 | **66** (+9 tạo mới) |
+| **Dự án CÓ dữ liệu vật tư** | **12** | **63** |
+| PrDetail | 1.979 | **6.339** (+4.360) |
+| ContractDetail | 3.465 | **7.308** (+3.843) |
+| Có ngày hàng về | 102 | **165** (+63) |
+| PurchaseRequisition | 52 | 107 |
+
+Bỏ qua 1.523 dòng hợp đồng trùng. Hợp đồng thêm: 4.193 trong nước (VND) · 121 nhập khẩu (USD).
+Hai dự án không nạp: **095** (đã nạp sáng nay) và **0102** (trùng dự án 25-SED-I-102 với `102`,
+giữ bản mới hơn 15/01 > 08/01).
+
+**Ghép mã dự án** — cơ sở dữ liệu đang trộn hai lối đặt mã (`002` lẫn `25-VPI-I-095`):
+31 khớp thẳng mã tệp · 13 rút mã từ tên sheet · 3 khớp sau khi bỏ dấu cách · 2 quyết theo bằng
+chứng · 10 tạo mới. Hai chỗ mập mờ giải bằng dữ liệu chứ không đoán:
+- `078` → **25-IBS-I-078** (290 dòng sẵn có, tiền tố `I78-` trùng Excel; `24-VPI-I-078` rỗng)
+- `071` → **24-BRA-I-071** (mã 071 duy nhất)
+
+**NĂM LỖI TỰ BẮT ĐƯỢC TRONG LÚC DỰNG BỘ TRÍCH** — không lỗi nào lọt vào cơ sở dữ liệu:
+1. **Chọn nhầm sheet.** Lấy sheet ĐẦU TIÊN khớp từ khoá → dự án 090 ra sheet phụ
+   "Vat lieu han -BRA090" chỉ 7 dòng thay vì bảng thật 704 dòng. Vá: chấm điểm mọi sheet,
+   lấy sheet nhiều cột nhất rồi nhiều dòng nhất.
+2. **Hàm đọc ô đóng gói biến vòng lặp.** `lambda` tham chiếu `og`/`ws` của vòng lặp nên sau khi
+   thoát vòng nó đọc nhầm sheet CUỐI CÙNG. Triệu chứng: số lần dự trù của 078 tụt 13 → 2.
+   Vá bằng tham số mặc định. **Đây là lỗi nguy hiểm nhất — sai âm thầm, không báo gì.**
+3. **Dòng đánh số cột và dòng tiêu đề phụ** lọt vào dữ liệu.
+4. **Bộ lọc dòng tiêu đề nhóm sai.** Xét cả quy cách, nhưng dòng nhóm để tên nhóm trong ô quy
+   cách nên không bị lọc. Chỉ được xét mã không có gạch nối VÀ không có đơn vị tính.
+5. **Khoá khử trùng ở chế độ chạy thử bị rỗng.** Chưa tạo PrDetail nên `prDetailId` = null,
+   mọi mã mới đụng nhau → bản xem trước báo 3.527 dòng trùng trong khi thật ra 1.523.
+   Bản xem trước sai thì không được phép chạy thật.
+
+**Cách nghiệm thu bộ trích:** chạy lại trên dự án 095 và đối chiếu với bản đã nạp sáng nay —
+phải ra đúng **1.009 dòng**. Đạt. Đây là mốc chuẩn cho mọi lần sửa bộ trích sau này.
+
+**Soát chất lượng sau nạp:** 0 hợp đồng mồ côi · 0 PrDetail mồ côi · 0 mã vật tư rỗng ·
+0 đơn giá âm. Còn **10 khối lượng âm**, **4 ngày ký trước 2020**, **3 ngày ký sau 2027** —
+là số liệu gốc trong Excel, em KHÔNG tự sửa.
+
+**Gỡ lại**
+```
+DELETE FROM "ContractDetail" WHERE "dataSource"='EXCEL_TRACKING';
+DELETE FROM "PrDetail" WHERE "prId" IN (SELECT id FROM "PurchaseRequisition" WHERE "docNo" LIKE '%-TD');
+DELETE FROM "PurchaseRequisition" WHERE "docNo" LIKE '%-TD';
+```
+Sao lưu trước khi chạy: `backups/20260817_1407.sql.gz`.
+
+**Kiểm chứng:** `npm test` 20/20 · `tsc` 0 lỗi · 4 màn chính HTTP 200.
+
+**Còn nợ:** danh mục nhà cung cấp chưa chuẩn hoá — 4.314 dòng hợp đồng nguồn EXCEL_TRACKING
+mang tên NCC dạng chữ tự do ("Hùng Nguyên", "Hùng Nguyên đơn 2", "Hùng Nguyên đơn 3" là một
+công ty). Anh Hưng tự dọn bằng danh sách v7 rồi nạp sau.
+
+---
+
 ### 2026-08-17 | data: nạp dự án 095 từ file theo dõi Excel của anh Đức
 
 Nguồn: `IBSHI/mua-hang/00.DATA/10 TH-MUA SẮM CÁC GÓI/Cập nhật 07-08-2026/2026 08 07 Theo dõi
@@ -734,6 +799,56 @@ bản vá này xử lý cả hai. Triệu chứng "tiêu đề lệch dữ liệ
 **Rollback:** `git checkout frontend/src/components/mua-hang/MasterTrackingTable.tsx
 frontend/src/components/mua-hang/PR090DetailView.tsx`
 (bản trước khi sửa còn ở `/tmp/mtt.bak` và `/tmp/pr090.bak` trong phiên này)
+
+---
+
+## 2026-08-17
+
+### 2026-08-17 13:55 | test: kiểm thử trước bàn giao — kết luận CHƯA BÀN GIAO ĐƯỢC
+
+**What:** Chạy bộ kiểm thử trước khi bàn giao cho 20 người dùng qua LAN. Xác nhận được phần đã sửa,
+nhưng phát hiện một khoản chặn nặng ở phân quyền.
+
+**ĐẠT:**
+- Bản vá CSRF (R-18) **sống trên Chrome**: `PATCH .../select-vendor` trả **200** — đúng yêu cầu hôm
+  14/08 trả 403 bốn lần. `selectedAt`/`selectedBy` đóng dấu (P1-4), `AuditLog` ghi
+  `BID_ITEM_VENDOR_SELECTED` với `from → to` (P0-4).
+- P0-3 chặn đúng: `create-po` trả **400** với `Đơn giá = 0 (phạm vi "X" — NCC không chào)`,
+  không sinh đơn hàng, gói giữ nguyên OPEN.
+- Bảng so sánh giá (14/08): 9 dòng × 4 cột khớp tuyệt đối CSDL; gói trộn tiền chấm giá thấp nhất
+  **riêng từng loại tiền**.
+- `npm test` **20/20**. `npx tsc --noEmit` **0 lỗi** — lỗi có sẵn ở `kiem-tra-ton-kho/page.tsx:463`
+  đã được sửa, xoá khỏi danh sách nợ.
+
+**KHÔNG ĐẠT — chặn bàn giao:**
+- **Phân quyền phủ 13%.** 92 route, chỉ 12 route dùng `restrictTo`. **41 route GHI dữ liệu không chặn
+  vai trò**, gồm `POST /bid-analyses/:id/create-po` (tạo đơn hàng thật), `DELETE /bid-analyses/:id`,
+  `POST /bid-analyses/:id/select-vendor`, `POST /prs/import`. Với 20 người khác bộ phận, bất kỳ ai
+  đăng nhập cũng duyệt được NCC và tạo được đơn hàng. Trớ trêu: route CŨ `/bids/:bidId/select-winner`
+  có chặn (BOD/ADMIN) còn route ĐANG DÙNG `/bid-analyses/:id/select-vendor` thì không.
+- **Chưa có 20 tài khoản.** CSDL 1 ADMIN. Có `POST /api/v1/admin/users` (ADMIN) nhưng không có màn
+  hình quản lý người dùng.
+- **Chế độ chạy + HTTPS chưa chốt.** `NODE_ENV=production` trên LAN qua HTTP sẽ làm cookie
+  `__Host-ibshi_csrf` không lưu được ⇒ 403 toàn bộ. `deploy/nginx/certs/` đang rỗng.
+- **Bốn bảng rỗng hoàn toàn** (PurchaseOrder, GoodsReceivedNote, Inventory, PrDetailFabAllocation)
+  — các màn hình tương ứng chưa từng chạy với dữ liệu thật.
+- **Bộ UAT lạc hậu 2,5 tháng.** Viết 29/05, chưa sửa lần nào; hệ thống nay 18 màn hình / 92 route,
+  **8 màn hình không có trong bộ kiểm**, tài liệu còn trỏ `/so-sanh-bao-gia` đã bị gộp vào `/duyet`.
+  Số liệu nền ghi 5 dự án / 245 HĐ / 124 NCC, thực tế **56 / 3.465 / 189**.
+
+**Files:**
+  - deploy/uat/UAT_CHECKLIST.md — thay bảng số liệu nền bằng số đo 17/08; thêm phần J (việc chặn
+    bàn giao), K (8 màn hình thiếu), L (ma trận vai trò), M (ma trận trình duyệt), N (LAN 20 người),
+    O (sau khi làm sạch dữ liệu). 225 → 321 dòng.
+  - docs/PROMPT-KIEM-THU-BAN-GIAO-20260817.md + .docx — prompt phiên kiểm thử.
+
+**Chưa làm:** làm sạch dữ liệu (chờ chốt bảng nào giữ/xoá và chứng minh phục hồi được), tạo 20 tài
+khoản, dựng LAN, chạy phần K→O.
+
+**Verify:** `npm test` 20/20 · `npx tsc --noEmit` sạch · `PATCH select-vendor` từ Chrome = 200 ·
+`create-po` dòng giá 0 = 400 · PurchaseOrder vẫn 0 · ContractDetail 3.465.
+
+**Rollback:** `git checkout deploy/uat/UAT_CHECKLIST.md` (tài liệu, không ảnh hưởng chạy).
 
 ---
 

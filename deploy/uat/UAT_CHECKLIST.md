@@ -1,5 +1,11 @@
 # UAT Checklist — IBS Procurement System
 
+> **Cập nhật 17/08/2026** — bản gốc viết ngày 29/05 và chưa sửa lần nào. Từ đó hệ thống đã lên
+> **18 màn hình / 92 route API**, trong đó **8 màn hình chưa hề có trong bộ kiểm này**. Phần A→I
+> là nội dung cũ (giữ nguyên, cần rà lại); phần **J→O là bổ sung 17/08** cho đợt bàn giao
+> 20 người dùng qua LAN. Tài liệu cũ còn trỏ tới `/so-sanh-bao-gia` — đường dẫn này đã bị gộp
+> vào `/duyet` và không còn tồn tại.
+
 **Ngày test:** \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
 **Môi trường:** ☐ Local ☐ Staging ☐ Production
 **Tester:** \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ (Phòng TM / Kỹ thuật)
@@ -7,26 +13,30 @@
 
 ---
 
-## Baseline dữ liệu hiện có (snapshot để so sánh)
+## Số liệu nền — đo lại ngày 17/08/2026
 
-| Mục            | Số lượng | Giá trị           |
-| -------------- | -------- | ----------------- |
-| Projects       | 5        | —                 |
-| PRs            | 5        | 1.351 items       |
-| Contracts      | 245 HĐ   | 76,9 tỷ VND       |
-| Contract items | 1.578    | (218 DN / 27 NK)  |
-| Bid analyses   | 81       | 172 vendor offers |
-| Vendor master  | 124      | —                 |
-| Payments       | 31       | —                 |
-| Arrivals       | 97       | 62 handover SX    |
-| Material cat.  | ~1.351   | VPK/VTC/VDK       |
+> Bảng cũ (5 dự án · 245 HĐ · 124 NCC) là số liệu tháng 5, đã lạc hậu hoàn toàn. Số dưới đây
+> lấy trực tiếp từ cơ sở dữ liệu ngày 17/08/2026.
 
-Top vendors theo giá trị HĐ:
+| Mục | Số lượng | Ghi chú |
+| --- | --- | --- |
+| Dự án | 56 | |
+| Yêu cầu mua (PR) | 52 | 1.979 dòng |
+| Chi tiết hợp đồng | 3.465 | ~219,6 tỷ VND |
+| Đợt báo giá | 251 | 2.188 dòng · 1.559 ô báo giá |
+| Nhà cung cấp | 189 | |
+| Danh mục vật tư | 4.440 | |
+| Lịch thanh toán | 31 | |
+| Hạng mục chế tạo | 17 | |
+| Nhật ký kiểm toán | 270 | |
+| **Đơn đặt hàng** | **0** | ⚠️ chưa từng dùng thật |
+| **Hàng về** | **0** | ⚠️ chưa từng dùng thật |
+| **Tồn kho** | **0** | ⚠️ chưa từng dùng thật |
+| **Phân bổ chế tạo** | **0** | ⚠️ chưa từng dùng thật |
+| **Người dùng** | **1** (ADMIN) | ⚠️ cần 20 tài khoản |
 
-1. **Hùng Nguyên** — 22,9 tỷ
-2. **VSAN** — 9,2 tỷ
-3. **Ngọc Hiếu** — 7,98 tỷ
-4. **MRO** — 5,88 tỷ
+Bốn bảng rỗng ở trên là vùng rủi ro cao nhất: màn hình tương ứng chưa bao giờ chạy với dữ liệu
+thật, nên lỗi ở đó sẽ chỉ lộ ra khi người dùng bắt đầu nhập.
 
 ---
 
@@ -223,3 +233,92 @@ Chọn 2 bid analysis từ Excel:
 - Phòng TM: \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ Ngày: \_\_\_\_\_\_
 - Phòng Kỹ thuật: \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ Ngày: \_\_\_\_\_\_
 - IT/PM: \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ Ngày: \_\_\_\_\_\_
+
+---
+
+# BỔ SUNG 17/08/2026 — cho đợt bàn giao 20 người dùng qua LAN
+
+## ⛔ PHẦN J — VIỆC CHẶN BÀN GIAO (làm trước, chưa xong thì chưa kiểm tiếp)
+
+| # | Việc | Hiện trạng đo được 17/08 | Xong |
+| --- | --- | --- | --- |
+| J1 | **Phân quyền theo vai trò gần như không có** | Có 92 route, **chỉ 12 route chặn theo vai trò (13%)**. **41 route GHI dữ liệu không chặn gì** — bất kỳ ai đăng nhập đều gọi được, gồm `POST /bid-analyses/:id/create-po` (tạo đơn hàng thật), `DELETE /bid-analyses/:id` (xoá đợt báo giá), `POST /bid-analyses/:id/select-vendor`, `POST /prs/import`. Với 20 người khác bộ phận thì một nhân viên kho có thể duyệt nhà cung cấp và tạo đơn hàng hàng tỷ đồng. | ☐ |
+| J2 | **Chưa có 20 tài khoản** | CSDL mới có 1 ADMIN. Có sẵn `POST /api/v1/admin/users` (chỉ ADMIN) nhưng **không có màn hình quản lý người dùng** — tạo xong ai sửa, ai khoá, ai đặt lại mật khẩu? | ☐ |
+| J3 | **Chế độ chạy + HTTPS** | Nếu đặt `NODE_ENV=production` mà chạy HTTP trên LAN thì cookie đổi thành `__Host-ibshi_csrf` kèm `Secure` (`csrfProtection.js:25-31`) — tiền tố `__Host-` bắt buộc HTTPS, trình duyệt sẽ không lưu và **toàn bộ thao tác ghi trả 403**, đúng lỗi ngày 14/08 nhưng nặng hơn. Có sẵn `deploy/nginx/` nhưng thư mục `certs/` rỗng. | ☐ |
+| J4 | **IP LAN cấp động** | `.env.local` ghi rõ IP `192.168.0.37` đã chết vì DHCP đổi sang `.39`. Một mình thì sửa lại là xong; 20 người thì cả hệ thống đứng. Cần IP tĩnh hoặc tên máy. | ☐ |
+| J5 | **Mật khẩu CSDL công khai trên GitHub** | Khoản C16 hoãn có chủ ý khi chỉ một người dùng. Còn hoãn được với 20 người trên LAN không? | ☐ |
+| J6 | **Sao lưu tự động chưa kiểm chứng** | `deploy/launchd/com.ibshi.vattu.backuppg.plist` có tồn tại, nhưng job launchd của dự án này từng lỗi quyền từ 24/07 — phải chứng minh nó chạy VÀ phục hồi được. | ☐ |
+
+## 🆕 PHẦN K — 8 màn hình chưa có trong bộ kiểm cũ
+
+| # | Màn hình | Kịch bản tối thiểu | Kết quả kỳ vọng | Pass |
+| --- | --- | --- | --- | --- |
+| K1 | `/duyet` | Mở tab So sánh báo giá một gói nhiều NCC | Mỗi cột hiện giá đúng của NCC đó; ô rẻ nhất tô vàng; cột "Chênh" ra `+x%` | ☐ |
+| K2 | `/duyet` | Gói trộn VND/USD | Hiện dải cảnh báo trộn tiền; **mỗi loại tiền có dấu "rẻ nhất" riêng** | ☐ |
+| K3 | `/duyet` | Duyệt một dòng có đơn giá 0 rồi bấm Tạo PO | Bị chặn, khung đỏ ghi `Đơn giá = 0 (phạm vi "X" — NCC không chào)`, không sinh đơn hàng | ☐ |
+| K4 | `/duyet` | Đổi lần lượt 5 chế độ chọn thầu | Cả 5 đều mở được khung riêng, không có lỗi 500 | ☐ |
+| K5 | `/theo-doi-mua-hang` | Mở danh sách, lọc, mở chi tiết | Không trang trắng, số khớp `/mua-hang` | ☐ |
+| K6 | `/hang-muc-che-tao` | Xem 17 hạng mục của một dự án | Hiện đủ, sửa được | ☐ |
+| K7 | `/phan-bo-che-tao` | Phân bổ một dòng PR vào hạng mục | ⚠️ Bảng đang **rỗng hoàn toàn** — đây là lần chạy thật đầu tiên | ☐ |
+| K8 | `/kiem-tra-ton-kho` | Nhập tồn kho từ Excel | Nhập xong hiện bảng kết quả (khối "Nhập tồn kho thành công" trước đây là mã chết, tsc đã sạch — kiểm lại bằng mắt) | ☐ |
+| K9 | `/lam-ro-ky-thuat` | Thêm một trao đổi kỹ thuật | Ghi được, hiện đúng vai người viết | ☐ |
+| K10 | `/lich-su-mua-hang` | Tra cứu lịch sử một vật tư | Ra kết quả, không lỗi | ☐ |
+| K11 | `/alerts` | Mở, đánh dấu đã xử lý một cảnh báo | Trạng thái đổi và giữ sau khi tải lại | ☐ |
+| K12 | `/warehouse`, `/inventory` | Ghi nhận một lô hàng về | ⚠️ Hai bảng **rỗng hoàn toàn** — lần chạy thật đầu tiên | ☐ |
+
+## 🧑‍🤝‍🧑 PHẦN L — Ma trận vai trò (bắt buộc, 6 vai trò)
+
+Mỗi phân hệ kiểm **hai chiều**: một vai trò được phép (thành công) và một vai trò không được phép
+(phải bị chặn **và** giao diện không hiện nút).
+
+| # | Vai trò | Việc thử | Kỳ vọng | Pass |
+| --- | --- | --- | --- | --- |
+| L1 | WAREHOUSE | Gọi `POST /bid-analyses/:id/create-po` | **Phải bị từ chối** — hiện tại KHÔNG chặn (xem J1) | ☐ |
+| L2 | QC | Gọi `DELETE /bid-analyses/:id` | **Phải bị từ chối** — hiện tại KHÔNG chặn | ☐ |
+| L3 | KY_THUAT | Duyệt NCC cho một dòng | **Phải bị từ chối** — hiện tại KHÔNG chặn | ☐ |
+| L4 | MUA_HANG | Duyệt NCC cho một dòng | Thành công | ☐ |
+| L5 | BOD | `POST /bids/:bidId/select-winner` | Thành công (route này CÓ chặn) | ☐ |
+| L6 | QC | `POST /receipts/qc-confirm` | Thành công (route này CÓ chặn) | ☐ |
+| L7 | Mọi vai trò | Đăng nhập, xem `/dashboard` | Thành công | ☐ |
+| L8 | Không phải ADMIN | `POST /admin/users` | Bị từ chối 403 | ☐ |
+
+## 🌐 PHẦN M — Ma trận trình duyệt (bắt buộc cả hai)
+
+Lý do: ngày 14/08 phát hiện cookie CSRF sai chuẩn làm **mọi thao tác ghi trên Chrome trả 403**
+trong khi **Safari vẫn chạy bình thường** — ẩn suốt 2,5 tháng vì chỉ kiểm bằng một trình duyệt
+(luật R-18). Đã vá và xác nhận trên Chrome ngày 17/08.
+
+| # | Việc | Chrome | Safari | Ghi chú |
+| --- | --- | --- | --- | --- |
+| M1 | Đăng nhập | ☐ | ☐ | |
+| M2 | Duyệt NCC một dòng (ghi dữ liệu) | ☐ | ☐ | phải 200, không 403 |
+| M3 | Đổi chế độ chọn thầu | ☐ | ☐ | |
+| M4 | Nhập Excel | ☐ | ☐ | |
+| M5 | Tạo đơn hàng | ☐ | ☐ | |
+| M6 | Đổi mật khẩu | ☐ | ☐ | |
+
+## 📡 PHẦN N — Chạy trên LAN, 20 người
+
+| # | Kịch bản | Kỳ vọng | Pass |
+| --- | --- | --- | --- |
+| N1 | Máy khác mở `http://<IP hoặc tên máy>:3000` | Vào được trang đăng nhập | ☐ |
+| N2 | Đăng nhập từ máy khác | Thành công, không lỗi CORS | ☐ |
+| N3 | Ghi dữ liệu từ máy khác | 200, không 403 | ☐ |
+| N4 | **12 người cùng kiểm đồng thời, toàn bộ tính năng** | Không ai bị chặn nhầm bởi giới hạn số lần gọi; không trang trắng; không lỗi 500 | ☐ |
+| N4a | 2 người cùng mở một gói, cả hai cùng duyệt một dòng | Người sau phải được báo "dữ liệu đã thay đổi", **không ghi đè im lặng** (xem C-04) | ☐ |
+| N4b | 2 người bấm "Tạo PO" cùng lúc trên hai gói khác nhau | Cả hai thành công, hai mã đơn hàng khác nhau, **không ai nhận lỗi 500** (xem BG-03) | ☐ |
+| N4c | 12 người cùng nhập Excel trong 10 phút | Không ai chạm trần giới hạn tải file 20 lần/10 phút (xem TB-04) | ☐ |
+| N5 | Khởi động lại máy chủ | Người dùng vẫn đăng nhập được, không phải xoá bộ nhớ đệm | ☐ |
+| N6 | Đổi IP (mô phỏng DHCP cấp lại) | Có phương án — tên máy hoặc IP tĩnh | ☐ |
+
+## 🧹 PHẦN O — Sau khi làm sạch dữ liệu
+
+Chạy **sau** khi xoá dữ liệu giao dịch. Hệ thống rỗng dễ lộ lỗi mà dữ liệu đầy che mất.
+
+| # | Kịch bản | Kỳ vọng | Pass |
+| --- | --- | --- | --- |
+| O1 | Đã sao lưu ra file **và thử phục hồi thành công** trước khi xoá | Bắt buộc — chưa chứng minh lùi được thì chưa được xoá | ☐ |
+| O2 | Mở cả 18 màn hình khi chưa có dữ liệu | Không trang trắng, không lỗi chia cho 0, có dòng "chưa có dữ liệu" | ☐ |
+| O3 | `/dashboard` khi mọi bảng rỗng | Các ô chỉ số hiện 0, không hiện `NaN` hay `undefined` | ☐ |
+| O4 | Tạo mới một dự án → PR → báo giá → duyệt → đơn hàng | Đi trọn luồng trên dữ liệu sạch | ☐ |
+| O5 | Dữ liệu chủ còn nguyên | Vật tư, nhà cung cấp, dự án giữ lại theo thoả thuận | ☐ |
