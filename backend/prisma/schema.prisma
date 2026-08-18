@@ -194,6 +194,11 @@ model PrDetail {
   materialGroupCode   String?  // VTC | VPK | VDK | VBP | VTH | VTS | VTP
   materialSubGroupCode String? // VTC01 | VTC02 | VPK01 ...
   itemCode            String
+  // Cầu nối sang sổ mã vật tư anh Huyến ("MatCode"). Mã dòng PR (071-A-1) và mã kho
+  // (BAH.AOBH.001) là hai hệ khác hẳn — trước khi có cột này, bước 1b so thẳng hai
+  // cột itemCode nên chỉ khớp 7/6.052 dòng và báo "không có tồn" cho gần như mọi thứ.
+  matCode       String?  // = MatCode.matCode = Inventory.itemCode
+  matCodeSource String?  // NOI_MAY_CHUA_DUYET | PHONG_TM_DUYET — luôn phải biết mã này ai đặt
   itemName            String
   profile             String?  // PL10x2000x6000 | H200x200x8x12 ...
   grade               String?  // SS400 | A387 Gr11 | SA516-70

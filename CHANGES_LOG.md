@@ -3137,3 +3137,114 @@ Cả hai chờ bảng nối item↔mat_code và bản bóc tách lại.
 
 MST Hùng Nguyên `0200731944` hay `0200731945` · bản sổ vá cho 8 dòng bị loại ·
 3/10 mã trong danh sách chờ hợp nhất không tồn tại trong sổ 9.653 mã.
+
+## 18/08/2026 (chiều) — Cột mã vật tư anh Huyến trên màn PR và Theo dõi + vá cầu nối bước 1b
+
+Anh Hưng: *"phần danh mục yêu cầu mua hàng PR và phần tổng hợp thông tin mua hàng sao có cột
+dự án mà thiếu cột mã vật tư của anh Huyến… em điều chỉnh lại đi."*
+
+### Phát hiện lớn hơn đề bài — bước 1b đang hỏng ngầm
+
+Khi đi tìm chỗ đặt cột, phát hiện `inventoryCheckController` so THẲNG `PrDetail.itemCode` với
+`Inventory.itemCode`. Nhưng mã dòng PR là mã theo gói (`071-A-1`) còn mã kho là mã sổ anh Huyến
+(`BAH.AOBH.001`) — hai hệ khác hẳn. **Toàn hệ chỉ khớp 7/6.052 dòng.** Bước 1b vì thế báo
+"không có tồn" cho gần như mọi thứ — không phải vì hết hàng mà vì không nối được. Người dùng
+không có cách nào biết, vì màn hình vẫn hiện bình thường.
+
+Cột anh Hưng hỏi chính là mảnh còn thiếu, nên làm nó thành CẦU NỐI THẬT chứ không chỉ để hiển thị.
+
+### Thay đổi
+
+- **Lược đồ**: `PrDetail.matCode` + `PrDetail.matCodeSource` (+ index), đồng bộ `schema.prisma`.
+  `matCodeSource` bắt buộc phải có — luôn phải biết mã này do máy nối hay phòng TM duyệt.
+- **`backend/scripts/noi_prdetail_matcode_20260818.py`** — nối bằng chữ ký kích thước:
+  khoá = (phần chữ đầu của tên, bỏ dấu) + (dãy số trong quy cách).
+  `'Thép tròn' + 'RB20-L6000'` ↔ `'Thép tròn 20x6000'` → `VLC.TT20.002`.
+  CHỈ nhận khi một khoá ra ĐÚNG MỘT mã kho; 13 dòng trên 6 khoá nhập nhằng thì BỎ, không đoán —
+  đoán bừa sẽ khiến bước 1b trừ nhầm tồn kho của vật tư khác.
+  Kết quả: **128/6.052 dòng** nối được, tất cả mang cờ `NOI_MAY_CHUA_DUYET`.
+- **`inventoryCheckController`** — tra tồn theo `matCode` trước, `itemCode` chỉ là đường lui.
+- **`PR090DetailView`** + **`MasterTrackingTable`** — thêm cột dính *Mã kho/anh Huyến* (112px)
+  ngay sau Item/STT. Dấu `~` màu hổ phách = nối máy chưa duyệt; chưa nối thì hiện `—` xám.
+  `colSpan` dòng nhóm và dòng tổng ở PR090DetailView: 5 → 6.
+- **`types/procurement.ts`** — thêm `matCode`, `matCodeSource` vào `PRDetail`.
+  `getListPRs` dùng `include:` nên đã tự trả hai trường mới, không phải sửa.
+
+### Đo được
+
+| | trước | sau |
+|---|---:|---:|
+| PrDetail có mã kho | 0 | **128** |
+| Dòng PR đối chiếu được tồn kho (toàn hệ) | 7 | **107** |
+| Phiếu 25-SED-I-102 — số mã tra được tồn | 0 | **15** |
+
+Kiểm bằng trình duyệt: cột hiện đúng vị trí trên cả hai màn; `~VLC.O088.013` có dấu nối máy;
+màn 1b của phiếu 102 báo *"237 Tổng SKU · 15 Đủ tồn"* (trước là 0). `tsc` 0 lỗi.
+
+### Nói thẳng về độ phủ
+
+**128/6.052 = 2,1%** — thấp, và đó là sự thật chứ không phải lỗi nối. Hai bên đặt tên khác cấu
+trúc hẳn: PR tách ba trường (`thép tấm` / `PL3X1500X6000` / `SS400`), kho gộp cả vào một chuỗi
+(`Thép tấm 10x2000x6000 - SA240 GR 304`). Chỉ nối được khi cả tên gốc lẫn dãy số trùng khít.
+
+Chỉ dẫn phòng TM đã nói trước điều này: *"mã dòng PR CHƯA nối mat_code — bảng nối đang lập,
+đừng tự đoán."* Cột nay đã sẵn sàng; khi phòng TM giao bảng nối chính thức thì chỉ việc nạp đè
+với cờ `PHONG_TM_DUYET`, không phải sửa màn hình nào.
+
+Ảnh chụp lùi lại: `_backup_PrDetail_matcode_20260818`.
+
+## 18/08/2026 — Nghiệm thu B3→B7 nhánh so sánh giá: MỚI XONG B7, ĐANG DỞ
+
+### ⚠️ CHỐT AN TOÀN ĐANG CÒN BẬT — đọc trước khi làm gì với đơn hàng
+
+```sql
+ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "_guard_no_po_20260818" CHECK (false) NOT VALID;
+```
+
+**Mọi lệnh tạo đơn hàng (PO) sẽ bị Postgres từ chối** cho tới khi gỡ chốt:
+
+```sql
+ALTER TABLE "PurchaseOrder" DROP CONSTRAINT "_guard_no_po_20260818";
+```
+
+Chốt này thuộc bước B0 của kế hoạch nghiệm thu 14/08, bật lại hôm nay để một cú bấm nhầm ở
+bước B4 không tạo đơn hàng thật (~2,5 tỷ đ ở gói A). Đã tự thử: chèn thử một dòng thì báo đúng
+`violates check constraint "_guard_no_po_20260818"`. Dùng `NOT VALID` nên `PO-260817-001` sẵn có
+không bị đụng.
+
+### Đã xong
+
+- **B0 (làm lại)** — ảnh chụp mới của đúng 2 gói thử: `_bk_bqi_uitest_20260818` (50 dòng báo giá),
+  `_bk_bqv_uitest_20260818` (7 NCC), `_bk_ba_uitest_20260818` (2 gói). Ảnh 14/08 đã cũ 4 ngày.
+- **B7** — `vitest run` **20/20 đạt**; `tsc --noEmit` frontend **0 lỗi**. Đã kiểm trước: không file
+  test nào chạm `PurchaseOrder` nên chốt đang bật không làm sai kết quả.
+
+### Đang chặn
+
+**B3 · B4 · B4b · B5 · B6 chưa chạy** — phiên đăng nhập trình duyệt đã hết (cookie rỗng,
+localStorage trống), app đá về `/login`. Trợ lý không tự điền mật khẩu vào ô đăng nhập.
+Cần anh Hưng đăng nhập một lần rồi chạy tiếp.
+
+Hai gói thử vẫn nguyên vẹn, đúng điều kiện kế hoạch cần:
+`BID-VPI095-2605-VTC-003` OPEN/PER_BID · `BID-VPI095-2604-VTC-008` OPEN/PER_ITEM · cả hai **0 dòng
+đã duyệt**.
+
+### Mốc nghiệm thu của B6 phải đo lại
+
+6/11 chỉ tiêu đã trôi từ 14/08. B6 kiểm bằng **hằng số đo hôm 14/08** nên để nguyên sẽ báo hỏng
+dù không có gì hỏng — đúng lỗi đã mắc hôm qua ở script gộp dự án.
+
+| chỉ tiêu | mốc 14/08 | mốc MỚI (18/08) |
+|---|---:|---:|
+| PurchaseOrder | 0 | **1** |
+| ContractDetail | 2.994 | **7.309** |
+| BidQuoteItem đã duyệt | 508 | **522** |
+| selectedAt / selectedBy | 0 | **17** |
+| BidAnalysis SELECTED | 187 | **186** |
+| AuditLog | 158 | **297** |
+| BidAnalysis OPEN · isWinner · BidGroupSelection · BidVendorScore | 64 · 68 · 0 · 0 | khớp, không đổi |
+
+Phần *khôi phục* của B6 giữ nguyên — nó vốn chỉ chạm 2 gói thử, không đụng số liệu toàn hệ.
+
+`PO-260817-001` là sản phẩm hợp lệ của phiên khác hôm 17/08 (mốc `c1b2dad`), **không phải rác thử
+nghiệm** — không đụng vào.

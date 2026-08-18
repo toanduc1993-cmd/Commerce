@@ -29,6 +29,8 @@ async function checkInventoryForPR(req, res, next) {
       select: {
         id: true,
         itemCode: true,
+        matCode: true,
+        matCodeSource: true,
         itemName: true,
         profile: true,
         grade: true,
@@ -45,17 +47,21 @@ async function checkInventoryForPR(req, res, next) {
       return res.status(404).json({ error: 'PR not found or has no details' });
     }
 
-    const itemCodes = [...new Set(details.map((d) => d.itemCode))];
+    // Tra tồn kho theo matCode (sổ mã anh Huyến) TRƯỚC, itemCode chỉ là đường lui.
+    // Trước 18/08/2026 chỗ này so thẳng PrDetail.itemCode với Inventory.itemCode — nhưng
+    // mã dòng PR ('071-A-1') và mã kho ('BAH.AOBH.001') là hai hệ khác hẳn, chỉ khớp 7/6.052
+    // dòng. Bước 1b vì thế báo "không có tồn" cho gần như mọi thứ, không phải vì hết hàng.
+    const maTra = [...new Set(details.map((d) => d.matCode || d.itemCode).filter(Boolean))];
 
     const inventoryRows = await prisma.inventory.findMany({
-      where: { itemCode: { in: itemCodes } },
+      where: { itemCode: { in: maTra } },
       select: { itemCode: true, itemName: true, onHandQty: true, allocatedQty: true, availableQty: true, uom: true, warehouseLocation: true },
     });
 
     const invMap = new Map(inventoryRows.map((i) => [i.itemCode, i]));
 
     const rows = details.map((d) => {
-      const inv = invMap.get(d.itemCode);
+      const inv = invMap.get(d.matCode || d.itemCode);
       const available = inv?.availableQty ?? 0;
       let stockStatus;
       if (!inv || available <= 0) {
@@ -68,6 +74,8 @@ async function checkInventoryForPR(req, res, next) {
       return {
         prDetailId: d.id,
         itemCode: d.itemCode,
+        matCode: d.matCode,
+        matCodeSource: d.matCodeSource,
         itemName: d.itemName,
         profile: d.profile,
         grade: d.grade,

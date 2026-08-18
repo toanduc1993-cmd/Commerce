@@ -101,11 +101,12 @@ const TH2 =
 //   desc   : 170 + 10 = 180 (trước ghi 176)
 // Ba ô đều ghim width + minWidth + maxWidth nên bề rộng đo được luôn đúng bằng
 // con số ở đây. Đổi số nào thì đổi max-w của div truncate tương ứng.
-const STICKY_W = { project: 96, item: 128, desc: 180 } as const;
+const STICKY_W = { project: 96, item: 128, maKho: 112, desc: 180 } as const;
 const STICKY_LEFT = {
   project: 0,
-  item: STICKY_W.project,                          // 96
-  desc: STICKY_W.project + STICKY_W.item,          // 224
+  item: STICKY_W.project,                                        // 96
+  maKho: STICKY_W.project + STICKY_W.item,                       // 224
+  desc: STICKY_W.project + STICKY_W.item + STICKY_W.maKho,       // 336
 } as const;
 // Ghim cứng bề rộng ô dính — dùng chung cho cả th và td
 const pin = (k: keyof typeof STICKY_W) => ({
@@ -313,6 +314,17 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters }: MasterTrac
                 <div className="flex items-center justify-center gap-0.5">
                   Item/STT
                   <ColF col="itemCode" tableFilters={tableFilters} />
+                </div>
+              </th>
+              {/* Mã kho (sổ anh Huyến) — mã tra được tồn kho và sổ kế toán.
+                  Item/STT bên trái là mã theo gói, không tra được gì. */}
+              <th
+                rowSpan={2}
+                className={`${TH(G.item)} sticky z-40`}
+                style={pin('maKho')}
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  Mã kho/anh Huyến
                 </div>
               </th>
               <th
@@ -1021,6 +1033,30 @@ export function MasterTrackingTable({ prs, isLoading, tableFilters }: MasterTrac
                               Màn này chỉ giữ lối tắt HẠ NGUỒN (4 Hợp đồng · 5 Hàng về ·
                               6 Thanh toán) trong ô số hợp đồng — xem NutHopDong. */}
                           <div className="truncate">{pr.itemCode}</div>
+                        </td>
+
+                        {/* Mã kho — dấu ~ nghĩa là nối máy theo quy cách, CHƯA phòng TM duyệt */}
+                        <td
+                          className={`${TD_TEXT} sticky z-10 ${rowBg} font-mono`}
+                          style={pin('maKho')}
+                          title={
+                            pr.matCode
+                              ? pr.matCodeSource === 'NOI_MAY_CHUA_DUYET'
+                                ? `${pr.matCode} — nối máy theo quy cách, CHƯA duyệt`
+                                : pr.matCode
+                              : 'Chưa nối sang sổ mã anh Huyến'
+                          }
+                        >
+                          {pr.matCode ? (
+                            <div className="truncate text-[#1B365D]">
+                              {pr.matCodeSource === 'NOI_MAY_CHUA_DUYET' && (
+                                <span className="text-amber-600 font-bold">~</span>
+                              )}
+                              {pr.matCode}
+                            </div>
+                          ) : (
+                            <div className="text-slate-300">—</div>
+                          )}
                         </td>
 
                         {/* Description */}

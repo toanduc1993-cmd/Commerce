@@ -232,6 +232,10 @@ export interface PRDetail {
 
   // Dinh danh
   itemCode: string; // I90-A1 | I95-VTC01-001 | I90-C100
+  /** 18/08: mã vật tư sổ anh Huyến (= Inventory.itemCode). itemCode ở trên là mã
+   *  theo gói (071-A-1), KHÔNG tra được kho lẫn sổ kế toán. */
+  matCode?: string | null;
+  matCodeSource?: string | null; // NOI_MAY_CHUA_DUYET | PHONG_TM_DUYET
   itemName: string; // Ton tam | Thep hinh-H | Bulong mong
 
   // Thong so ky thuat

@@ -48,6 +48,10 @@ interface VatTuItem {
    *  cho biết dòng thuộc dự án nào — sau khi nạp 63 dự án thì không đọc nổi. */
   duAn: string;
   id: string;
+  /** 18/08: mã vật tư trong sổ anh Huyến (= Inventory.itemCode). Mã dòng PR bên dưới
+   *  là mã theo gói, KHÔNG tra được kho; đây mới là mã tra kho và tra kế toán. */
+  maKho: string | null;
+  maKhoNguon: string | null; // NOI_MAY_CHUA_DUYET | PHONG_TM_DUYET
   stt: string; // I95-VTC01-001
   description: string; // Tôn tấm
   profile: string; // PL10x2000X12000
@@ -126,6 +130,8 @@ function prsToGroups(prs: PRDetail[]): CategoryGroup[] {
       prId: pr.pr?.id ?? '',
       prRef: pr.pr?.prRef ?? '',
       duAn: pr.pr?.project?.code ?? '—',
+      maKho: pr.matCode ?? null,
+      maKhoNguon: pr.matCodeSource ?? null,
       stt: pr.itemCode,
       description: pr.itemName,
       profile: pr.profile || '',
@@ -202,12 +208,13 @@ const TD_STICKY = `${TD_LEFT} sticky bg-white z-10`;
 // 17/08: cột mã vật tư nay chứa thêm 2 lối tắt (1b, 1c) nên nới 96 → 132.
 // Bài học từ bảng theo dõi hôm 15/08: thêm biểu tượng mà không nới là mã bị cắt
 // cụt thành "195-VPK…".
-const STICKY_W = { duAn: 104, stt: 132, desc: 168, profile: 208 } as const;
+const STICKY_W = { duAn: 104, stt: 132, maKho: 112, desc: 168, profile: 208 } as const;
 const STICKY_LEFT = {
   duAn: 0,
-  stt: STICKY_W.duAn,                                        // 104
-  desc: STICKY_W.duAn + STICKY_W.stt,                        // 200
-  profile: STICKY_W.duAn + STICKY_W.stt + STICKY_W.desc,     // 368
+  stt: STICKY_W.duAn,                                                          // 104
+  maKho: STICKY_W.duAn + STICKY_W.stt,                                         // 236
+  desc: STICKY_W.duAn + STICKY_W.stt + STICKY_W.maKho,                         // 348
+  profile: STICKY_W.duAn + STICKY_W.stt + STICKY_W.maKho + STICKY_W.desc,      // 516
 } as const;
 const pin = (k: keyof typeof STICKY_W) => ({
   left: STICKY_LEFT[k],
@@ -342,6 +349,11 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                   Item/
                   <br />
                   STT
+                </th>
+                <th rowSpan={2} className={`${TH} sticky z-30`} style={pin('maKho')}>
+                  Mã kho/
+                  <br />
+                  anh Huyến
                 </th>
                 <th rowSpan={2} className={`${TH} sticky z-30`} style={pin('desc')}>
                   Description/
@@ -498,7 +510,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                   <Fragment key={`grp-${group.code}`}>
                     {/* ── Group header row ── */}
                     <tr>
-                      <td colSpan={5} className={`${GROUP_ROW} sticky left-0 z-10`}>
+                      <td colSpan={6} className={`${GROUP_ROW} sticky left-0 z-10`}>
                         {group.code} — {group.nameEn} / {group.nameVi}
                       </td>
                       <td className="border border-slate-400 bg-[#dbeafe]" />
@@ -594,6 +606,31 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
                             )}
                           </div>
                         </td>
+                        {/* Mã kho (sổ anh Huyến) — mã tra được tồn kho và sổ kế toán.
+                            Mã dòng PR bên trái là mã theo gói, không tra được gì.
+                            Dấu ~ = nối máy theo chữ ký kích thước, CHƯA phòng TM duyệt. */}
+                        <td
+                          className={`${TD_STICKY} font-mono text-[8px]`}
+                          style={pin('maKho')}
+                          title={
+                            item.maKho
+                              ? item.maKhoNguon === 'NOI_MAY_CHUA_DUYET'
+                                ? `${item.maKho} — nối máy theo quy cách, CHƯA duyệt`
+                                : item.maKho
+                              : 'Chưa nối sang sổ mã anh Huyến'
+                          }
+                        >
+                          {item.maKho ? (
+                            <div className="truncate text-[#1B365D]">
+                              {item.maKhoNguon === 'NOI_MAY_CHUA_DUYET' && (
+                                <span className="text-amber-600 font-bold">~</span>
+                              )}
+                              {item.maKho}
+                            </div>
+                          ) : (
+                            <div className="text-slate-300">—</div>
+                          )}
+                        </td>
                         <td className={TD_STICKY} style={pin('desc')} title={item.description}>
                           <div className="truncate">{item.description}</div>
                         </td>
@@ -678,7 +715,7 @@ export function PR090DetailView({ prs, isLoading }: PR090DetailViewProps) {
               {/* ══════ GRAND TOTAL ROW ══════ */}
               <tr className="bg-[#1B365D] text-white">
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="border border-[#2a5298] sticky left-0 z-10 bg-[#1B365D] text-[9px] font-black px-2 py-2"
                 >
                   TỔNG CỘNG / GRAND TOTAL
