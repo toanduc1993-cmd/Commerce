@@ -3193,19 +3193,24 @@ với cờ `PHONG_TM_DUYET`, không phải sửa màn hình nào.
 
 Ảnh chụp lùi lại: `_backup_PrDetail_matcode_20260818`.
 
-## 18/08/2026 — Nghiệm thu B3→B7 nhánh so sánh giá: MỚI XONG B7, ĐANG DỞ
+## 18/08/2026 — Nghiệm thu B3→B7 nhánh so sánh giá: xong B7 + B6, chờ đăng nhập cho B3–B5
 
-### ⚠️ CHỐT AN TOÀN ĐANG CÒN BẬT — đọc trước khi làm gì với đơn hàng
+### ✅ CHỐT AN TOÀN ĐÃ GỠ (18/08 chiều) — đơn hàng tạo lại bình thường
 
 ```sql
 ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "_guard_no_po_20260818" CHECK (false) NOT VALID;
 ```
 
-**Mọi lệnh tạo đơn hàng (PO) sẽ bị Postgres từ chối** cho tới khi gỡ chốt:
+Chốt này chặn MỌI lệnh tạo đơn hàng. **Đã gỡ lúc 18/08 chiều** vì B3–B5 phải hoãn:
 
 ```sql
 ALTER TABLE "PurchaseOrder" DROP CONSTRAINT "_guard_no_po_20260818";
 ```
+
+Đã thử lại sau khi gỡ: chèn một đơn hàng trong `BEGIN … ROLLBACK` → thành công, không để lại
+dòng nào. `pg_constraint` không còn chốt nào. Không để app nằm nửa vời qua đêm.
+
+**Khi chạy tiếp B3–B5 thì phải BẬT LẠI chốt trước khi bấm bất cứ nút nào ở bước B4.**
 
 Chốt này thuộc bước B0 của kế hoạch nghiệm thu 14/08, bật lại hôm nay để một cú bấm nhầm ở
 bước B4 không tạo đơn hàng thật (~2,5 tỷ đ ở gói A). Đã tự thử: chèn thử một dòng thì báo đúng
@@ -3221,9 +3226,14 @@ không bị đụng.
 
 ### Đang chặn
 
-**B3 · B4 · B4b · B5 · B6 chưa chạy** — phiên đăng nhập trình duyệt đã hết (cookie rỗng,
-localStorage trống), app đá về `/login`. Trợ lý không tự điền mật khẩu vào ô đăng nhập.
-Cần anh Hưng đăng nhập một lần rồi chạy tiếp.
+**B3 · B4 · B4b · B5 chưa chạy** — phiên đăng nhập trình duyệt đã hết (cookie rỗng,
+localStorage trống), app đá về `/login`. Trợ lý không tự điền mật khẩu vào ô đăng nhập —
+ranh giới cố định, giữ nguyên kể cả khi được cho phép. Cần anh Hưng đăng nhập một lần.
+
+**B6 — phần khôi phục: KHÔNG CÒN GÌ ĐỂ TRẢ.** Vì B3–B5 chưa chạy nên hai gói thử chưa hề bị
+đụng. Đã đối chiếu `EXCEPT` hai chiều với ảnh chụp sáng nay: `BidQuoteItem` 0 dòng lệch ·
+`BidQuoteVendor` 0 · `BidAnalysis` 0. Mốc toàn hệ y nguyên lúc bật chốt: PO 1 · hợp đồng 7.309 ·
+đã duyệt 522 · nhóm 0 · điểm 0. Phần còn lại của B6 là gỡ chốt — đã làm.
 
 Hai gói thử vẫn nguyên vẹn, đúng điều kiện kế hoạch cần:
 `BID-VPI095-2605-VTC-003` OPEN/PER_BID · `BID-VPI095-2604-VTC-008` OPEN/PER_ITEM · cả hai **0 dòng
